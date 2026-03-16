@@ -727,6 +727,7 @@ def save_and_go_next(wait, driver):
     wait.until(
         lambda d: d.execute_script("return document.readyState") == "complete"
     )
+
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -1879,6 +1880,7 @@ def click_nexts(wait, driver, label=None, wait_seconds=0.1):
 
     # postback + yeni sayfa
     time.sleep(wait_seconds)
+
 def parse_travel_companions(data):
     companions = []
     i = 0

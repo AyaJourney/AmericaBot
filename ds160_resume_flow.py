@@ -84,6 +84,45 @@ from form_fill import (
 
 
 # =====================================================
+# PHOTO PAGE CHECK
+# =====================================================
+def _check_photo_page(driver) -> bool:
+    """Fotoğraf yükleme sayfasında mıyız?"""
+    try:
+        el = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
+        return el.is_displayed()
+    except Exception:
+        return False
+
+
+def _scn(wait, driver, on_photo_page=None, label="Travel Companions") -> bool:
+    """
+    Save → Continue → Next üçlüsü.
+    Her adımdan sonra fotoğraf sayfası kontrolü yapar.
+    Fotoğraf sayfasına gelinirse on_photo_page() çağırır ve True döner.
+    """
+    click_save(wait, driver)
+    if on_photo_page and _check_photo_page(driver):
+        print("📸 Fotoğraf sayfası tespit edildi (save sonrası)")
+        on_photo_page()
+        return True
+
+    click_continue_applications(wait, driver)
+    if on_photo_page and _check_photo_page(driver):
+        print("📸 Fotoğraf sayfası tespit edildi (continue sonrası)")
+        on_photo_page()
+        return True
+
+    click_nexts(wait, driver, label=label)
+    if on_photo_page and _check_photo_page(driver):
+        print("📸 Fotoğraf sayfası tespit edildi (next sonrası)")
+        on_photo_page()
+        return True
+
+    return False
+
+
+# =====================================================
 # FALLBACK
 # =====================================================
 def enrich_data_with_fallbacks(data: dict) -> dict:
@@ -93,7 +132,6 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
         if not str(d.get(key, "")).strip():
             d[key] = value
 
-    # ─── YES/NO alanlar ───────────────────────────────────────
     yesno_fields = [
         "OTHER_NAME", "OTHER_NATIONALITY", "PERMANENT_RESIDENT_OTHER_COUNTRY",
         "PREV_US_TRAVEL", "US_DRIVER_LICENSE", "PREV_VISA",
@@ -124,13 +162,11 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     for f in yesno_fields:
         fb(f, "NO")
 
-    # ─── Mailing ──────────────────────────────────────────────
     fb("MAILING_SAME_AS_HOME", "YES")
     fb("MAILING_ADDRESS",      "XXXXXXXXXX")
     fb("MAILING_CITY",         "XXXXXXXXXX")
     fb("MAILING_COUNTRY",      "Turkey")
 
-    # ─── Telefon ──────────────────────────────────────────────
     fb("PRIMARY_PHONE",        "5555555555")
     fb("MOBILE_PHONE",         "")
     fb("WORK_PHONE",           "")
@@ -142,14 +178,12 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("PAYER_COMPANY_PHONE",  "5555555555")
     fb("US_POC_PHONE",         "5555555555")
 
-    # ─── Email ────────────────────────────────────────────────
     for f in ["EMAIL", "ADDITIONAL_EMAIL1", "PAYER_EMAIL", "US_POC_EMAIL"]:
         fb(f, "noreply@example.com")
 
-    # ─── Genel text alanlar ───────────────────────────────────
     text_fields = [
         "SURNAME", "GIVEN_NAME", "FULL_NAME_NATIVE",
-        "BIRTH_CITY", 
+        "BIRTH_CITY",
         "HOME_ADDRESS", "HOME_CITY",
         "US_ADDRESS1", "US_CITY",
         "EMP_SCH_NAME", "EMP_SCH_ADDR1", "EMP_SCH_CITY",
@@ -166,15 +200,12 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     for f in text_fields:
         fb(f, "XXXXXXXXXX")
 
-    # ─── US POC State ─────────────────────────────────────────
     fb("US_POC_STATE", "New York")
     fb("NATIONALITY", "Turkey")
-    # ─── Pasaport ─────────────────────────────────────────────
     fb("PASSPORT_NUMBER",      "U123124124")
     fb("PASSPORT_ISSUE_DATE",  "01-JAN-2020")
     fb("PASSPORT_EXPIRY_DATE", "01-JAN-2030")
 
-    # ─── Country → Turkey ─────────────────────────────────────
     fb("BIRTH_COUNTRY",              "Turkey")
     fb("HOME_COUNTRY",               "Turkey")
     fb("PASSPORT_ISSUED_COUNTRY",    "Turkey")
@@ -183,10 +214,8 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("US_POC_COUNTRY",             "Turkey")
     fb("PAYER_COUNTRY",              "Turkey")
 
-    # ─── Dil → Turkish ───────────────────────────────────────
     fb("LANGUAGES", "Turkish")
 
-    # ─── Özel fallback'ler ────────────────────────────────────
     fb("TRAVEL_LOS_UNIT",    "D")
     fb("MARITAL_STATUS",     "SINGLE")
     fb("GENDER",             "M")
@@ -210,11 +239,6 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
 # PRESENT OCCUPATION – RESUME FIX
 # =====================================================
 def _fill_present_occupation_resume(driver, wait, data):
-    """
-    Resume senaryosunda dropdown zaten seçili olabilir.
-    Aynı değer tekrar seçilirse postback tetiklenmez → staleness_of timeout.
-    Bu fonksiyon: zaten seçiliyse JS ile postback'i zorla tetikler.
-    """
     occ_raw = data.get("PRESENT_OCCUPATION", "NOT_EMPLOYED").strip().upper()
     target  = PRESENT_OCCUPATION_MAP.get(occ_raw, "N")
 
@@ -236,7 +260,6 @@ def _fill_present_occupation_resume(driver, wait, data):
         ).select_by_value(target)
         time.sleep(1.5)
 
-    # Explain alanı gerekiyorsa doldur
     if occ_raw in ("NOT_EMPLOYED", "OTHER"):
         try:
             fill_present_occupation_explain(wait, driver, data)
@@ -257,10 +280,6 @@ def _fill_present_occupation_resume(driver, wait, data):
 # ADDITIONAL WORK/EDUCATION – RESUME FIX
 # =====================================================
 def _js_click_radio(driver, wait, radio_id, do_postback=False):
-    """
-    Radio'yu JS ile force-click yapar.
-    Zaten seçili olsa bile checked=true + click() + dispatchEvent çalıştırır.
-    """
     el = wait.until(EC.presence_of_element_located((By.ID, radio_id)))
     driver.execute_script("""
         var el = arguments[0];
@@ -278,14 +297,8 @@ def _js_click_radio(driver, wait, radio_id, do_postback=False):
 
 
 def _fill_additional_work_education_resume(driver, wait, data):
-    """
-    Resume senaryosu için Additional Work/Education sayfası.
-    Sayfa dolu ise language input kontrol edilir, doluysa atlanır.
-    Boşsa JS force-click ile doldurulur.
-    """
     print("📋 Additional Work/Education (RESUME) kontrol ediliyor...")
 
-    # Language input dolu mu kontrol et
     try:
         lang_el = driver.find_element(
             By.ID,
@@ -300,7 +313,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
 
     print("📝 Sayfa boş, dolduruluyor...")
 
-    # 1. CLAN / TRIBE
     clan = data.get("CLAN_TRIBE", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0" if clan == "YES"
@@ -314,7 +326,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
         driver.execute_script("arguments[0].value='';", el)
         el.send_keys(data.get("CLAN_TRIBE_NAME", ""))
 
-    # 2. LANGUAGES
     langs = [x.strip() for x in data.get("LANGUAGES", "Turkish").split(",") if x.strip()]
     if not langs:
         langs = ["Turkish"]
@@ -339,7 +350,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
             time.sleep(0.8)
     print(f"✅ Languages: {langs}")
 
-    # 3. COUNTRIES VISITED
     visited = data.get("COUNTRIES_VISITED", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0" if visited == "YES"
@@ -347,7 +357,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
         do_postback=(visited == "YES")
     )
 
-    # 4. ORGANIZATION
     org = data.get("ORGANIZATION", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_0" if org == "YES"
@@ -355,7 +364,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
         do_postback=(org == "YES")
     )
 
-    # 5. SPECIALIZED SKILLS
     skills = data.get("SPECIALIZED_SKILLS", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_0" if skills == "YES"
@@ -363,7 +371,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
         do_postback=False
     )
 
-    # 6. MILITARY SERVICE
     mil = data.get("MILITARY_SERVICE", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblMILITARY_SERVICE_IND_0" if mil == "YES"
@@ -371,7 +378,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
         do_postback=(mil == "YES")
     )
 
-    # 7. INSURGENT ORG
     insurgent = data.get("INSURGENT_ORG", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblINSURGENT_ORG_IND_0" if insurgent == "YES"
@@ -385,7 +391,7 @@ def _fill_additional_work_education_resume(driver, wait, data):
 # =====================================================
 # MAIN RESUME FLOW
 # =====================================================
-def fill_ds160_resume_application(driver, wait, data):
+def fill_ds160_resume_application(driver, wait, data, on_photo_page=None):
     print("🔄 DS-160 RESUME FLOW BAŞLADI")
 
     data = enrich_data_with_fallbacks(data)
@@ -478,25 +484,19 @@ def fill_ds160_resume_application(driver, wait, data):
 
     fill_us_address(wait, driver, data)
     fill_payer_info(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Travel Companions ────────────────────────────────────
     data = parse_travel_companions(data)
     fill_travel_companions(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Previous US Travel / Visa ────────────────────────────
     fill_previous_us_travel(wait, driver, data)
     fill_previous_visa(wait, driver, data)
     fill_prev_visa_refused(wait, driver, data)
     fill_iv_petition(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Address & Phone ──────────────────────────────────────
     fill_home_address(wait, driver, data)
@@ -507,39 +507,29 @@ def fill_ds160_resume_application(driver, wait, data):
     fill_additional_email(wait, driver, data)
     fill_social_media(wait, driver, data)
     fill_additional_social_media(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Passport ─────────────────────────────────────────────
     fill_passport_info(wait, driver, data)
     fill_lost_passport(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── US Point of Contact ──────────────────────────────────
     fill_us_point_of_contact(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Family ───────────────────────────────────────────────
     fill_parents_info(wait, driver, data)
     fill_us_immediate_relatives(wait, driver, data)
     fill_us_other_relatives(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Spouse ───────────────────────────────────────────────
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
     if marital_status in ("MARRIED", "COMMON-LAW MARRIAGE", "DIVORCED", "WIDOWED"):
         print(f"💍 {marital_status} — eş sayfası dolduruluyor")
         auto_fill_family_page(wait, driver, data)
-        click_save(wait, driver)
-        click_continue_applications(wait, driver)
-        click_nexts(wait, driver, label="Travel Companions")
+        if _scn(wait, driver, on_photo_page): return
     else:
         print(f"ℹ️ {marital_status} — eş sayfası atlanıyor")
 
@@ -550,29 +540,38 @@ def fill_ds160_resume_application(driver, wait, data):
         ))
         _fill_present_occupation_resume(driver, wait, data)
         click_save(wait, driver)
+        if _check_photo_page(driver):
+            print("📸 Fotoğraf sayfası tespit edildi (occupation save sonrası)")
+            if on_photo_page: on_photo_page()
+            return
         click_continue_applications(wait, driver)
+        if _check_photo_page(driver):
+            print("📸 Fotoğraf sayfası tespit edildi (occupation continue sonrası)")
+            if on_photo_page: on_photo_page()
+            return
     except (TimeoutException, NoSuchElementException):
         print("ℹ️ Present Occupation sayfası bulunamadı, atlanıyor.")
 
     try:
         short_wait = WebDriverWait(driver, 3)
         click_nexts(short_wait, driver, label="Travel Companions")
+        if _check_photo_page(driver):
+            print("📸 Fotoğraf sayfası tespit edildi (occupation next sonrası)")
+            if on_photo_page: on_photo_page()
+            return
     except (TimeoutException, NoSuchElementException):
         print("ℹ️ Next butonu bulunamadı, atlanıyor.")
     except Exception as e:
         print(f"⚠️ Next hatası: {e}")
 
     # ─── Previous Employment / Education ──────────────────────
-    # rblPreviouslyEmployed her zaman sayfada var (NO seçili olsa bile)
     try:
         WebDriverWait(driver, 3).until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")
         ))
         fill_previous_employment(wait, driver, data)
         fill_other_education(wait, driver, data)
-        click_save(wait, driver)
-        click_continue_applications(wait, driver)
-        click_nexts(wait, driver, label="Travel Companions")
+        if _scn(wait, driver, on_photo_page): return
         print("✅ Previous Employment/Education tamamlandı.")
     except (TimeoutException, NoSuchElementException):
         print("ℹ️ Previous Employment/Education sayfası yok, atlanıyor.")
@@ -583,55 +582,49 @@ def fill_ds160_resume_application(driver, wait, data):
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")
         ))
         _fill_additional_work_education_resume(driver, wait, data)
-        click_save(wait, driver)
-        click_continue_applications(wait, driver)
-        click_nexts(wait, driver, label="Travel Companions")
+        if _scn(wait, driver, on_photo_page): return
         print("✅ Additional Work/Education tamamlandı.")
     except (TimeoutException, NoSuchElementException):
         print("ℹ️ Additional Work/Education sayfası yok, atlanıyor.")
 
     # ─── Health & Security ────────────────────────────────────
     fill_health_security_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Criminal & Security ──────────────────────────────────
     fill_criminal_security_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Security Violations ──────────────────────────────────
     fill_security_violations_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Removal / Immigration ────────────────────────────────
     fill_removal_immigration_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Misc Immigration Violations ──────────────────────────
     fill_misc_immigration_violations_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
     # ─── Student POC ──────────────────────────────────────────
-    fill_student_poc_sections(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    try:
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlStudentAddPOC_ctl00_tbxADD_POC_SURNAME")
+        ))
+        try:
+            fill_student_poc_sections(wait, driver, data)
+        except Exception as e:
+            print(f"⚠️ Student POC doldurulamadı, devam ediliyor: {e}")
+        if _scn(wait, driver, on_photo_page): return
+        print("✅ Student POC tamamlandı.")
+    except (TimeoutException, NoSuchElementException):
+        print("ℹ️ Student POC sayfası yok (B1/B2), atlanıyor.")
 
     # ─── SEVIS & School ───────────────────────────────────────
     fill_sevis_and_school_if_needed(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label="Travel Companions")
+    if _scn(wait, driver, on_photo_page): return
 
-    # upload_photo_by_fullname(wait, driver, data)
-
+    # Buraya kadar geldiyse fotoğraf sayfası hiç tespit edilmedi
+    print("⚠️ Fotoğraf sayfası tespit edilemedi, flow tamamlandı.")
     print("🎉 DS-160 RESUME FLOW TAMAMLANDI")

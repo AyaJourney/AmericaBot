@@ -89,12 +89,7 @@ from form_fill import (
 # =====================================================
 # DS-160 FULL FORM FLOW (BARCODE SONRASI)
 # =====================================================
-def fill_ds160_full_application(driver, wait, data):
-    """
-    Barcode login sonrası TÜM DS-160 formunu doldurur
-    data: CRM'den gelen JSON
-    """
-
+def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print("🧪 DS-160 FULL FLOW BAŞLADI")
 
     SURNAME = data.get("SURNAME", "")
@@ -102,22 +97,9 @@ def fill_ds160_full_application(driver, wait, data):
     FULL_NAME_NATIVE = data.get("FULL_NAME_NATIVE", "")
     OTHER_NAMES = data.get("OTHER_NAMES", "N").upper()
 
-    # =====================================================
-    # FORM – BASIC IDENTITY
-    # =====================================================
-    fill_basic_identity_form(
-        wait,
-        driver,
-        SURNAME,
-        GIVEN_NAME,
-        FULL_NAME_NATIVE
-    )
-
+    fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
     time.sleep(0.1)
 
-    # =====================================================
-    # OTHER NAMES
-    # =====================================================
     select_other_names(wait, driver, data.get("OTHER_NAME"))
 
     if OTHER_NAMES == "N":
@@ -131,7 +113,6 @@ def fill_ds160_full_application(driver, wait, data):
                 i += 1
             else:
                 break
-
         if other_names_list:
             fill_other_names(wait, driver, other_names_list)
 
@@ -143,22 +124,16 @@ def fill_ds160_full_application(driver, wait, data):
     if data.get("MARITAL_STATUS"):
         select_marital_status(wait, driver, data["MARITAL_STATUS"])
 
-    fill_date_of_birth(
-        wait,
-        driver,
-        data["BIRTH_DAY"],
-        data["BIRTH_MONTH"],
-        data["BIRTH_YEAR"]
-    )
-
+    fill_date_of_birth(wait, driver, data["BIRTH_DAY"], data["BIRTH_MONTH"], data["BIRTH_YEAR"])
     fill_place_of_birth(wait, driver, data["BIRTH_CITY"])
     select_birth_country(wait, driver, data["BIRTH_COUNTRY"])
     fill_birth_state(wait, driver, data.get("BIRTH_STATE"))
-
+    if on_personal1_saved:
+        on_personal1_saved()
     save_and_go_next(wait, driver)
     force_continue_application(wait, driver)
-   
     wait_and_click_next_personal2(wait, driver)
+    # ... geri kalanı aynı
 
     # =====================================================
     # NATIONALITY
@@ -364,5 +339,15 @@ def fill_ds160_full_application(driver, wait, data):
     click_continue_applications(wait, driver)
     click_nexts(wait, driver, label="Travel Companions")
     # upload_photo_by_fullname(wait, driver, data)
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto"))
+        )
+        print("📸 Fotoğraf sayfasına gelindi")
+    except Exception:
+        print("⚠️ Fotoğraf butonu bulunamadı, devam ediliyor")
+
+    if on_photo_page:
+        on_photo_page()
 
     print("🎉 DS-160 FULL FORM TAMAMLANDI")
