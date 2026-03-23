@@ -5363,3 +5363,226 @@ Symbols not available. Dumping unresolved backtrace:
 [BOT-1] Queue kontrol ediliyor...
 [BOT-1] Queue kontrol ediliyor...
 [BOT-1] Queue kontrol ediliyor...
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: d4f334e9-10b4-4241-8a7f-394d4e3c354e
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FE7SYJ
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] HATA: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=145.0.7632.162)
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0xf57dd3
+	0xf57e14
+	0xd61db0
+	0xd408d3
+	0xdd50fb
+	0xdeb0d9
+	0xdce7d6
+	0xda0049
+	0xda0e04
+	0x11b6924
+	0x11b1bf7
+	0x11cf5a0
+	0xf70f58
+	0xf7891d
+	0xf60648
+	0xf60812
+	0xf4a21a
+	0x75bffcc9
+	0x77db82ae
+	0x77db827e
+
+[BOT-1] STATUS -> failed (200)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: f7d12ddf-9549-4125-b78a-5e1cd47b33fd
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FDPZLP
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] retry 1/5
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] RESUME FLOW baslatiliyor...
+🔄 DS-160 RESUME FLOW BAŞLADI
+✅ enrich_data_with_fallbacks tamamlandı
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🧭 Travel details dolduruluyor...
+✅ Tarih girildi: 20-AUG-2026
+✅ Tarih girildi: 25-AUG-2026
+✅ Travel details başarıyla dolduruldu
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+🔗 ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_MOBILE_TEL_NA işareti kaldırılıyor...
+ℹ️ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL için N/A işaretlendi.
+🔗 ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_BUS_TEL_NA işareti kaldırılıyor...
+ℹ️ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_BUS_TEL için N/A işaretlendi.
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: noreply@example.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: REGULAR
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🇺🇸 U.S. Point of Contact başladı
+⚠️ İsim ve Kurum aynı anda NA olamaz. Kurum NA iptal edildi.
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: HOTEL OR BUSINESS
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXXXXXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXXXX
+📍 Eyalet seçildi: NY
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: 5555555555
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: noreply@example.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ FATHER tamamlandı
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+ℹ️ SINGLE — eş sayfası atlanıyor
+ℹ️ Present Occupation zaten seçili (NOT_EMPLOYED), JS postback tetikleniyor...
+✍️ Occupation açıklaması girildi
+✅ NOT_EMPLOYED açıklaması dolduruldu.
+✅ Present Occupation tamamlandı: NOT_EMPLOYED
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🏢 Previous Employment bölümü başladı
+✅ Previously Employed: NO
+🎓 Other Education section başlıyor...
+✅ Other Education: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+✅ Previous Employment/Education tamamlandı.
+📋 Additional Work/Education (RESUME) kontrol ediliyor...
+ℹ️ Sayfa zaten dolu (Language: TURK), atlanıyor.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+✅ Additional Work/Education tamamlandı.
+🟥 Health / Medical Security Section
+🩺 Communicable Disease
+✅ Communicable Disease: NO
+🧠 Mental / Physical Disorder
+✅ Disorder: NO
+💊 Drug Abuse / Addiction
+✅ Drug Abuse: NO
+🟢 Health / Medical Section TAMAMLANDI
+💾 Save butonuna basıldı
