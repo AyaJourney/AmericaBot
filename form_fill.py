@@ -1987,8 +1987,83 @@ def fill_travel_companions(wait, driver, data):
     print("🟢 Travel Companions TAMAMLANDI")
 
 
-def fill_previous_us_travel(wait, driver, data):
+def fill_single_us_visit(wait, driver, data, index=1):
+    date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
+    length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
 
+    if not date or not length:
+        print(f"⚠️ VISIT{index} verisi eksik, atlanıyor")
+        return
+
+    unit_map = {
+        "YEAR": "Y", "YEARS": "Y", "Y": "Y",
+        "MONTH": "M", "MONTHS": "M", "M": "M",
+        "WEEK": "W", "WEEKS": "W", "W": "W",
+        "DAY": "D", "DAYS": "D", "D": "D",
+    }
+    unit = unit_map.get(str(data.get(f"VISIT{index}_STAY_UNIT", "D")).strip().upper(), "D")
+
+    parts = date.split("-")
+    if len(parts) != 3:
+        print(f"⚠️ VISIT{index} tarih formatı hatalı: {date}, atlanıyor")
+        return
+
+    day, month, year = parts
+    month_map = {
+        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
+        "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
+        "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12",
+        "01": "1", "02": "2", "03": "3", "04": "4",
+        "05": "5", "06": "6", "07": "7", "08": "8",
+        "09": "9", "10": "10", "11": "11", "12": "12",
+        "1": "1", "2": "2", "3": "3", "4": "4",
+        "5": "5", "6": "6", "7": "7", "8": "8",
+        "9": "9",
+    }
+
+    if month.upper() not in month_map:
+        print(f"⚠️ VISIT{index} ay değeri tanımsız: {month}, atlanıyor")
+        return
+
+    # index'e göre ctl ID — ilk: ctl00, ikinci: ctl01...
+    ctl = f"ctl{str(index - 1).zfill(2)}"
+
+    Select(wait.until(EC.element_to_be_clickable(
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEDay")
+    ))).select_by_value(str(int(day)))
+
+    Select(wait.until(EC.element_to_be_clickable(
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEMonth")
+    ))).select_by_value(month_map[month.upper()])
+
+    year_el = wait.until(EC.presence_of_element_located(
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear")
+    ))
+    driver.execute_script("""
+        arguments[0].removeAttribute('disabled');
+        arguments[0].removeAttribute('readonly');
+        arguments[0].value = '';
+    """, year_el)
+    year_el.send_keys(year)
+
+    los_el = wait.until(EC.presence_of_element_located(
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_LOS")
+    ))
+    driver.execute_script("""
+        arguments[0].removeAttribute('disabled');
+        arguments[0].removeAttribute('readonly');
+        arguments[0].value = '';
+    """, los_el)
+    los_el.send_keys(length)
+
+    Select(wait.until(EC.element_to_be_clickable(
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_LOS_CD")
+    ))).select_by_value(unit)
+
+    print(f"✅ US Visit {index} girildi ({ctl})")
+
+
+def fill_previous_us_travel(wait, driver, data):
     prev = data.get("PREV_US_TRAVEL", "NO").strip().upper()
 
     if prev not in ("YES", "NO"):
@@ -2016,8 +2091,10 @@ def fill_previous_us_travel(wait, driver, data):
 
     for i in range(1, visits + 1):
         if i > 1:
+            # Önceki satırın Insert butonuna tıkla — ctl00, ctl01...
+            prev_ctl = f"ctl{str(i - 2).zfill(2)}"
             wait.until(EC.element_to_be_clickable((By.ID,
-                "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_InsertButtonPREV_US_VISIT"
+                f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{prev_ctl}_InsertButtonPREV_US_VISIT"
             ))).click()
             time.sleep(2)
 
@@ -2038,82 +2115,6 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
-
-
-def fill_single_us_visit(wait, driver, data, index=1):
-
-    date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
-    length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
-
-    # Tarih boşsa atla
-    if not date or not length:
-        print(f"⚠️ VISIT{index} verisi eksik, atlanıyor (date={date}, length={length})")
-        return
-
-    unit_map = {
-        "YEAR": "Y", "YEARS": "Y", "Y": "Y",
-        "MONTH": "M", "MONTHS": "M", "M": "M",
-        "WEEK": "W", "WEEKS": "W", "W": "W",
-        "DAY": "D", "DAYS": "D", "D": "D",
-    }
-    unit = unit_map.get(str(data.get(f"VISIT{index}_STAY_UNIT", "D")).strip().upper(), "D")
-
-    parts = date.split("-")
-    if len(parts) != 3:
-        print(f"⚠️ VISIT{index} tarih formatı hatalı: {date}, atlanıyor")
-        return
-
-    day, month, year = parts
-    month_map = {
-    "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
-    "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
-    "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12",
-    "01": "1", "02": "2", "03": "3", "04": "4",
-    "05": "5", "06": "6", "07": "7", "08": "8",
-    "09": "9", "10": "10", "11": "11", "12": "12",
-    "1": "1", "2": "2", "3": "3", "4": "4",
-    "5": "5", "6": "6", "7": "7", "8": "8",
-    "9": "9",
-}
-
-    if month.upper() not in month_map:
-        print(f"⚠️ VISIT{index} ay değeri tanımsız: {month}, atlanıyor")
-        return
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_ddlPREV_US_VISIT_DTEDay")
-    ))).select_by_value(str(int(day)))
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_ddlPREV_US_VISIT_DTEMonth")
-    ))).select_by_value(month_map[month.upper()])
-
-    year_el = wait.until(EC.presence_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_tbxPREV_US_VISIT_DTEYear")
-    ))
-    driver.execute_script("""
-        arguments[0].removeAttribute('disabled');
-        arguments[0].removeAttribute('readonly');
-        arguments[0].value = '';
-    """, year_el)
-    year_el.send_keys(year)
-
-    los_el = wait.until(EC.presence_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_tbxPREV_US_VISIT_LOS")
-    ))
-    driver.execute_script("""
-        arguments[0].removeAttribute('disabled');
-        arguments[0].removeAttribute('readonly');
-        arguments[0].value = '';
-    """, los_el)
-    los_el.send_keys(length)
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_ddlPREV_US_VISIT_LOS_CD")
-    ))).select_by_value(unit)
-
-    print(f"✅ US Visit {index} girildi")
-
 def fill_us_driver_license(wait, driver, data):
 
     lic_no = data.get("US_DRIVER_LICENSE_NUMBER", "NA").strip().upper()
