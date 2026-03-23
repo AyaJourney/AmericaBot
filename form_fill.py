@@ -2089,15 +2089,30 @@ def fill_previous_us_travel(wait, driver, data):
     visits = min(requested, actual_visits) if actual_visits > 0 else 1
     print(f"ℹ️ PREV_US_VISITS={requested}, gerçek veri={actual_visits}, kullanılan={visits}")
 
-    for i in range(1, visits + 1):
-        if i > 1:
-            # Önceki satırın Insert butonuna tıkla — ctl00, ctl01...
-            prev_ctl = f"ctl{str(i - 2).zfill(2)}"
-            wait.until(EC.element_to_be_clickable((By.ID,
-                f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{prev_ctl}_InsertButtonPREV_US_VISIT"
-            ))).click()
-            time.sleep(2)
+    # Sayfada kaç satır mevcut?
+    existing_rows = 0
+    while True:
+        ctl = f"ctl{str(existing_rows).zfill(2)}"
+        els = driver.find_elements(
+            By.ID,
+            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear"
+        )
+        if not els:
+            break
+        existing_rows += 1
+    print(f"ℹ️ Sayfada {existing_rows} mevcut satır, {visits} gerekli")
 
+    # Eksik kadar Insert'e tıkla
+    for i in range(existing_rows, visits):
+        ctl = f"ctl{str(i - 1).zfill(2)}"
+        wait.until(EC.element_to_be_clickable((By.ID,
+            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
+        ))).click()
+        print(f"✅ Visit satırı {i + 1} eklendi")
+        time.sleep(2)
+
+    # Hepsini doldur
+    for i in range(1, visits + 1):
         fill_single_us_visit(wait, driver, data, index=i)
 
     # Public school sorusu (varsa — F vizesiyle ilgili)
@@ -2128,7 +2143,7 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
-
+        
 def fill_us_driver_license(wait, driver, data):
 
     lic_no = data.get("US_DRIVER_LICENSE_NUMBER", "NA").strip().upper()
