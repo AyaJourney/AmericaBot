@@ -2042,8 +2042,13 @@ def fill_previous_us_travel(wait, driver, data):
 
 def fill_single_us_visit(wait, driver, data, index=1):
 
-    date = data[f"VISIT{index}_ARRIVAL_DATE"]
-    length = data[f"VISIT{index}_STAY_LENGTH"]
+    date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
+    length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
+
+    # Tarih boşsa atla
+    if not date or not length:
+        print(f"⚠️ VISIT{index} verisi eksik, atlanıyor (date={date}, length={length})")
+        return
 
     unit_map = {
         "YEAR": "Y", "YEARS": "Y", "Y": "Y",
@@ -2053,12 +2058,21 @@ def fill_single_us_visit(wait, driver, data, index=1):
     }
     unit = unit_map.get(str(data.get(f"VISIT{index}_STAY_UNIT", "D")).strip().upper(), "D")
 
-    day, month, year = date.split("-")
+    parts = date.split("-")
+    if len(parts) != 3:
+        print(f"⚠️ VISIT{index} tarih formatı hatalı: {date}, atlanıyor")
+        return
+
+    day, month, year = parts
     month_map = {
         "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
         "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
         "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
     }
+
+    if month.upper() not in month_map:
+        print(f"⚠️ VISIT{index} ay değeri tanımsız: {month}, atlanıyor")
+        return
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_ctl00_ddlPREV_US_VISIT_DTEDay")
@@ -2093,7 +2107,6 @@ def fill_single_us_visit(wait, driver, data, index=1):
     ))).select_by_value(unit)
 
     print(f"✅ US Visit {index} girildi")
-
 
 def fill_us_driver_license(wait, driver, data):
 

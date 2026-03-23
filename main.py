@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import io
-# Windows encoding fix - emoji ve turkce karakter sorunu cozumu
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -10,7 +9,6 @@ import time
 import requests
 import traceback
 import os
-from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -19,6 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
     StaleElementReferenceException,
     TimeoutException,
+    NoSuchElementException,
     WebDriverException,
 )
 from webdriver_manager.chrome import ChromeDriverManager
@@ -36,7 +35,7 @@ print(f"[BOT-{BOT_ID}] Baslatildi")
 # =====================================================
 # CONFIG
 # =====================================================
-CRM_BASE = "http://localhost:3000/api/internal"
+CRM_BASE = "https://crm.ayajourney.com/api/internal"
 
 QUEUE_URL               = f"{CRM_BASE}/queue/ds160/start"
 STATUS_URL              = f"{CRM_BASE}/job/status"
@@ -47,13 +46,40 @@ POLL_INTERVAL             = 3
 SELENIUM_PAGELOAD_TIMEOUT = 120
 
 # =====================================================
+# DATA FLATTEN
+# =====================================================
+def flatten_job_data(data: dict) -> dict:
+    """
+    CRM'den gelen job data içinde raw_data, family_info vs nested key'ler olabilir.
+    raw_data'yı üst seviyeye düzleştir — mevcut key'lerin üzerine yazmaz.
+    """
+    if not isinstance(data, dict):
+        return data
+    if "raw_data" in data and isinstance(data["raw_data"], dict):
+        for k, v in data["raw_data"].items():
+            if k not in data or not data[k]:
+                data[k] = v
+    return data
+
+
+def get_field(data: dict, key: str, default: str = "") -> str:
+    """data'dan field al, yoksa raw_data'ya bak, yoksa default döndür."""
+    val = data.get(key)
+    if val:
+        return str(val)
+    val = data.get("raw_data", {}).get(key) if isinstance(data.get("raw_data"), dict) else None
+    if val:
+        return str(val)
+    return default
+
+
+# =====================================================
 # CRM HELPERS
 # =====================================================
 def update_job_status(job_id: str, status: str, extra: dict | None = None):
     payload = {"job_id": job_id, "status": status}
     if extra:
         payload.update(extra)
-    # page_screenshot varsa timeout daha uzun
     has_screenshot = bool(extra and extra.get("page_screenshot"))
     timeout = 60 if has_screenshot else 10
     try:
@@ -93,7 +119,6 @@ def poll_captcha_state(job_id: str):
 
 
 def poll_job_status(job_id: str):
-    """Job'un guncel status'unu dogrudan jobs tablosundan cek"""
     try:
         res = requests.get(f"{CRM_BASE}/job/status?job_id={job_id}", timeout=10)
         if res.status_code != 200:
@@ -140,8 +165,6 @@ def get_captcha_image_base64(driver) -> str:
     )
     return captcha_img.screenshot_as_base64
 
-
-from selenium.common.exceptions import NoSuchElementException
 
 def refresh_captcha_and_get_base64(driver, total_timeout=10):
     wait = WebDriverWait(driver, 5)
@@ -192,7 +215,91 @@ def read_refresh_flag(payload: dict) -> bool:
 
 
 # =====================================================
-# CHROME — her bot ayri profil + user-agent
+# SCREENSHOT HELPER
+# =====================================================
+def take_and_send_screenshot(driver, job_id: str):
+    page_b64 = None
+    try:
+        rect = driver.execute_script("""
+            var el = document.getElementById('content-main');
+            if (!el) el = document.getElementById('content');
+            if (!el) return null;
+            var r = el.getBoundingClientRect();
+            return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: el.scrollHeight }
+        """)
+        if rect:
+            clip_x = max(0, int(rect["x"]))
+            clip_y = max(0, int(rect["y"]))
+            clip_w = int(rect["w"])
+            clip_h = min(int(rect["h"]), 8000)
+        else:
+            clip_x, clip_y, clip_w, clip_h = 0, 0, 900, 4000
+
+        driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+            "width": clip_x + clip_w + 20,
+            "height": clip_y + clip_h + 20,
+            "deviceScaleFactor": 1.5,
+            "mobile": False,
+        })
+        time.sleep(0.5)
+        result = driver.execute_cdp_cmd("Page.captureScreenshot", {
+            "format": "png",
+            "clip": {
+                "x": clip_x, "y": clip_y,
+                "width": clip_w, "height": clip_h,
+                "scale": 1.5,
+            },
+            "captureBeyondViewport": True,
+        })
+        page_b64 = result.get("data")
+        driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
+        print(f"[BOT-{BOT_ID}] Screenshot boyutu: {len(page_b64) if page_b64 else 0} chars")
+    except Exception as ss_err:
+        print(f"[BOT-{BOT_ID}] CDP screenshot hatasi: {ss_err}, fallback deneniyor...")
+        try:
+            page_b64 = driver.get_screenshot_as_base64()
+            print(f"[BOT-{BOT_ID}] Fallback screenshot boyutu: {len(page_b64) if page_b64 else 0} chars")
+        except Exception as ss_err2:
+            print(f"[BOT-{BOT_ID}] Screenshot tamamen basarisiz: {ss_err2}")
+
+    try:
+        r2 = requests.post(
+            f"{CRM_BASE}/job/screenshot",
+            json={
+                "job_id": job_id,
+                "page_screenshot": f"data:image/png;base64,{page_b64}" if page_b64 else None
+            },
+            timeout=60
+        )
+        print(f"[BOT-{BOT_ID}] Screenshot gonderildi: {r2.status_code}")
+    except Exception as se:
+        print(f"[BOT-{BOT_ID}] Screenshot gonderi hatasi: {se}")
+
+
+# =====================================================
+# WAITING CLOSE LOOP
+# =====================================================
+def wait_for_close_command(driver, job_id: str):
+    update_job_status(job_id, "waiting_close")
+    print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
+    while True:
+        time.sleep(POLL_INTERVAL)
+        payload = poll_captcha_state(job_id)
+        if not payload:
+            continue
+        job_status = payload.get("status")
+        print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
+        if job_status == "close":
+            print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
+            driver.quit()
+            sys.exit(0)
+        if payload.get("close_ack") or job_status == "close_ack":
+            print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
+            break
+
+
+# =====================================================
+# CHROME
 # =====================================================
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
@@ -210,12 +317,10 @@ def make_driver():
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
-    # Windows uyumlu ayri Chrome profili
     chrome_profile = os.path.join(os.path.expanduser("~"), f"chrome-bot-{BOT_ID}")
     options.add_argument(f"--user-data-dir={chrome_profile}")
     print(f"[BOT-{BOT_ID}] Chrome profil: {chrome_profile}")
 
-    # Her bot farkli user-agent
     ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
     options.add_argument(f"--user-agent={ua}")
 
@@ -225,7 +330,6 @@ def make_driver():
     )
     driver.set_page_load_timeout(SELENIUM_PAGELOAD_TIMEOUT)
 
-    # navigator.webdriver gizle
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
@@ -240,13 +344,17 @@ def run_ds160_until_captcha(job: dict):
     job_id = job["job_id"]
     data   = job.get("data", {}) or {}
 
-    barcode_from_crm = data.get("BARCODE")
-    IS_RETRIEVE      = bool(barcode_from_crm)
+    # raw_data varsa düzleştir
+    data = flatten_job_data(data)
+
+    barcode_from_crm = data.get("BARCODE") or ""
+    IS_RETRIEVE      = bool(barcode_from_crm.strip())
     LOCATION         = data.get("LOCATION", "ANK")
 
     print(f"[BOT-{BOT_ID}] JOB: {job_id}")
     print(f"[BOT-{BOT_ID}] MODE: {'RETRIEVE' if IS_RETRIEVE else 'NEW'}")
     print(f"[BOT-{BOT_ID}] LOCATION: {LOCATION}")
+    print(f"[BOT-{BOT_ID}] SURNAME: {get_field(data, 'SURNAME', '???')}")
 
     update_job_status(job_id, "processing")
 
@@ -310,7 +418,6 @@ def run_ds160_until_captcha(job: dict):
             captcha_input.clear()
             captcha_input.send_keys(captcha_value)
 
-            # 5. NEW / RETRIEVE linkine tikla
             if IS_RETRIEVE:
                 print(f"[BOT-{BOT_ID}] Retrieve akisi (deneme {captcha_attempts})")
                 wait.until(EC.element_to_be_clickable(
@@ -325,7 +432,6 @@ def run_ds160_until_captcha(job: dict):
             time.sleep(2)
             wait_document_ready(driver, 15)
 
-            # Captcha hata mesaji var mi?
             captcha_error = False
             try:
                 err_el = driver.find_element(
@@ -341,22 +447,19 @@ def run_ds160_until_captcha(job: dict):
                 print(f"[BOT-{BOT_ID}] Captcha gecti (deneme {captcha_attempts})")
                 break
 
-            # Hatali - yeni captcha al ve CRM'e gonder
             print(f"[BOT-{BOT_ID}] Yeni captcha aliniyor...")
             new_b64 = refresh_captcha_and_get_base64(driver)
             if new_b64:
                 send_captcha_to_crm(job_id, new_b64, refreshed=True)
                 update_job_status(job_id, "captcha_refresh")
 
-            # Yeni cevap bekle - once CRM'in answer'i temizlemesi icin bekle
             print(f"[BOT-{BOT_ID}] Yeni captcha cevabi bekleniyor...")
-            time.sleep(3)  # CRM'in captcha_answer'i null yapması için bekle
+            time.sleep(3)
             while True:
                 time.sleep(POLL_INTERVAL)
                 payload = poll_captcha_state(job_id)
                 if not payload:
                     continue
-                # captcha_answer dolu VE status hala captcha_refresh ise henuz girilmemis
                 if payload.get("status") in ("captcha_refresh", "waiting_captcha"):
                     answer = payload.get("captcha_answer")
                     if answer and str(answer).strip():
@@ -372,8 +475,11 @@ def run_ds160_until_captcha(job: dict):
 
         update_job_status(job_id, "captcha_verified")
 
-        # Retrieve akisi devam
+        # 5. RETRIEVE AKISI DEVAM
         if IS_RETRIEVE:
+            surname   = get_field(data, "SURNAME", "XXXXX")[:5].upper()
+            birth_year = get_field(data, "BIRTH_YEAR", "1990")
+
             wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_tbxApplicationID")
             )).send_keys(barcode_from_crm)
@@ -384,11 +490,11 @@ def run_ds160_until_captcha(job: dict):
 
             wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbSurname")
-            )).send_keys(data["SURNAME"][:5].upper())
+            )).send_keys(surname)
 
             wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbDOBYear")
-            )).send_keys(data["BIRTH_YEAR"])
+            )).send_keys(birth_year)
 
             wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbAnswer")
@@ -402,9 +508,7 @@ def run_ds160_until_captcha(job: dict):
         wait_document_ready(driver, 90)
 
         # 6. BARCODE + PRIVACY
-        barcode_from_crm = data.get("BARCODE")
-        IS_RETRIEVE      = bool(barcode_from_crm)
-        barcode_value    = None
+        barcode_value = None
 
         if IS_RETRIEVE:
             barcode_value = barcode_from_crm
@@ -471,166 +575,19 @@ def run_ds160_until_captcha(job: dict):
 
             def on_photo_page():
                 print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
-                page_b64 = None
-                try:
-                    rect = driver.execute_script("""
-                var el = document.getElementById('content-main');
-                if (!el) el = document.getElementById('content');
-                if (!el) return null;
-                var r = el.getBoundingClientRect();
-                return { x: r.left + window.scrollX, y: r.top + window.scrollY, w: r.width, h: el.scrollHeight }
-            """)
-                    if rect:
-                        clip_x = max(0, int(rect["x"]))
-                        clip_y = max(0, int(rect["y"]))
-                        clip_w = int(rect["w"])
-                        clip_h = min(int(rect["h"]), 8000)
-                    else:
-                        clip_x, clip_y, clip_w, clip_h = 0, 0, 900, 4000
-                    driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
-                "width": clip_x + clip_w + 20, "height": clip_y + clip_h + 20,
-                "deviceScaleFactor": 1.5, "mobile": False,
-            })
-                    time.sleep(0.5)
-                    result = driver.execute_cdp_cmd("Page.captureScreenshot", {
-                "format": "png",
-                "clip": {"x": clip_x, "y": clip_y, "width": clip_w, "height": clip_h, "scale": 1.5},
-                "captureBeyondViewport": True,
-            })
-                    page_b64 = result.get("data")
-                    driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
-                except Exception as ss_err:
-                    print(f"[BOT-{BOT_ID}] CDP screenshot hatasi: {ss_err}, fallback...")
-                    try:
-                        page_b64 = driver.get_screenshot_as_base64()
-                    except Exception:
-                        pass
-
-                try:
-                    r2 = requests.post(
-                        f"{CRM_BASE}/job/screenshot",
-                        json={"job_id": job_id, "page_screenshot": f"data:image/png;base64,{page_b64}" if page_b64 else None},
-                        timeout=60
-            )
-                    print(f"[BOT-{BOT_ID}] Screenshot gonderildi: {r2.status_code}")
-                except Exception as se:
-                    print(f"[BOT-{BOT_ID}] Screenshot gonderi hatasi: {se}")
-
-                update_job_status(job_id, "waiting_close")
-                print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
-
-                while True:
-                    time.sleep(POLL_INTERVAL)
-                    payload = poll_captcha_state(job_id)
-                    if not payload:
-                        continue
-                    job_status = payload.get("status")
-                    print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
-                    if job_status == "close":
-                        print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
-                        driver.quit()
-                        sys.exit(0)
+                take_and_send_screenshot(driver, job_id)
+                wait_for_close_command(driver, job_id)
 
             fill_ds160_resume_application(driver, wait, data, on_photo_page=on_photo_page)
+
         else:
             print(f"[BOT-{BOT_ID}] FULL FLOW baslatiliyor...")
             from ds160_full_flow import fill_ds160_full_application
 
             def on_personal1_saved():
-                """Kaydetmeden ONCE screenshot al, onay bekle, onay gelince devam et (save_and_go_next cagrisi sonra yapilir)"""
                 print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor...")
-                page_b64 = None
-                try:
-                    # Tam sayfa screenshot - CDP ile
-                    # Sadece #content-main div'ini kırp
-                    rect = driver.execute_script("""
-                        var el = document.getElementById('content-main');
-                        if (!el) el = document.getElementById('content');
-                        if (!el) return null;
-                        var r = el.getBoundingClientRect();
-                        return {
-                            x: r.left + window.scrollX,
-                            y: r.top + window.scrollY,
-                            w: r.width,
-                            h: el.scrollHeight
-                        }
-                    """)
-                    if rect:
-                        clip_x = max(0, int(rect["x"]))
-                        clip_y = max(0, int(rect["y"]))
-                        clip_w = int(rect["w"])
-                        clip_h = min(int(rect["h"]), 8000)
-                    else:
-                        clip_x, clip_y = 0, 0
-                        clip_w = 900
-                        clip_h = 4000
-
-                    page_w = clip_x + clip_w + 20
-                    page_h = clip_y + clip_h + 20
-
-                    driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
-                        "width": page_w,
-                        "height": page_h,
-                        "deviceScaleFactor": 1.5,
-                        "mobile": False,
-                    })
-                    time.sleep(0.5)
-                    result = driver.execute_cdp_cmd("Page.captureScreenshot", {
-                        "format": "png",
-                        "clip": {
-                            "x": clip_x,
-                            "y": clip_y,
-                            "width": clip_w,
-                            "height": clip_h,
-                            "scale": 1.5,
-                        },
-                        "captureBeyondViewport": True,
-                    })
-                    page_b64 = result.get("data")
-                    driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
-                    print(f"[BOT-{BOT_ID}] Tam sayfa screenshot boyutu: {len(page_b64) if page_b64 else 0} chars")
-                except Exception as ss_err:
-                    print(f"[BOT-{BOT_ID}] CDP screenshot hatasi: {ss_err}, fallback deneniyor...")
-                    try:
-                        page_b64 = driver.get_screenshot_as_base64()
-                        print(f"[BOT-{BOT_ID}] Fallback screenshot boyutu: {len(page_b64) if page_b64 else 0} chars")
-                    except Exception as ss_err2:
-                        print(f"[BOT-{BOT_ID}] Screenshot tamamen basarisiz: {ss_err2}")
-
-                # Screenshot ayri endpoint ile gonder (buyuk payload)
-                try:
-                    import requests as _req
-                    r2 = _req.post(
-                        f"{CRM_BASE}/job/screenshot",
-                        json={
-                            "job_id": job_id,
-                            "page_screenshot": f"data:image/png;base64,{page_b64}" if page_b64 else None
-                        },
-                        timeout=60
-                    )
-                    print(f"[BOT-{BOT_ID}] Screenshot gonderildi: {r2.status_code}")
-                except Exception as se:
-                    print(f"[BOT-{BOT_ID}] Screenshot gonderi hatasi: {se}")
-
-                update_job_status(job_id, "waiting_close")
-                print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
-
-                # "close" komutu gelene kadar bekle
-                while True:
-                    time.sleep(POLL_INTERVAL)
-                    payload = poll_captcha_state(job_id)
-                    if not payload:
-                        continue
-                    job_status = payload.get("status")
-                    print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
-                    if job_status == "close":
-                        print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
-                        driver.quit()
-                        import sys
-                        sys.exit(0)
-                    if payload.get("close_ack") or job_status == "close_ack":
-                        print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
-                        break
+                take_and_send_screenshot(driver, job_id)
+                wait_for_close_command(driver, job_id)
 
             fill_ds160_full_application(driver, wait, data, on_personal1_saved=on_personal1_saved)
 
@@ -642,13 +599,14 @@ def run_ds160_until_captcha(job: dict):
 
     except Exception as e:
         tb = traceback.format_exc()
-        error_msg = str(e) if str(e).strip() else tb
-        print(f"[BOT-{BOT_ID}] HATA: {error_msg}")
-        update_job_status(job_id, "failed", {"error": error_msg[:2000]})
-        traceback.print_exc()
+        print(f"[BOT-{BOT_ID}] HATA:\n{tb}")
+        update_job_status(job_id, "failed", {"error": tb[:2000]})
 
     finally:
-        driver.quit()
+        try:
+            driver.quit()
+        except Exception:
+            pass
 
 
 # =====================================================

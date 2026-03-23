@@ -96,32 +96,31 @@ def _check_photo_page(driver) -> bool:
 
 
 def _scn(wait, driver, on_photo_page=None, label="Travel Companions") -> bool:
-    """
-    Save → Continue → Next üçlüsü.
-    Her adımdan sonra fotoğraf sayfası kontrolü yapar.
-    Fotoğraf sayfasına gelinirse on_photo_page() çağırır ve True döner.
-    """
     click_save(wait, driver)
     if on_photo_page and _check_photo_page(driver):
         print("📸 Fotoğraf sayfası tespit edildi (save sonrası)")
         on_photo_page()
         return True
 
-    click_continue_applications(wait, driver)
+    try:
+        click_continue_applications(wait, driver)
+    except Exception as e:
+        print(f"⚠️ Continue butonu bulunamadı, atlanıyor: {e}")
     if on_photo_page and _check_photo_page(driver):
         print("📸 Fotoğraf sayfası tespit edildi (continue sonrası)")
         on_photo_page()
         return True
 
-    click_nexts(wait, driver, label=label)
+    try:
+        click_nexts(wait, driver, label=label)
+    except Exception as e:
+        print(f"⚠️ Next butonu bulunamadı, atlanıyor: {e}")
     if on_photo_page and _check_photo_page(driver):
         print("📸 Fotoğraf sayfası tespit edildi (next sonrası)")
         on_photo_page()
         return True
 
     return False
-
-
 # =====================================================
 # FALLBACK
 # =====================================================
@@ -231,10 +230,33 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("PRESENT_OCCUPATION", "NOT_EMPLOYED")
     fb("OTHER_NAME",         "NO")
 
+    # ─── VISIT1 verisi yoksa ARRIVAL bilgilerinden oluştur ────
+    if not str(d.get("VISIT1_ARRIVAL_DATE", "")).strip():
+        arrival_day   = str(d.get("ARRIVAL_DAY", "")).strip().zfill(2)
+        arrival_month = str(d.get("ARRIVAL_MONTH", "")).strip().upper()
+        arrival_year  = str(d.get("ARRIVAL_YEAR", "")).strip()
+        if arrival_day and arrival_month and arrival_year:
+            d["VISIT1_ARRIVAL_DATE"] = f"{arrival_day}-{arrival_month}-{arrival_year}"
+            print(f"ℹ️ VISIT1_ARRIVAL_DATE oluşturuldu: {d['VISIT1_ARRIVAL_DATE']}")
+
+    if not str(d.get("VISIT1_STAY_LENGTH", "")).strip():
+        d["VISIT1_STAY_LENGTH"] = str(d.get("TRAVEL_LOS_VALUE", "30")).strip() or "30"
+        print(f"ℹ️ VISIT1_STAY_LENGTH oluşturuldu: {d['VISIT1_STAY_LENGTH']}")
+
+    if not str(d.get("VISIT1_STAY_UNIT", "")).strip():
+        unit_raw = str(d.get("TRAVEL_LOS_UNIT", "D")).strip().upper()
+        unit_map = {
+            "DAY(S)": "D", "DAYS": "D", "DAY": "D",
+            "MONTH(S)": "M", "MONTHS": "M", "MONTH": "M",
+            "WEEK(S)": "W", "WEEKS": "W", "WEEK": "W",
+            "YEAR(S)": "Y", "YEARS": "Y", "YEAR": "Y",
+            "D": "D", "M": "M", "W": "W", "Y": "Y",
+        }
+        d["VISIT1_STAY_UNIT"] = unit_map.get(unit_raw, "D")
+        print(f"ℹ️ VISIT1_STAY_UNIT oluşturuldu: {d['VISIT1_STAY_UNIT']}")
+
     print("✅ enrich_data_with_fallbacks tamamlandı")
     return d
-
-
 # =====================================================
 # PRESENT OCCUPATION – RESUME FIX
 # =====================================================

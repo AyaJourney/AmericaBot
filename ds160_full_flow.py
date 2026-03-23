@@ -128,10 +128,12 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     fill_place_of_birth(wait, driver, data["BIRTH_CITY"])
     select_birth_country(wait, driver, data["BIRTH_COUNTRY"])
     fill_birth_state(wait, driver, data.get("BIRTH_STATE"))
-    if on_personal1_saved:
-        on_personal1_saved()
     save_and_go_next(wait, driver)
     force_continue_application(wait, driver)
+    if on_personal1_saved:
+        on_personal1_saved()
+    
+    
     wait_and_click_next_personal2(wait, driver)
     # ... geri kalanı aynı
 

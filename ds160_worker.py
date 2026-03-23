@@ -8,7 +8,7 @@ from selenium.webdriver.chrome.options import Options
 # =====================================================
 # CONFIG
 # =====================================================
-CRM_BASE_URL = "https://crm-domain.com"
+CRM_BASE_URL = "https://crm.ayajourney.com"
 FETCH_JOB_URL = f"{CRM_BASE_URL}/api/internal/queue/ds160"
 JOB_RESULT_URL = f"{CRM_BASE_URL}/api/internal/job-result"
 
