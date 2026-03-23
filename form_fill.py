@@ -2100,6 +2100,19 @@ def fill_previous_us_travel(wait, driver, data):
 
         fill_single_us_visit(wait, driver, data, index=i)
 
+    # Public school sorusu (varsa — F vizesiyle ilgili)
+    try:
+        public_school_no = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.ID,
+                "ctl00_SiteContentPlaceHolder_FormView1_rblPUBLIC_SCHOOL_IND_1"
+            ))
+        )
+        public_school_no.click()
+        print("✅ Public School: NO")
+        time.sleep(1)
+    except Exception:
+        print("ℹ️ Public School sorusu yok, atlanıyor")
+
     dl = data.get("US_DRIVER_LICENSE", "NO").strip().upper()
     if dl not in ("YES", "NO"):
         raise Exception("❌ US_DRIVER_LICENSE YES veya NO olmalı")
@@ -2115,6 +2128,7 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
+
 def fill_us_driver_license(wait, driver, data):
 
     lic_no = data.get("US_DRIVER_LICENSE_NUMBER", "NA").strip().upper()
