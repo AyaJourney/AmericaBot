@@ -2143,7 +2143,7 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
-        
+
 def fill_us_driver_license(wait, driver, data):
 
     lic_no = data.get("US_DRIVER_LICENSE_NUMBER", "NA").strip().upper()
@@ -4746,8 +4746,20 @@ def fill_misc_immigration_violations_section(wait, driver, data):
         wait.until(EC.element_to_be_clickable((By.ID, element_id))).click()
         time.sleep(0.2)
 
-    print("✅ MISC IMMIGRATION / LEGAL VIOLATIONS SECTION TAMAMLANDI")
+    # Public school reimbursement sorusu (varsa)
+    try:
+        att_wo_reimb = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.ID,
+                "ctl00_SiteContentPlaceHolder_FormView1_rblAttWoReimb_1"
+            ))
+        )
+        att_wo_reimb.click()
+        print("✅ Att Without Reimbursement: NO")
+        time.sleep(1)
+    except Exception:
+        print("ℹ️ AttWoReimb sorusu yok, atlanıyor")
 
+    print("✅ MISC IMMIGRATION / LEGAL VIOLATIONS SECTION TAMAMLANDI")
 
 def _fill_input(wait, driver, el_id, value):
     if not value:
