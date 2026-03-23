@@ -4,6 +4,7 @@ Kullanim:
   python run_bots.py            -> 3 bot baslatir (varsayilan)
   python run_bots.py --bots 5   -> 5 bot baslatir
   python run_bots.py --bots 1   -> tek bot (test)
+  burası kontrol
 """
 
 import argparse
