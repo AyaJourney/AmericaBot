@@ -1490,7 +1490,7 @@ SOCIAL_MEDIA_MAP = {
 
     "TUMBLR": "TUMB",
 
-    "TWITTER": "TWIT",
+    "X(TWITTER)": "TWIT",
     "X": "TWIT",
 
     "TWOO": "TWOO",
