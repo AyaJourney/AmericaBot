@@ -364,16 +364,17 @@ def _fill_additional_work_education_resume(driver, wait, data):
             ))
             driver.execute_script("arguments[0].value='';", el)
             el.send_keys(data.get("CLAN_TRIBE_NAME", ""))
+        print(f"✅ CLAN_TRIBE: {clan}")
 
         # 2. LANGUAGES
         langs = [x.strip() for x in data.get("LANGUAGES", "Turkish").split(",") if x.strip()]
         if not langs:
             langs = ["Turkish"]
-        base = "ctl00_SiteContentPlaceHolder_FormView1_dtlLANGUAGES_ctl"
+        base_lang = "ctl00_SiteContentPlaceHolder_FormView1_dtlLANGUAGES_ctl"
         for i, lang in enumerate(langs):
             idx    = f"{i:02d}"
-            tbx_id = f"{base}{idx}_tbxLANGUAGE_NAME"
-            add_id = f"{base}{idx}_InsertButtonLANGUAGE"
+            tbx_id = f"{base_lang}{idx}_tbxLANGUAGE_NAME"
+            add_id = f"{base_lang}{idx}_InsertButtonLANGUAGE"
             el = wait.until(EC.visibility_of_element_located((By.ID, tbx_id)))
             driver.execute_script("""
                 arguments[0].removeAttribute('disabled');
@@ -388,21 +389,95 @@ def _fill_additional_work_education_resume(driver, wait, data):
             if i < len(langs) - 1:
                 wait.until(EC.element_to_be_clickable((By.ID, add_id))).click()
                 time.sleep(0.8)
-        print(f"✅ Languages: {langs}")
+        print(f"✅ LANGUAGES: {langs}")
 
         # 3. COUNTRIES VISITED
-        visited = data.get("COUNTRIES_VISITED", "NO").upper()
-        # COUNTRIES_VISITED virgülle ayrılmış ülke listesi olabilir
-        if visited and visited != "NO" and visited != "":
+        countries_raw = data.get("COUNTRIES_VISITED", "").strip()
+        if countries_raw and countries_raw.upper() not in ("NO", "NONE", ""):
             _js_click_radio(driver, wait,
                 "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0",
                 do_postback=True
             )
+            time.sleep(1)
+
+            countries = [c.strip().upper() for c in countries_raw.split(",") if c.strip()]
+
+            country_map = {
+                "TURKEY": "TRKY", "GERMANY": "GER", "FRANCE": "FRAN",
+                "UNITED KINGDOM": "GRBR", "UNITED STATES": "USA",
+                "UNITED STATES OF AMERICA": "USA", "ITALY": "ITLY",
+                "SPAIN": "SPN", "NETHERLANDS": "NETH", "GREECE": "GRC",
+                "RUSSIA": "RUS", "UKRAINE": "UKR", "GEORGIA": "GEO",
+                "AZERBAIJAN": "AZR", "ARMENIA": "ARM", "IRAN": "IRAN",
+                "IRAQ": "IRAQ", "SYRIA": "SYR", "SAUDI ARABIA": "SARB",
+                "UAE": "UAE", "UNITED ARAB EMIRATES": "UAE",
+                "QATAR": "QTAR", "KUWAIT": "KUWT", "JORDAN": "JORD",
+                "EGYPT": "EGYP", "MOROCCO": "MORO", "TUNISIA": "TNSA",
+                "JAPAN": "JPN", "CHINA": "CHIN", "SOUTH KOREA": "KOR",
+                "KOREA, REPUBLIC OF (SOUTH)": "KOR", "INDIA": "IND",
+                "THAILAND": "THAI", "MALAYSIA": "MLAS", "SINGAPORE": "SING",
+                "INDONESIA": "IDSA", "VIETNAM": "VTNM", "PHILIPPINES": "PHIL",
+                "AUSTRALIA": "ASTL", "NEW ZEALAND": "NZLD",
+                "CANADA": "CAN", "MEXICO": "MEX", "BRAZIL": "BRZL",
+                "ARGENTINA": "ARG", "COLOMBIA": "COL",
+                "SWITZERLAND": "SWTZ", "AUSTRIA": "AUST", "BELGIUM": "BELG",
+                "SWEDEN": "SWDN", "NORWAY": "NORW", "DENMARK": "DEN",
+                "FINLAND": "FIN", "POLAND": "POL", "CZECH REPUBLIC": "CZEC",
+                "HUNGARY": "HUNG", "ROMANIA": "ROM", "BULGARIA": "BULG",
+                "CROATIA": "HRV", "SERBIA": "SBA", "ALBANIA": "ALB",
+                "ISRAEL": "ISRL", "LEBANON": "LEBN", "PAKISTAN": "PKST",
+                "AFGHANISTAN": "AFGH", "KAZAKHSTAN": "KAZ", "UZBEKISTAN": "UZB",
+                "PORTUGAL": "PORT", "IRELAND": "IRE", "LUXEMBOURG": "LXM",
+                "ICELAND": "ICLD", "ESTONIA": "EST", "LATVIA": "LATV",
+                "LITHUANIA": "LITH", "SLOVAKIA": "SVK", "SLOVENIA": "SVN",
+                "MALTA": "MLTA", "CYPRUS": "CYPR", "BOSNIA-HERZEGOVINA": "BIH",
+                "NORTH MACEDONIA": "MKD", "MOLDOVA": "MLD", "BELARUS": "BYS",
+                "MONGOLIA": "MONG", "TAJIKISTAN": "TJK", "KYRGYZSTAN": "KGZ",
+                "TURKMENISTAN": "TKM", "BAHRAIN": "BAHR", "OMAN": "OMAN",
+                "ISRAEL": "ISRL", "IRAQ": "IRAQ", "YEMEN": "YEM",
+                "NIGERIA": "NRA", "SOUTH AFRICA": "SAFR", "KENYA": "KENY",
+                "ETHIOPIA": "ETH", "GHANA": "GHAN", "TANZANIA": "TAZN",
+                "UGANDA": "UGAN", "ALGERIA": "ALGR", "LIBYA": "LBYA",
+                "SUDAN": "SUDA", "SOMALIA": "SOMA", "CAMEROON": "CMRN",
+            }
+
+            base_cv = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
+
+            # Sayfada kaç satır var?
+            existing_cv = 0
+            while True:
+                els = driver.find_elements(By.ID, f"{base_cv}{existing_cv:02d}_ddlCOUNTRIES_VISITED")
+                if not els:
+                    break
+                existing_cv += 1
+            print(f"ℹ️ Countries Visited: {existing_cv} mevcut satır, {len(countries)} gerekli")
+
+            # Eksik kadar Add Another tıkla
+            for i in range(existing_cv, len(countries)):
+                driver.execute_script(
+                    f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{(i-1):02d}$InsertButtonCountriesVisited','');"
+                )
+                time.sleep(1)
+
+            # Hepsini doldur
+            for i, country in enumerate(countries):
+                cv_val = country_map.get(country)
+                if not cv_val:
+                    print(f"⚠️ Ülke map'te bulunamadı: {country}, atlanıyor")
+                    continue
+                try:
+                    Select(wait.until(EC.element_to_be_clickable(
+                        (By.ID, f"{base_cv}{i:02d}_ddlCOUNTRIES_VISITED")
+                    ))).select_by_value(cv_val)
+                    print(f"✅ Countries Visited [{i+1}]: {country}")
+                except Exception as e:
+                    print(f"⚠️ Countries Visited [{i+1}] seçilemedi: {e}")
         else:
             _js_click_radio(driver, wait,
                 "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1",
                 do_postback=False
             )
+            print("ℹ️ Countries Visited: NO")
 
         # 4. ORGANIZATION
         org = data.get("ORGANIZATION", "NO").upper()
@@ -411,6 +486,7 @@ def _fill_additional_work_education_resume(driver, wait, data):
             else "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_1",
             do_postback=(org == "YES")
         )
+        print(f"✅ ORGANIZATION: {org}")
 
         # 5. SPECIALIZED SKILLS
         skills = data.get("SPECIALIZED_SKILLS", "NO").upper()
@@ -419,8 +495,9 @@ def _fill_additional_work_education_resume(driver, wait, data):
             else "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_1",
             do_postback=False
         )
+        print(f"✅ SPECIALIZED_SKILLS: {skills}")
 
-    # 6. MILITARY SERVICE — her zaman doldur (lang dolu olsa bile)
+    # 6. MILITARY SERVICE — her zaman doldur
     mil = data.get("MILITARY_SERVICE", "NO").upper()
     print(f"🪖 Military Service: {mil}")
     _js_click_radio(driver, wait,
@@ -529,9 +606,9 @@ def _fill_additional_work_education_resume(driver, wait, data):
         else "ctl00_SiteContentPlaceHolder_FormView1_rblINSURGENT_ORG_IND_1",
         do_postback=False
     )
+    print(f"✅ INSURGENT_ORG: {insurgent}")
 
     print("✅ Additional Work/Education (RESUME) tamamlandı")
-
 # =====================================================
 # MAIN RESUME FLOW
 # =====================================================
