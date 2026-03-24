@@ -312,9 +312,13 @@ def _js_click_radio(driver, wait, radio_id, do_postback=False):
     if do_postback:
         onclick = el.get_attribute("onclick") or ""
         if "__doPostBack" in onclick:
-            match = re.search(r"__doPostBack\([^)]+\)", onclick)
+            match = re.search(r"__doPostBack\('([^']+)','([^']*)'\)", onclick)
             if match:
-                driver.execute_script(match.group(0) + ";")
+                arg1 = match.group(1)
+                arg2 = match.group(2)
+                driver.execute_script(
+                    f"__doPostBack('{arg1}','{arg2}');"
+                )
     time.sleep(1.0)
 
 

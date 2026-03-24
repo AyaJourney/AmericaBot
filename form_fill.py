@@ -1509,6 +1509,7 @@ SOCIAL_MEDIA_MAP = {
     "NO": "NONE",
     "YOK": "NONE"
 }
+
 PASSPORT_TYPE_MAP = {
     "REGULAR": "R",
     "OFFICIAL": "O",
