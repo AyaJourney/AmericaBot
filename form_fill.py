@@ -4171,22 +4171,11 @@ def fill_military_service(wait, driver, data):
         else "ctl00_SiteContentPlaceHolder_FormView1_rblMILITARY_SERVICE_IND_1"
     )
     wait.until(EC.element_to_be_clickable((By.ID, radio))).click()
-    print(f"✅ Military Service: {val}")
+    print(f"✅ Military Service radio: {val}")
     time.sleep(1)
 
     if val != "YES":
         return
-
-    def js_fill(element_id, value):
-        if not value:
-            return
-        el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(str(value))
 
     mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
     mil_branch    = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
@@ -4194,6 +4183,13 @@ def fill_military_service(wait, driver, data):
     mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
     mil_from      = data.get("MIL_FROM",      "")
     mil_to        = data.get("MIL_TO",        "")
+
+    print(f"DEBUG mil_country={mil_country}")
+    print(f"DEBUG mil_branch={mil_branch}")
+    print(f"DEBUG mil_rank={mil_rank}")
+    print(f"DEBUG mil_specialty={mil_specialty}")
+    print(f"DEBUG mil_from={mil_from}")
+    print(f"DEBUG mil_to={mil_to}")
 
     # Ülke value map
     country_value_map = {
@@ -4213,44 +4209,69 @@ def fill_military_service(wait, driver, data):
         "ARMENIA": "ARM",
         "UKRAINE": "UKR",
     }
-
     country_val = country_value_map.get(mil_country.upper(), "TRKY")
 
-    # Ülke seç — postback tetikleyecek
+    # Ülke seç
+    print(f"DEBUG: Ülke seçiliyor... value={country_val}")
     try:
         Select(wait.until(EC.element_to_be_clickable((
             By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_CNTRY"
         )))).select_by_value(country_val)
-        print(f"✅ MIL_COUNTRY seçildi: {mil_country} ({country_val})")
+        print(f"✅ MIL_COUNTRY seçildi: {mil_country}")
     except Exception as e:
         print(f"⚠️ MIL_COUNTRY seçilemedi: {e}")
 
-    # Postback bekleniyor
+    # Postback bekle
+    print("DEBUG: Postback bekleniyor (2s)...")
     time.sleep(2)
+    print("DEBUG: Postback beklendi")
 
-    # Branch, Rank, Specialty doldur
+    def js_fill(element_id, value):
+        if not value:
+            print(f"DEBUG js_fill: value boş, atlanıyor → {element_id}")
+            return
+        print(f"DEBUG js_fill: element aranıyor → {element_id}")
+        try:
+            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            print(f"DEBUG js_fill: element bulundu, value yazılıyor → {value}")
+            driver.execute_script("""
+                var el = arguments[0];
+                el.removeAttribute('disabled');
+                el.removeAttribute('readonly');
+                el.value = arguments[1];
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+                el.dispatchEvent(new Event('input', {bubbles: true}));
+            """, el, str(value))
+            print(f"✅ js_fill tamamlandı → {element_id} = {value}")
+        except Exception as e:
+            print(f"⚠️ js_fill hata → {element_id}: {e}")
+
+    # Branch
+    print("DEBUG: Branch dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
         mil_branch
     )
-    print(f"✅ MIL_BRANCH: {mil_branch}")
     time.sleep(0.3)
 
+    # Rank
+    print("DEBUG: Rank dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
         mil_rank
     )
-    print(f"✅ MIL_RANK: {mil_rank}")
     time.sleep(0.3)
 
+    # Specialty
+    print("DEBUG: Specialty dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
         mil_specialty
     )
-    print(f"✅ MIL_SPECIALTY: {mil_specialty}")
     time.sleep(0.3)
 
-    # Tarihler
+    # From tarihi
+    print(f"DEBUG: MIL_FROM dolduruluyor... ({mil_from})")
     if mil_from:
         try:
             fill_date_dd_mmm_yyyy(wait, driver,
@@ -4265,6 +4286,8 @@ def fill_military_service(wait, driver, data):
     else:
         print("ℹ️ MIL_FROM boş, atlanıyor")
 
+    # To tarihi
+    print(f"DEBUG: MIL_TO dolduruluyor... ({mil_to})")
     if mil_to:
         try:
             fill_date_dd_mmm_yyyy(wait, driver,
@@ -4280,6 +4303,7 @@ def fill_military_service(wait, driver, data):
         print("ℹ️ MIL_TO boş, atlanıyor")
 
     print("✅ Military Service dolduruldu")
+
 def fill_insurgent_organization(wait, driver, data):
     print("🟥 Insurgent / Paramilitary Organization bölümü")
 
