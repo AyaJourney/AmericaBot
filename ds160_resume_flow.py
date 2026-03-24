@@ -333,6 +333,8 @@ def _js_click_radio(driver, wait, radio_id, do_postback=False):
 def _fill_additional_work_education_resume(driver, wait, data):
     print("📋 Additional Work/Education (RESUME) kontrol ediliyor...")
 
+    # Language dolu mu kontrol et
+    lang_already_filled = False
     try:
         lang_el = driver.find_element(
             By.ID,
@@ -340,78 +342,186 @@ def _fill_additional_work_education_resume(driver, wait, data):
         )
         lang_val = lang_el.get_attribute("value").strip()
         if lang_val:
-            print(f"ℹ️ Sayfa zaten dolu (Language: {lang_val}), atlanıyor.")
-            return
+            print(f"ℹ️ Language zaten dolu ({lang_val}), dil/clan/countries kısmı atlanıyor.")
+            lang_already_filled = True
     except Exception:
         pass
 
-    print("📝 Sayfa boş, dolduruluyor...")
+    if not lang_already_filled:
+        print("📝 Sayfa boş, dil/clan/countries dolduruluyor...")
 
-    clan = data.get("CLAN_TRIBE", "NO").upper()
-    _js_click_radio(driver, wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0" if clan == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_1",
-        do_postback=(clan == "YES")
-    )
-    if clan == "YES":
-        el = wait.until(EC.visibility_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxCLAN_TRIBE_NAME")
-        ))
-        driver.execute_script("arguments[0].value='';", el)
-        el.send_keys(data.get("CLAN_TRIBE_NAME", ""))
-
-    langs = [x.strip() for x in data.get("LANGUAGES", "Turkish").split(",") if x.strip()]
-    if not langs:
-        langs = ["Turkish"]
-    base = "ctl00_SiteContentPlaceHolder_FormView1_dtlLANGUAGES_ctl"
-    for i, lang in enumerate(langs):
-        idx    = f"{i:02d}"
-        tbx_id = f"{base}{idx}_tbxLANGUAGE_NAME"
-        add_id = f"{base}{idx}_InsertButtonLANGUAGE"
-        el = wait.until(EC.visibility_of_element_located((By.ID, tbx_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-            arguments[0].dispatchEvent(new Event('change', {bubbles:true}));
-        """, el)
-        el.send_keys(lang)
-        driver.execute_script(
-            "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", el
+        # 1. CLAN / TRIBE
+        clan = data.get("CLAN_TRIBE", "NO").upper()
+        _js_click_radio(driver, wait,
+            "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0" if clan == "YES"
+            else "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_1",
+            do_postback=(clan == "YES")
         )
-        if i < len(langs) - 1:
-            wait.until(EC.element_to_be_clickable((By.ID, add_id))).click()
-            time.sleep(0.8)
-    print(f"✅ Languages: {langs}")
+        if clan == "YES":
+            el = wait.until(EC.visibility_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxCLAN_TRIBE_NAME")
+            ))
+            driver.execute_script("arguments[0].value='';", el)
+            el.send_keys(data.get("CLAN_TRIBE_NAME", ""))
 
-    visited = data.get("COUNTRIES_VISITED", "NO").upper()
-    _js_click_radio(driver, wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0" if visited == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1",
-        do_postback=(visited == "YES")
-    )
+        # 2. LANGUAGES
+        langs = [x.strip() for x in data.get("LANGUAGES", "Turkish").split(",") if x.strip()]
+        if not langs:
+            langs = ["Turkish"]
+        base = "ctl00_SiteContentPlaceHolder_FormView1_dtlLANGUAGES_ctl"
+        for i, lang in enumerate(langs):
+            idx    = f"{i:02d}"
+            tbx_id = f"{base}{idx}_tbxLANGUAGE_NAME"
+            add_id = f"{base}{idx}_InsertButtonLANGUAGE"
+            el = wait.until(EC.visibility_of_element_located((By.ID, tbx_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+                arguments[0].dispatchEvent(new Event('change', {bubbles:true}));
+            """, el)
+            el.send_keys(lang)
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", el
+            )
+            if i < len(langs) - 1:
+                wait.until(EC.element_to_be_clickable((By.ID, add_id))).click()
+                time.sleep(0.8)
+        print(f"✅ Languages: {langs}")
 
-    org = data.get("ORGANIZATION", "NO").upper()
-    _js_click_radio(driver, wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_0" if org == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_1",
-        do_postback=(org == "YES")
-    )
+        # 3. COUNTRIES VISITED
+        visited = data.get("COUNTRIES_VISITED", "NO").upper()
+        # COUNTRIES_VISITED virgülle ayrılmış ülke listesi olabilir
+        if visited and visited != "NO" and visited != "":
+            _js_click_radio(driver, wait,
+                "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0",
+                do_postback=True
+            )
+        else:
+            _js_click_radio(driver, wait,
+                "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1",
+                do_postback=False
+            )
 
-    skills = data.get("SPECIALIZED_SKILLS", "NO").upper()
-    _js_click_radio(driver, wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_0" if skills == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_1",
-        do_postback=False
-    )
+        # 4. ORGANIZATION
+        org = data.get("ORGANIZATION", "NO").upper()
+        _js_click_radio(driver, wait,
+            "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_0" if org == "YES"
+            else "ctl00_SiteContentPlaceHolder_FormView1_rblORGANIZATION_IND_1",
+            do_postback=(org == "YES")
+        )
 
+        # 5. SPECIALIZED SKILLS
+        skills = data.get("SPECIALIZED_SKILLS", "NO").upper()
+        _js_click_radio(driver, wait,
+            "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_0" if skills == "YES"
+            else "ctl00_SiteContentPlaceHolder_FormView1_rblSPECIALIZED_SKILLS_IND_1",
+            do_postback=False
+        )
+
+    # 6. MILITARY SERVICE — her zaman doldur (lang dolu olsa bile)
     mil = data.get("MILITARY_SERVICE", "NO").upper()
+    print(f"🪖 Military Service: {mil}")
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblMILITARY_SERVICE_IND_0" if mil == "YES"
         else "ctl00_SiteContentPlaceHolder_FormView1_rblMILITARY_SERVICE_IND_1",
         do_postback=(mil == "YES")
     )
+    time.sleep(1)
 
+    if mil == "YES":
+        mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
+        mil_branch    = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
+        mil_rank      = data.get("MIL_RANK",      "INFANTRY")
+        mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
+        mil_from      = data.get("MIL_FROM",      "")
+        mil_to        = data.get("MIL_TO",        "")
+
+        print(f"DEBUG mil_branch={mil_branch}, mil_rank={mil_rank}, mil_from={mil_from}, mil_to={mil_to}")
+
+        country_value_map = {
+            "TURKEY": "TRKY", "UNITED STATES": "USA", "UNITED STATES OF AMERICA": "USA",
+            "GERMANY": "GER", "FRANCE": "FRAN", "UNITED KINGDOM": "GRBR",
+            "RUSSIA": "RUS", "CHINA": "CHIN", "IRAN": "IRAN", "IRAQ": "IRAQ",
+            "SYRIA": "SYR", "AZERBAIJAN": "AZR", "GEORGIA": "GEO",
+            "ARMENIA": "ARM", "UKRAINE": "UKR",
+        }
+        country_val = country_value_map.get(mil_country.upper(), "TRKY")
+
+        # Ülke seç
+        try:
+            Select(wait.until(EC.element_to_be_clickable((
+                By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_CNTRY"
+            )))).select_by_value(country_val)
+            print(f"✅ MIL_COUNTRY: {mil_country}")
+        except Exception as e:
+            print(f"⚠️ MIL_COUNTRY seçilemedi: {e}")
+
+        # Postback bekle
+        time.sleep(2)
+
+        def js_fill_mil(element_id, value):
+            if not value:
+                print(f"DEBUG js_fill_mil: boş, atlanıyor → {element_id}")
+                return
+            print(f"DEBUG js_fill_mil: yazılıyor → {element_id} = {value}")
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+                driver.execute_script("""
+                    var el = arguments[0];
+                    el.removeAttribute('disabled');
+                    el.removeAttribute('readonly');
+                    el.value = arguments[1];
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                    el.dispatchEvent(new Event('input', {bubbles: true}));
+                """, el, str(value))
+                print(f"✅ js_fill_mil tamamlandı → {value}")
+            except Exception as e:
+                print(f"⚠️ js_fill_mil hata → {element_id}: {e}")
+
+        js_fill_mil(
+            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
+            mil_branch
+        )
+        time.sleep(0.3)
+        js_fill_mil(
+            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
+            mil_rank
+        )
+        time.sleep(0.3)
+        js_fill_mil(
+            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
+            mil_specialty
+        )
+        time.sleep(0.3)
+
+        if mil_from:
+            try:
+                fill_date_dd_mmm_yyyy(wait, driver,
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMDay",
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMMonth",
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_FROMYear",
+                    mil_from
+                )
+                print(f"✅ MIL_FROM: {mil_from}")
+            except Exception as e:
+                print(f"⚠️ MIL_FROM doldurulamadı: {e}")
+
+        if mil_to:
+            try:
+                fill_date_dd_mmm_yyyy(wait, driver,
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TODay",
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TOMonth",
+                    "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_TOYear",
+                    mil_to
+                )
+                print(f"✅ MIL_TO: {mil_to}")
+            except Exception as e:
+                print(f"⚠️ MIL_TO doldurulamadı: {e}")
+
+        print("✅ Military Service detayları dolduruldu")
+
+    # 7. INSURGENT ORG — her zaman doldur
     insurgent = data.get("INSURGENT_ORG", "NO").upper()
     _js_click_radio(driver, wait,
         "ctl00_SiteContentPlaceHolder_FormView1_rblINSURGENT_ORG_IND_0" if insurgent == "YES"
@@ -420,8 +530,6 @@ def _fill_additional_work_education_resume(driver, wait, data):
     )
 
     print("✅ Additional Work/Education (RESUME) tamamlandı")
-
-
 # =====================================================
 # MAIN RESUME FLOW
 # =====================================================
