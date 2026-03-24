@@ -215,6 +215,12 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
 
     fb("LANGUAGES", "Turkish")
 
+    # ─── Askerlik sabit değerleri ─────────────────────────────
+    fb("MIL_COUNTRY",   "TURKEY")
+    fb("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
+    fb("MIL_RANK",      "INFANTRY")
+    fb("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
+
     fb("TRAVEL_LOS_UNIT",    "D")
     fb("MARITAL_STATUS",     "SINGLE")
     fb("GENDER",             "M")
@@ -257,6 +263,8 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
 
     print("✅ enrich_data_with_fallbacks tamamlandı")
     return d
+
+
 # =====================================================
 # PRESENT OCCUPATION – RESUME FIX
 # =====================================================
