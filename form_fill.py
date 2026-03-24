@@ -2720,6 +2720,29 @@ def fill_social_media(wait, driver, data):
 
     base_id = "ctl00_SiteContentPlaceHolder_FormView1_dtlSocial_ctl"
 
+    # Sayfada kaç satır mevcut?
+    existing_rows = 0
+    while True:
+        ctl = f"{existing_rows:02d}"
+        els = driver.find_elements(By.ID, f"{base_id}{ctl}_ddlSocialMedia")
+        if not els:
+            break
+        existing_rows += 1
+    print(f"ℹ️ Sayfada {existing_rows} mevcut sosyal medya satırı, {len(platforms)} gerekli")
+
+    # Eksik kadar Add'e tıkla
+    for i in range(existing_rows, len(platforms)):
+        prev_ctl = f"{i - 1:02d}"
+        add_btn_id = f"{base_id}{prev_ctl}_InsertButtonSOCIAL_MEDIA_INFO"
+        wait.until(EC.element_to_be_clickable((By.ID, add_btn_id))).click()
+        print(f"➕ Add Another tıklandı ({i}. satır için)")
+        next_ctl = f"{i:02d}"
+        wait.until(EC.presence_of_element_located(
+            (By.ID, f"{base_id}{next_ctl}_ddlSocialMedia")
+        ))
+        time.sleep(1)
+
+    # Hepsini doldur
     for i, platform_raw in enumerate(platforms):
         idx = f"{i:02d}"
         platform_value = SOCIAL_MEDIA_MAP.get(platform_raw)
@@ -2729,7 +2752,6 @@ def fill_social_media(wait, driver, data):
 
         ddl_id = f"{base_id}{idx}_ddlSocialMedia"
         input_id = f"{base_id}{idx}_tbxSocialMediaIdent"
-        add_btn_id = f"{base_id}{idx}_InsertButtonSOCIAL_MEDIA_INFO"
 
         dropdown_el = wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))
         driver.execute_script("arguments[0].scrollIntoView({block:'center'});", dropdown_el)
@@ -2748,18 +2770,8 @@ def fill_social_media(wait, driver, data):
             input_el.send_keys(usernames[i])
             print(f"✅ [{i+1}] Username yazıldı: {usernames[i]}")
 
-        if i < len(platforms) - 1:
-            wait.until(EC.element_to_be_clickable((By.ID, add_btn_id))).click()
-            print(f"➕ Add Another tıklandı ({i+1}. satır bitti)")
-            next_idx = f"{i+1:02d}"
-            wait.until(EC.presence_of_element_located(
-                (By.ID, f"{base_id}{next_idx}_ddlSocialMedia")
-            ))
-            time.sleep(1)
-
     click_outside(driver)
     print("🟢 Social Media TAMAMLANDI")
-
 
 def fill_additional_social_media(wait, driver, data):
 
