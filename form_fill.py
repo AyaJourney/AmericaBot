@@ -4171,6 +4171,8 @@ def fill_military_service(wait, driver, data):
         else "ctl00_SiteContentPlaceHolder_FormView1_rblMILITARY_SERVICE_IND_1"
     )
     wait.until(EC.element_to_be_clickable((By.ID, radio))).click()
+    print(f"✅ Military Service: {val}")
+    time.sleep(1)
 
     if val != "YES":
         return
@@ -4186,39 +4188,96 @@ def fill_military_service(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    mil_country  = data.get("MIL_COUNTRY",   "TURKEY")
-    mil_branch   = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
-    mil_rank     = data.get("MIL_RANK",      "INFANTRY")
-    mil_specialty= data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
-    mil_from     = data.get("MIL_FROM",      "")
-    mil_to       = data.get("MIL_TO",        "")
+    mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
+    mil_branch    = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
+    mil_rank      = data.get("MIL_RANK",      "INFANTRY")
+    mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
+    mil_from      = data.get("MIL_FROM",      "")
+    mil_to        = data.get("MIL_TO",        "")
 
+    # Ülke value map
+    country_value_map = {
+        "TURKEY": "TRKY",
+        "UNITED STATES": "USA",
+        "UNITED STATES OF AMERICA": "USA",
+        "GERMANY": "GER",
+        "FRANCE": "FRAN",
+        "UNITED KINGDOM": "GRBR",
+        "RUSSIA": "RUS",
+        "CHINA": "CHIN",
+        "IRAN": "IRAN",
+        "IRAQ": "IRAQ",
+        "SYRIA": "SYR",
+        "AZERBAIJAN": "AZR",
+        "GEORGIA": "GEO",
+        "ARMENIA": "ARM",
+        "UKRAINE": "UKR",
+    }
+
+    country_val = country_value_map.get(mil_country.upper(), "TRKY")
+
+    # Ülke seç — postback tetikleyecek
     try:
         Select(wait.until(EC.element_to_be_clickable((
             By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_CNTRY"
-        )))).select_by_visible_text(mil_country)
+        )))).select_by_value(country_val)
+        print(f"✅ MIL_COUNTRY seçildi: {mil_country} ({country_val})")
     except Exception as e:
-        print(f"⚠️ Ülke seçilemedi: {e}")
+        print(f"⚠️ MIL_COUNTRY seçilemedi: {e}")
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",    mil_branch)
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",      mil_rank)
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY", mil_specialty)
+    # Postback bekleniyor
+    time.sleep(2)
 
+    # Branch, Rank, Specialty doldur
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
+        mil_branch
+    )
+    print(f"✅ MIL_BRANCH: {mil_branch}")
+    time.sleep(0.3)
+
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
+        mil_rank
+    )
+    print(f"✅ MIL_RANK: {mil_rank}")
+    time.sleep(0.3)
+
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
+        mil_specialty
+    )
+    print(f"✅ MIL_SPECIALTY: {mil_specialty}")
+    time.sleep(0.3)
+
+    # Tarihler
     if mil_from:
-        fill_date_dd_mmm_yyyy(wait, driver,
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMDay",
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMMonth",
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_FROMYear",
-            mil_from
-        )
+        try:
+            fill_date_dd_mmm_yyyy(wait, driver,
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_FROMMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_FROMYear",
+                mil_from
+            )
+            print(f"✅ MIL_FROM: {mil_from}")
+        except Exception as e:
+            print(f"⚠️ MIL_FROM doldurulamadı: {e}")
+    else:
+        print("ℹ️ MIL_FROM boş, atlanıyor")
 
     if mil_to:
-        fill_date_dd_mmm_yyyy(wait, driver,
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TODay",
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TOMonth",
-            "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_TOYear",
-            mil_to
-        )
+        try:
+            fill_date_dd_mmm_yyyy(wait, driver,
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TODay",
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_TOMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_TOYear",
+                mil_to
+            )
+            print(f"✅ MIL_TO: {mil_to}")
+        except Exception as e:
+            print(f"⚠️ MIL_TO doldurulamadı: {e}")
+    else:
+        print("ℹ️ MIL_TO boş, atlanıyor")
 
     print("✅ Military Service dolduruldu")
 def fill_insurgent_organization(wait, driver, data):
