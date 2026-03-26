@@ -3825,23 +3825,49 @@ def fill_previous_employment(wait, driver, data):
     def split(key):
         return [x.strip() for x in data.get(key, "").split(",")]
 
-    names       = split("PREV_EMPLOYER_NAMES")
-    addr1       = split("PREV_EMPLOYER_ADDR1")
-    addr2       = split("PREV_EMPLOYER_ADDR2")
-    city        = split("PREV_EMPLOYER_CITY")
+    # Tarihler virgül içermez → iş sayısını bundan al
+    date_from   = split("PREV_EMPLOY_FROM")
+    date_to     = split("PREV_EMPLOY_TO")
+    count       = len(date_from)
+
+    # Virgül içermeyecek alanlar — normal split
+    country     = split("PREV_EMPLOYER_COUNTRY")
     state       = split("PREV_EMPLOYER_STATE")
     postal      = split("PREV_EMPLOYER_POSTAL")
-    country     = split("PREV_EMPLOYER_COUNTRY")
     phone       = split("PREV_EMPLOYER_PHONE")
     title       = split("PREV_JOB_TITLE")
     sup_surname = split("PREV_SUPERVISOR_SURNAME")
     sup_given   = split("PREV_SUPERVISOR_GIVEN")
-    date_from   = split("PREV_EMPLOY_FROM")
-    date_to     = split("PREV_EMPLOY_TO")
-    duties      = split("PREV_EMPLOY_DUTIES")
 
-    lens = {len(x) for x in [names, addr1, city, country, title, date_from, date_to, duties]}
+    # Virgül İÇEREBİLECEK alanlar → count'a göre böl
+    def split_by_count(key, n):
+        """
+        n iş varsa, değeri n parçaya böler.
+        Fazla virgüllü parçaları son elemanla birleştirir.
+        Örn: n=1, "ABC SIRKETLERI, LTD" → ["ABC SIRKETLERI, LTD"]
+        Örn: n=2, "FIRMA A,FIRMA B, LTD" → ["FIRMA A", "FIRMA B, LTD"]
+        """
+        parts = [x.strip() for x in data.get(key, "").split(",")]
+        if len(parts) <= n:
+            # Eksik varsa boşla doldur
+            while len(parts) < n:
+                parts.append("")
+            return parts
+        # Fazla parça var — son (n-1) parçayı düz al, kalanı birleştir
+        result = parts[:n-1]
+        result.append(", ".join(parts[n-1:]))
+        return result
+
+    names   = split_by_count("PREV_EMPLOYER_NAMES",   count)
+    addr1   = split_by_count("PREV_EMPLOYER_ADDR1",   count)
+    addr2   = split_by_count("PREV_EMPLOYER_ADDR2",   count)
+    city    = split_by_count("PREV_EMPLOYER_CITY",    count)
+    duties  = split_by_count("PREV_EMPLOY_DUTIES",    count)
+
+    # Uzunluk kontrolü — sadece kritik alanlar
+    lens = {len(x) for x in [names, city, country, title, date_from, date_to]}
     if len(lens) != 1:
+        print(f"⚠️ Alan uzunlukları: names={len(names)}, city={len(city)}, country={len(country)}, title={len(title)}, date_from={len(date_from)}, date_to={len(date_to)}")
         raise Exception("❌ Previous Employment alan sayıları eşit değil")
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEmpl_ctl"
@@ -3857,7 +3883,7 @@ def fill_previous_employment(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    for i in range(len(names)):
+    for i in range(count):
         idx = f"{i:02d}"
 
         def fid(field):
@@ -3913,7 +3939,7 @@ def fill_previous_employment(wait, driver, data):
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
 
-        if i < len(names) - 1:
+        if i < count - 1:
             wait.until(EC.element_to_be_clickable(
                 (By.ID, fid("InsertButtonPrevEmpl"))
             )).click()
@@ -3921,7 +3947,6 @@ def fill_previous_employment(wait, driver, data):
 
     click_outside(driver)
     print("🟢 Previous Employment TAMAMLANDI")
-
 
 def fill_other_education(wait, driver, data):
     print("🎓 Other Education section başlıyor...")
