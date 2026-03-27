@@ -3854,19 +3854,18 @@ def fill_previous_employment(wait, driver, data):
     print(f"✅ Previously Employed: {prev}")
 
     if prev == "NO":
-        time.sleep(2)
-        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
         return
 
-    time.sleep(2)
+    # SAYFA READY
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    time.sleep(1)
 
     def split(key):
         return [x.strip() for x in data.get(key, "").split(",")]
 
-    date_from   = split("PREV_EMPLOY_FROM")
-    date_to     = split("PREV_EMPLOY_TO")
-    count       = len(date_from)
+    date_from = split("PREV_EMPLOY_FROM")
+    date_to   = split("PREV_EMPLOY_TO")
+    count     = len(date_from)
 
     country     = split("PREV_EMPLOYER_COUNTRY")
     state       = split("PREV_EMPLOYER_STATE")
@@ -3878,26 +3877,20 @@ def fill_previous_employment(wait, driver, data):
 
     def split_by_count(key, n):
         parts = [x.strip() for x in data.get(key, "").split(",")]
-        if len(parts) <= n:
-            while len(parts) < n:
-                parts.append("")
-            return parts
-        result = parts[:n-1]
-        result.append(", ".join(parts[n-1:]))
-        return result
+        while len(parts) < n:
+            parts.append("")
+        return parts
 
-    names   = split_by_count("PREV_EMPLOYER_NAMES",   count)
-    addr1   = split_by_count("PREV_EMPLOYER_ADDR1",   count)
-    addr2   = split_by_count("PREV_EMPLOYER_ADDR2",   count)
-    city    = split_by_count("PREV_EMPLOYER_CITY",    count)
-    duties  = split_by_count("PREV_EMPLOY_DUTIES",    count)
-
-    lens = {len(x) for x in [names, city, country, title, date_from, date_to]}
-    if len(lens) != 1:
-        print(f"⚠️ Alan uzunlukları: names={len(names)}, city={len(city)}, country={len(country)}, title={len(title)}, date_from={len(date_from)}, date_to={len(date_to)}")
-        raise Exception("❌ Previous Employment alan sayıları eşit değil")
+    names  = split_by_count("PREV_EMPLOYER_NAMES", count)
+    addr1  = split_by_count("PREV_EMPLOYER_ADDR1", count)
+    addr2  = split_by_count("PREV_EMPLOYER_ADDR2", count)
+    city   = split_by_count("PREV_EMPLOYER_CITY", count)
+    duties = split_by_count("PREV_EMPLOY_DUTIES", count)
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEmpl_ctl"
+
+    def fid(i, field):
+        return f"{base}{i:02d}_{field}"
 
     def js_fill(element_id, value):
         if not value:
@@ -3911,79 +3904,107 @@ def fill_previous_employment(wait, driver, data):
         el.send_keys(str(value))
 
     for i in range(count):
-        idx = f"{i:02d}"
 
-        def fid(field):
-            return f"{base}{idx}_{field}"
+        print(f"➡️ Employment #{i+1}")
 
-        js_fill(fid("tbEmployerName"), names[i])
-        js_fill(fid("tbEmployerStreetAddress1"), addr1[i])
+        # 🔴 ÖNCE SATIRIN GELDİĞİNDEN EMİN OL
+        wait.until(lambda d: len(d.find_elements(
+            By.XPATH, "//input[contains(@id,'tbEmployerName')]"
+        )) > i)
+
+        js_fill(fid(i, "tbEmployerName"), names[i])
+        js_fill(fid(i, "tbEmployerStreetAddress1"), addr1[i])
 
         if addr2[i]:
-            js_fill(fid("tbEmployerStreetAddress2"), addr2[i])
+            js_fill(fid(i, "tbEmployerStreetAddress2"), addr2[i])
 
-        js_fill(fid("tbEmployerCity"), city[i])
+        js_fill(fid(i, "tbEmployerCity"), city[i])
 
+        # STATE
         if state[i]:
-            js_fill(fid("tbxPREV_EMPL_ADDR_STATE"), state[i])
+            js_fill(fid(i, "tbxPREV_EMPL_ADDR_STATE"), state[i])
         else:
             wait.until(EC.element_to_be_clickable(
-                (By.ID, fid("cbxPREV_EMPL_ADDR_STATE_NA"))
+                (By.ID, fid(i, "cbxPREV_EMPL_ADDR_STATE_NA"))
             )).click()
 
+        # POSTAL
         if postal[i]:
-            js_fill(fid("tbxPREV_EMPL_ADDR_POSTAL_CD"), postal[i])
+            js_fill(fid(i, "tbxPREV_EMPL_ADDR_POSTAL_CD"), postal[i])
         else:
             wait.until(EC.element_to_be_clickable(
-                (By.ID, fid("cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
+                (By.ID, fid(i, "cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
             )).click()
 
+        # COUNTRY
         Select(wait.until(EC.element_to_be_clickable(
-            (By.ID, fid("DropDownList2"))
+            (By.ID, fid(i, "DropDownList2"))
         ))).select_by_visible_text(country[i])
 
-        js_fill(fid("tbEmployerPhone"), phone[i])
-        js_fill(fid("tbJobTitle"), title[i])
+        js_fill(fid(i, "tbEmployerPhone"), phone[i])
+        js_fill(fid(i, "tbJobTitle"), title[i])
 
+        # SUPERVISOR
         if sup_surname[i]:
-            js_fill(fid("tbSupervisorSurname"), sup_surname[i])
+            js_fill(fid(i, "tbSupervisorSurname"), sup_surname[i])
         else:
             wait.until(EC.element_to_be_clickable(
-                (By.ID, fid("cbxSupervisorSurname_NA"))
+                (By.ID, fid(i, "cbxSupervisorSurname_NA"))
             )).click()
 
         if sup_given[i]:
-            js_fill(fid("tbSupervisorGivenName"), sup_given[i])
+            js_fill(fid(i, "tbSupervisorGivenName"), sup_given[i])
         else:
             wait.until(EC.element_to_be_clickable(
-                (By.ID, fid("cbxSupervisorGivenName_NA"))
+                (By.ID, fid(i, "cbxSupervisorGivenName_NA"))
             )).click()
 
-        fill_date_dd_mmm_yyyy(wait, driver, fid("ddlEmpDateFromDay"), fid("ddlEmpDateFromMonth"), fid("tbxEmpDateFromYear"), date_from[i])
-        fill_date_dd_mmm_yyyy(wait, driver, fid("ddlEmpDateToDay"), fid("ddlEmpDateToMonth"), fid("tbxEmpDateToYear"), date_to[i])
+        # DATES
+        fill_date_dd_mmm_yyyy(wait, driver,
+            fid(i, "ddlEmpDateFromDay"),
+            fid(i, "ddlEmpDateFromMonth"),
+            fid(i, "tbxEmpDateFromYear"),
+            date_from[i]
+        )
 
-        js_fill(fid("tbDescribeDuties"), duties[i])
+        fill_date_dd_mmm_yyyy(wait, driver,
+            fid(i, "ddlEmpDateToDay"),
+            fid(i, "ddlEmpDateToMonth"),
+            fid(i, "tbxEmpDateToYear"),
+            date_to[i]
+        )
+
+        js_fill(fid(i, "tbDescribeDuties"), duties[i])
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
-        print(driver.current_url)
-        print(driver.page_source[:1000])
-        # if i < count - 1:
-        #     wait.until(EC.element_to_be_clickable(
-        #         (By.ID, fid("InsertButtonPrevEmpl"))
-        #     )).click()
-        #     time.sleep(2)
-        #     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+        # ➕ YENİ SATIR EKLE
         if i < count - 1:
-            insert_buttons = driver.find_elements(By.XPATH, "//input[contains(@id,'InsertButtonPrevEmpl')]")
-    
-            driver.execute_script("arguments[0].scrollIntoView(true);", insert_buttons[-1])
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", insert_buttons[-1])
 
-    # yeni satır gelmesini bekle
-            wait.until(lambda d: len(d.find_elements(By.XPATH, "//input[contains(@id,'tbEmployerName')]")) > i+1)
+            for attempt in range(3):
+                insert_buttons = driver.find_elements(
+                    By.XPATH, "//input[contains(@id,'InsertButtonPrevEmpl')]"
+                )
 
-            time.sleep(1)
+                if insert_buttons:
+                    btn = insert_buttons[-1]
+
+                    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                    time.sleep(0.3)
+                    driver.execute_script("arguments[0].click();", btn)
+
+                    # yeni satır bekle
+                    wait.until(lambda d: len(d.find_elements(
+                        By.XPATH, "//input[contains(@id,'tbEmployerName')]"
+                    )) > i+1)
+
+                    print("➕ Yeni employment satırı eklendi")
+                    break
+                else:
+                    print("⚠️ Insert button yok, retry...")
+                    time.sleep(1)
+            else:
+                raise Exception("❌ Insert button bulunamadı")
 
     click_outside(driver)
     print("🟢 Previous Employment TAMAMLANDI")
