@@ -3965,13 +3965,25 @@ def fill_previous_employment(wait, driver, data):
         js_fill(fid("tbDescribeDuties"), duties[i])
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
-
+        print(driver.current_url)
+        print(driver.page_source[:1000])
+        # if i < count - 1:
+        #     wait.until(EC.element_to_be_clickable(
+        #         (By.ID, fid("InsertButtonPrevEmpl"))
+        #     )).click()
+        #     time.sleep(2)
+        #     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
         if i < count - 1:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, fid("InsertButtonPrevEmpl"))
-            )).click()
-            time.sleep(2)
-            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            insert_buttons = driver.find_elements(By.XPATH, "//input[contains(@id,'InsertButtonPrevEmpl')]")
+    
+            driver.execute_script("arguments[0].scrollIntoView(true);", insert_buttons[-1])
+            time.sleep(0.5)
+            driver.execute_script("arguments[0].click();", insert_buttons[-1])
+
+    # yeni satır gelmesini bekle
+            wait.until(lambda d: len(d.find_elements(By.XPATH, "//input[contains(@id,'tbEmployerName')]")) > i+1)
+
+            time.sleep(1)
 
     click_outside(driver)
     print("🟢 Previous Employment TAMAMLANDI")
