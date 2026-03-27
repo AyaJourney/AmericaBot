@@ -281,16 +281,13 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
 # 1. PREVIOUS EMPLOYMENT & EDUCATION BÖLÜMÜ
     try:
-        print("🔍 'Previous Employment/Education' bölümü kontrol ediliyor...")
-    # Sayfada bu bölüme ait özel bir elementin (örneğin başlık veya ilk input) varlığını kontrol et
-    # Eğer 3 saniye içinde bulamazsa bu sayfa yoktur, atla.
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")))
-    
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located(
+        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")
+    ))
         fill_previous_employment(wait, driver, data)
         fill_other_education(wait, driver, data)
         click_save(wait, driver)
         click_continue_applications(wait, driver)
-    # Travel Companions'a (veya bir sonraki aşamaya) geçiş butonu
         click_nexts(wait, driver, label="Travel Companions")
         print("✅ Previous Employment/Education tamamlandı.")
     except (TimeoutException, NoSuchElementException):

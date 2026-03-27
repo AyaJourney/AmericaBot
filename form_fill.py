@@ -3655,15 +3655,42 @@ def select_present_occupation(wait, driver, data):
         raise Exception(f"❌ Geçersiz PRESENT_OCCUPATION: {occ}")
 
     ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation"
-    
+    target_value = PRESENT_OCCUPATION_MAP[occ]
+
     ddl = wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))
-    Select(ddl).select_by_value(PRESENT_OCCUPATION_MAP[occ])
+    Select(ddl).select_by_value(target_value)
+    print(f"✅ Present Occupation seçildi: {occ} → {target_value}")
 
-    # staleness_of yerine sadece bekle + document ready
-    time.sleep(2)
-    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    # Postback bekle — ShowDivEmployed görünür olana kadar bekle
+    # NOT_EMPLOYED, RETIRED, HOMEMAKER için bu div açılmaz, o yüzden try/except
+    occ_needs_employer = occ not in ("NOT_EMPLOYED", "RETIRED", "HOMEMAKER")
 
-    print(f"✅ Present Occupation seçildi: {occ}")
+    if occ_needs_employer:
+        try:
+            # ShowDivEmployed görünür olana kadar bekle (max 15 sn)
+            WebDriverWait(driver, 15).until(
+                EC.visibility_of_element_located(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+                )
+            )
+            print("✅ Employer alanları açıldı")
+        except TimeoutException:
+            print("⚠️ Employer alanları açılmadı, JS postback deneniyor...")
+            driver.execute_script(
+                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+            )
+            WebDriverWait(driver, 15).until(
+                EC.visibility_of_element_located(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+                )
+            )
+            print("✅ Employer alanları JS sonrası açıldı")
+    else:
+        # NOT_EMPLOYED vs için sadece postback bekle
+        time.sleep(2)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+
 def fill_present_occupation_explain(wait, driver, data):
     expl = data.get("PRESENT_OCCUPATION_EXPLAIN", "").strip()
     if not expl:
