@@ -284,7 +284,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         print("🔍 'Previous Employment/Education' bölümü kontrol ediliyor...")
     # Sayfada bu bölüme ait özel bir elementin (örneğin başlık veya ilk input) varlığını kontrol et
     # Eğer 3 saniye içinde bulamazsa bu sayfa yoktur, atla.
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")))
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")))
     
         fill_previous_employment(wait, driver, data)
         fill_other_education(wait, driver, data)
@@ -302,7 +302,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     try:
         print("🔍 'Additional Work/Education' bölümü kontrol ediliyor...")
     # Bu sayfaya özgü bir element kontrolü (Örn: 'Have you traveled to any countries...' sorusu)
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblOtherLanguages_0")))
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")))
     
         fill_additional_work_education_section(wait, driver, data)
         click_save(wait, driver)
