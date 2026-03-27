@@ -97,6 +97,9 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     print("🧪 DS-160 FULL FLOW BAŞLADI")
     from ds160_resume_flow import enrich_data_with_fallbacks
     data = enrich_data_with_fallbacks(data)
+    print(f"🎓 EDU_00_SCHOOL_NAME: {data.get('EDU_00_SCHOOL_NAME', 'YOK')}")
+    print(f"🎓 EDU_01_SCHOOL_NAME: {data.get('EDU_01_SCHOOL_NAME', 'YOK')}")
+    print(f"🎓 OTHER_EDUCATION: {data.get('OTHER_EDUCATION', 'YOK')}")
     # ─── Personal 1 ───────────────────────────────────────────
     SURNAME          = data.get("SURNAME", "")
     GIVEN_NAME       = data.get("GIVEN_NAME", "")
