@@ -3049,30 +3049,28 @@ def fill_us_point_of_contact(wait, driver, data):
             el.send_keys(str(val))
             print(f"✍️ {eid} dolduruldu: {val}")
 
-    # 1) CONTACT PERSON NAME
+    # 1) & 2) POC NAME + ORGANIZATION — her zaman ikisi de dolu olacak
     poc_surname = data.get("US_POC_SURNAME", "").strip()
-    is_name_na = (data.get("US_POC_NAME_NA", "YES").upper() in ("NO", "N", "FALSE", "0")) or (not poc_surname)
+    poc_given   = data.get("US_POC_GIVEN_NAME", "").strip()
+    org_name    = data.get("US_POC_ORG_NAME", "").strip()
 
-    handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_NAME_NA", is_name_na)
+    # İsim yoksa fallback
+    final_surname = poc_surname if poc_surname else "UNKNOWN"
+    final_given   = poc_given   if poc_given   else "UNKNOWN"
 
-    if not is_name_na:
-        safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME", poc_surname)
-        safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME", data.get("US_POC_GIVEN_NAME", ""))
+    # Org yoksa fallback
+    final_org = org_name if org_name else "HOTEL OR BUSINESS"
 
-    # 2) ORGANIZATION
-    org_name = data.get("US_POC_ORG_NAME", "").strip()
-    is_org_na = (data.get("US_POC_ORG_NA", "YES").upper() in ("NO", "N", "FALSE", "0")) or (not org_name)
+    # NAME — her zaman doldur, NA kaldır
+    handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_NAME_NA", False)
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME", final_surname)
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME", final_given)
+    print(f"✅ POC isim dolduruldu: {final_surname} {final_given}")
 
-    if is_name_na and is_org_na:
-        print("⚠️ İsim ve Kurum aynı anda NA olamaz. Kurum NA iptal edildi.")
-        is_org_na = False
-        if not org_name:
-            org_name = "HOTEL OR BUSINESS"
-
-    handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_ORG_NA_IND", is_org_na)
-
-    if not is_org_na:
-        safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION", org_name)
+    # ORG — her zaman doldur, NA kaldır
+    handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_ORG_NA_IND", False)
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION", final_org)
+    print(f"✅ POC organizasyon dolduruldu: {final_org}")
 
     # 3) RELATIONSHIP
     raw_rel = (data.get("US_POC_RELATION") or "").strip().upper()
@@ -3110,8 +3108,6 @@ def fill_us_point_of_contact(wait, driver, data):
 
     click_outside(driver)
     print("🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI")
-
-
 
 def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     if not date_str or "-" not in date_str:
