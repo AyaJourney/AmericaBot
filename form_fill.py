@@ -3787,20 +3787,34 @@ def fill_present_occupation_section(wait, driver, data):
         print(f"ℹ️ {occ} → Ekstra alan yok.")
         return
 
-    if occ in ("NOT_EMPLOYED", "OTHER"):
+    if occ == "NOT_EMPLOYED":
         try:
             fill_present_occupation_explain(wait, driver, data)
-            print(f"✅ {occ} açıklaması dolduruldu.")
+            print("✅ NOT_EMPLOYED açıklaması dolduruldu.")
         except:
-            print(f"⚠️ {occ} açıklama alanı bulunamadı.")
+            print("⚠️ NOT_EMPLOYED açıklama alanı bulunamadı.")
         return
 
+    if occ == "OTHER":
+        try:
+            fill_present_occupation_explain(wait, driver, data)
+            print("✅ OTHER açıklaması dolduruldu.")
+        except:
+            print("⚠️ OTHER açıklama alanı bulunamadı.")
+        # OTHER'da da işveren/okul bilgileri dolduruluyor
+        try:
+            fill_employer_or_school_info(wait, driver, data)
+            print("✅ OTHER → İşveren/Okul bilgileri dolduruldu.")
+        except Exception as e:
+            print(f"⚠️ OTHER → İşveren/Okul bilgileri doldurulamadı: {e}")
+        return
+
+    # Diğer tüm meslekler → işveren/okul bilgileri
     try:
         fill_employer_or_school_info(wait, driver, data)
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
         print(f"⚠️ İşveren/Okul bilgileri doldurulamadı: {e}")
-
 
 def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
