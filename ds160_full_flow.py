@@ -1,9 +1,10 @@
+from concurrent.futures import wait
 import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-
+# form_fill importları – SENDE NE VARSA AYNI
 from form_fill import (
     fill_basic_identity_form,
     wait_after_state_na,
@@ -33,6 +34,10 @@ from form_fill import (
     click_continue_applications,
     click_save,
     fill_payer_info,
+    click_nexts,
+    click_continue_applications,
+    click_save,
+    # fill_payer_address,
     parse_travel_companions,
     fill_intended_length_of_stay,
     fill_intended_arrival_date,
@@ -45,6 +50,7 @@ from form_fill import (
     fill_previous_us_travel,
     fill_previous_visa,
     fill_prev_visa_refused,
+    fill_esta_denial,
     fill_iv_petition,
     fill_additional_social_media,
     fill_home_address,
@@ -69,38 +75,27 @@ from form_fill import (
     fill_previous_employment,
     fill_other_education,
     fill_additional_work_education_section,
+  
     fill_health_security_section,
     fill_criminal_security_section,
     fill_security_violations_section,
     fill_removal_immigration_section,
     fill_misc_immigration_violations_section,
+    # fill_student_additional_poc_if_needed,
     fill_sevis_and_school_if_needed,
     upload_photo_by_fullname,
 )
 
-
-def _check_photo_page(driver) -> bool:
-    try:
-        el = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
-        return el.is_displayed()
-    except Exception:
-        return False
-
-
-def _save_continue_next(wait, driver, label="next"):
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
-    click_nexts(wait, driver, label=label)
-
-
+# =====================================================
+# DS-160 FULL FORM FLOW (BARCODE SONRASI)
+# =====================================================
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print("🧪 DS-160 FULL FLOW BAŞLADI")
 
-    # ─── Personal 1 ───────────────────────────────────────────
-    SURNAME          = data.get("SURNAME", "")
-    GIVEN_NAME       = data.get("GIVEN_NAME", "")
+    SURNAME = data.get("SURNAME", "")
+    GIVEN_NAME = data.get("GIVEN_NAME", "")
     FULL_NAME_NATIVE = data.get("FULL_NAME_NATIVE", "")
-    OTHER_NAMES      = data.get("OTHER_NAMES", "N").upper()
+    OTHER_NAMES = data.get("OTHER_NAMES", "N").upper()
 
     fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
     time.sleep(0.1)
@@ -135,13 +130,16 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     fill_birth_state(wait, driver, data.get("BIRTH_STATE"))
     save_and_go_next(wait, driver)
     force_continue_application(wait, driver)
-
     if on_personal1_saved:
         on_personal1_saved()
-
+    
+    
     wait_and_click_next_personal2(wait, driver)
+    # ... geri kalanı aynı
 
-    # ─── Personal 2 ───────────────────────────────────────────
+    # =====================================================
+    # NATIONALITY
+    # =====================================================
     select_nationality(wait, driver, data["NATIONALITY"])
     select_other_nationality(wait, driver, data["OTHER_NATIONALITY"])
 
@@ -152,14 +150,18 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
             key = f"OTHER_NATIONALITY_{index}_COUNTRY"
             if key not in data:
                 break
+
             fill_single_other_nationality(
-                wait, driver,
+                wait,
+                driver,
                 data[f"OTHER_NATIONALITY_{index}_COUNTRY"],
                 data[f"OTHER_NATIONALITY_{index}_HAS_PASSPORT"],
                 data.get(f"OTHER_NATIONALITY_{index}_PASSPORT_NUMBER"),
             )
+
             if f"OTHER_NATIONALITY_{index+1}_COUNTRY" in data:
                 click_add_another_other_nationality(wait, driver)
+
             index += 1
 
     fill_permanent_resident_section(wait, driver, data)
@@ -168,40 +170,54 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     click_continue_application(wait, driver)
     click_next_travel(wait, driver)
 
-    # ─── Travel ───────────────────────────────────────────────
+    # =====================================================
+    # TRAVEL
+    # =====================================================
     select_purpose_of_trip(wait, driver, data.get("PURPOSE_OF_TRIP"))
     if data.get("PURPOSE_OF_TRIP_SUB"):
         select_purpose_subcategory_if_exists(wait, driver, data["PURPOSE_OF_TRIP_SUB"])
 
+    # 1. Fonksiyonu çağır ve sonucunu al
+    # 1. Önce soruyu seçmeyi dene ve sonucunu bir değişkene ata
     soru_mevcut = select_specific_travel(wait, driver, data.get("HAS_SPECIFIC_TRAVEL_PLANS", "NO"))
+
+# 2. EĞER SORU SAYFADA VARSA (soru_mevcut == True), detayları doldurmaya çalış
     if soru_mevcut:
+    # 'cevap' değişkenini sadece soru varsa tanımlıyoruz
         cevap = data.get("HAS_SPECIFIC_TRAVEL_PLANS", "NO").upper()
+    
         if cevap == "YES":
             fill_travel_details(wait, driver, data)
-        else:
+        elif cevap == "NO":
             fill_intended_arrival_date(wait, driver, data)
             fill_intended_length_of_stay(wait, driver, data)
     else:
-        fill_intended_arrival_date(wait, driver, data)
-        fill_intended_length_of_stay(wait, driver, data)
-
+    # Soru yoksa bu blok tamamen atlanır ve hata almadan bir sonraki soruya geçer
+            fill_intended_arrival_date(wait, driver, data)
+            fill_intended_length_of_stay(wait, driver, data)
     fill_us_address(wait, driver, data)
     fill_payer_info(wait, driver, data)
-    _save_continue_next(wait, driver, label="Travel Companions")
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
 
-    # ─── Travel Companions ────────────────────────────────────
     data = parse_travel_companions(data)
     fill_travel_companions(wait, driver, data)
-    _save_continue_next(wait, driver, label="Previous US Travel")
-
-    # ─── Previous US Travel / Visa ────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
+    # =====================================================
+    # DEVAMI – SENİN KODUNDAKİ SIRA BOZULMADI
+    # =====================================================
     fill_previous_us_travel(wait, driver, data)
     fill_previous_visa(wait, driver, data)
     fill_prev_visa_refused(wait, driver, data)
     fill_iv_petition(wait, driver, data)
-    _save_continue_next(wait, driver, label="Address Phone")
-
-    # ─── Address & Phone ──────────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
+    # fill_esta_denial(wait, driver, data)
+    
     fill_home_address(wait, driver, data)
     fill_mailing_address(wait, driver, data)
     fill_phone_numbers(wait, driver, data)
@@ -210,118 +226,125 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     fill_additional_email(wait, driver, data)
     fill_social_media(wait, driver, data)
     fill_additional_social_media(wait, driver, data)
-    _save_continue_next(wait, driver, label="Passport")
-
-    # ─── Passport ─────────────────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_passport_info(wait, driver, data)
     fill_lost_passport(wait, driver, data)
-    _save_continue_next(wait, driver, label="US POC")
-
-    # ─── US Point of Contact ──────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_us_point_of_contact(wait, driver, data)
-    _save_continue_next(wait, driver, label="Family")
-
-    # ─── Family ───────────────────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_parents_info(wait, driver, data)
     fill_us_immediate_relatives(wait, driver, data)
     fill_us_other_relatives(wait, driver, data)
-    _save_continue_next(wait, driver, label="Spouse")
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
 
-    # ─── Spouse ───────────────────────────────────────────────
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
     if marital_status in ("MARRIED", "COMMON-LAW MARRIAGE", "DIVORCED", "WIDOWED"):
         print(f"💍 {marital_status} — eş sayfası dolduruluyor")
         auto_fill_family_page(wait, driver, data)
-        _save_continue_next(wait, driver, label="Occupation")
+        click_save(wait, driver)
+        click_continue_applications(wait, driver)
+        click_nexts(wait, driver, label="Travel Companions")
     else:
         print(f"ℹ️ {marital_status} — eş sayfası atlanıyor")
-
-    # ─── Present Occupation ───────────────────────────────────
+   # 1. Mevcut bölümü doldur ve kaydet
     fill_present_occupation_section(wait, driver, data)
     click_save(wait, driver)
     click_continue_applications(wait, driver)
 
+# 2. "Travel Companions" sayfasına geçiş (VARSA YAP, YOKSA GEÇ)
     try:
-        click_nexts(WebDriverWait(driver, 3), driver, label="Prev Employment")
-        print("✅ Occupation next geçildi.")
-    except (TimeoutException, NoSuchElementException):
-        print("ℹ️ Occupation next yok, atlanıyor.")
+        print("🔍 'Travel Companions' aşaması kontrol ediliyor...")
+    # Kısa bir bekleme süresi tanımlıyoruz (örneğin 3 saniye)
+    # Eğer buton 3 saniye içinde gelmezse sayfada yoktur.
+        short_wait = WebDriverWait(driver, 3)
+    
+    # click_nexts fonksiyonunun içinde wait.until varsa, 
+    # fonksiyonu çağırmadan önce butonun varlığını burada kontrol edebiliriz:
+        click_nexts(short_wait, driver, label="Travel Companions")
+        print("✅ 'Travel Companions' sayfasına geçildi.")
 
-    # ─── Previous Employment / Education ──────────────────────
+    except (TimeoutException, NoSuchElementException):
+        print("ℹ️ 'Travel Companions' adımı bu akışta görünmedi veya zaten geçildi, atlanıyor.")
+    except Exception as e:
+        print(f"⚠️ 'Travel Companions' geçilirken beklenmedik bir durum oluştu: {e}")
+
+# Kod buradan itibaren akmaya devam eder...
+
+
+# 1. PREVIOUS EMPLOYMENT & EDUCATION BÖLÜMÜ
     try:
         WebDriverWait(driver, 3).until(EC.presence_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")
-        ))
+        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")
+    ))
         fill_previous_employment(wait, driver, data)
         fill_other_education(wait, driver, data)
-        _save_continue_next(wait, driver, label="Additional Work")
+        click_save(wait, driver)
+        click_continue_applications(wait, driver)
+        click_nexts(wait, driver, label="Travel Companions")
         print("✅ Previous Employment/Education tamamlandı.")
     except (TimeoutException, NoSuchElementException):
-        print("ℹ️ Previous Employment/Education sayfası yok, atlanıyor.")
+        print("ℹ️ 'Previous Employment/Education' sayfası bu başvuru için mevcut değil, geçiliyor.")
 
-    # ─── Additional Work / Education ──────────────────────────
+# ---------------------------------------------------------
+
+# 2. ADDITIONAL WORK / EDUCATION / TRAINING BÖLÜMÜ
     try:
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")
-        ))
+        print("🔍 'Additional Work/Education' bölümü kontrol ediliyor...")
+    # Bu sayfaya özgü bir element kontrolü (Örn: 'Have you traveled to any countries...' sorusu)
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")))
+    
         fill_additional_work_education_section(wait, driver, data)
-        _save_continue_next(wait, driver, label="Health")
+        click_save(wait, driver)
+        click_continue_applications(wait, driver)
+    # Bir sonraki aşamaya geç
+        click_nexts(wait, driver, label="Travel Companions")
         print("✅ Additional Work/Education tamamlandı.")
     except (TimeoutException, NoSuchElementException):
-        print("ℹ️ Additional Work/Education sayfası yok, atlanıyor.")
-
-    # ─── Health & Security ────────────────────────────────────
+        print("ℹ️ 'Additional Work/Education' sayfası bulunamadı, geçiliyor.")
     fill_health_security_section(wait, driver, data)
-    _save_continue_next(wait, driver, label="Criminal")
-
-    # ─── Criminal & Security ──────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_criminal_security_section(wait, driver, data)
-    _save_continue_next(wait, driver, label="Security Violations")
-
-    # ─── Security Violations ──────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_security_violations_section(wait, driver, data)
-    _save_continue_next(wait, driver, label="Removal")
-
-    # ─── Removal / Immigration ────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_removal_immigration_section(wait, driver, data)
-    _save_continue_next(wait, driver, label="Misc Immigration")
-
-    # ─── Misc Immigration Violations ──────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
     fill_misc_immigration_violations_section(wait, driver, data)
-    _save_continue_next(wait, driver, label="Student POC")
-
-    # ─── Student POC ──────────────────────────────────────────
-    try:
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlStudentAddPOC_ctl00_tbxADD_POC_SURNAME")
-        ))
-        try:
-            fill_student_poc_sections(wait, driver, data)
-        except Exception as e:
-            print(f"⚠️ Student POC doldurulamadı, devam ediliyor: {e}")
-        _save_continue_next(wait, driver, label="SEVIS")
-        print("✅ Student POC tamamlandı.")
-    except (TimeoutException, NoSuchElementException):
-        print("ℹ️ Student POC sayfası yok (B1/B2), atlanıyor.")
-
-    # ─── SEVIS & School ───────────────────────────────────────
-    try:
-        fill_sevis_and_school_if_needed(wait, driver, data)
-        _save_continue_next(wait, driver, label="Photo")
-        print("✅ SEVIS tamamlandı.")
-    except Exception as e:
-        print(f"ℹ️ SEVIS sayfası yok veya hata, atlanıyor: {e}")
-
-    # ─── Fotoğraf Sayfası ─────────────────────────────────────
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
+    fill_student_poc_sections(wait, driver, data)
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
+    fill_sevis_and_school_if_needed(wait, driver, data)
+    click_save(wait, driver)
+    click_continue_applications(wait, driver)
+    click_nexts(wait, driver, label="Travel Companions")
+    # upload_photo_by_fullname(wait, driver, data)
     try:
         WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located(
-                (By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
-            )
+            EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto"))
         )
         print("📸 Fotoğraf sayfasına gelindi")
     except Exception:
-        print("⚠️ Fotoğraf butonu bulunamadı")
+        print("⚠️ Fotoğraf butonu bulunamadı, devam ediliyor")
 
     if on_photo_page:
         on_photo_page()
