@@ -2,16 +2,9 @@
 import sys
 import io
 
-def setup_stdout():
-    try:
-        if hasattr(sys.stdout, 'buffer'):
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-        if hasattr(sys.stderr, 'buffer'):
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
-setup_stdout()
+from main270326 import wait_for_close_command
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 import argparse
 import time
@@ -281,31 +274,6 @@ def take_and_send_screenshot(driver, job_id: str):
 
 
 # =====================================================
-# WAITING CLOSE LOOP
-# =====================================================
-def wait_for_close_command(driver, job_id: str):
-    update_job_status(job_id, "waiting_close")
-    print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
-    while True:
-        time.sleep(POLL_INTERVAL)
-        payload = poll_captcha_state(job_id)
-        if not payload:
-            continue
-        job_status = payload.get("status")
-        print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
-        if job_status == "close":
-            print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
-            try:
-                driver.quit()
-            except Exception:
-                pass
-            return  # sys.exit yerine return — daemon devam eder
-        if payload.get("close_ack") or job_status == "close_ack":
-            print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
-            break
-
-
-# =====================================================
 # CHROME
 # =====================================================
 USER_AGENTS = [
@@ -572,13 +540,14 @@ def run_ds160_until_captcha(job: dict):
         from ds160_full_flow import fill_ds160_full_application
 
         def on_personal1_saved():
+            # Personal 1 kaydedilince sadece screenshot at, durma
             print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...")
             take_and_send_screenshot(driver, job_id)
 
         def on_photo_page():
             print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
             take_and_send_screenshot(driver, job_id)
-            wait_for_close_command(driver, job_id)
+        wait_for_close_command(driver, job_id)
 
         fill_ds160_full_application(
             driver, wait, data,
@@ -587,6 +556,10 @@ def run_ds160_until_captcha(job: dict):
         )
 
         update_job_status(job_id, "completed")
+
+    except SystemExit:
+        print(f"[BOT-{BOT_ID}] Bot kapatildi (sys.exit)")
+        raise
 
     except Exception as e:
         tb = traceback.format_exc()
@@ -657,7 +630,6 @@ if __name__ == "__main__":
     print(f"[BOT-{BOT_ID}] DS-160 BOT BASLADI (SUREKLI CALISIR)")
 
     while True:
-        setup_stdout()
         job = fetch_ds160_job()
         if not job:
             time.sleep(POLL_INTERVAL)
