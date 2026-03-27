@@ -3650,21 +3650,20 @@ PRESENT_OCCUPATION_MAP = {
 def select_present_occupation(wait, driver, data):
     print("🧑‍💼 Present Occupation seçiliyor")
 
-    occ = data["PRESENT_OCCUPATION"].strip().upper()
+    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
     if occ not in PRESENT_OCCUPATION_MAP:
         raise Exception(f"❌ Geçersiz PRESENT_OCCUPATION: {occ}")
 
-    ddl = wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation")
-    ))
+    ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation"
+    
+    ddl = wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))
     Select(ddl).select_by_value(PRESENT_OCCUPATION_MAP[occ])
 
-    wait.until(EC.staleness_of(ddl))
-    time.sleep(1)
+    # staleness_of yerine sadece bekle + document ready
+    time.sleep(2)
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
     print(f"✅ Present Occupation seçildi: {occ}")
-
-
 def fill_present_occupation_explain(wait, driver, data):
     expl = data.get("PRESENT_OCCUPATION_EXPLAIN", "").strip()
     if not expl:
