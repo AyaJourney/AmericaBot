@@ -95,7 +95,8 @@ def _save_continue_next(wait, driver, label="next"):
 
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print("🧪 DS-160 FULL FLOW BAŞLADI")
-
+    from ds160_resume_flow import enrich_data_with_fallbacks
+    data = enrich_data_with_fallbacks(data)
     # ─── Personal 1 ───────────────────────────────────────────
     SURNAME          = data.get("SURNAME", "")
     GIVEN_NAME       = data.get("GIVEN_NAME", "")
