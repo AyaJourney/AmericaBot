@@ -284,7 +284,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         print("🔍 'Previous Employment/Education' bölümü kontrol ediliyor...")
     # Sayfada bu bölüme ait özel bir elementin (örneğin başlık veya ilk input) varlığını kontrol et
     # Eğer 3 saniye içinde bulamazsa bu sayfa yoktur, atla.
-        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEmpl")))
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0")))
     
         fill_previous_employment(wait, driver, data)
         fill_other_education(wait, driver, data)
