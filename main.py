@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import io
+
+from main270326 import wait_for_close_command
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -543,9 +545,9 @@ def run_ds160_until_captcha(job: dict):
             take_and_send_screenshot(driver, job_id)
 
         def on_photo_page():
-            # Fotograf sayfasina gelince screenshot at
             print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
             take_and_send_screenshot(driver, job_id)
+            wait_for_close_command(driver, job_id)
 
         fill_ds160_full_application(
             driver, wait, data,
