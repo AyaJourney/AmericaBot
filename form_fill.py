@@ -3856,7 +3856,6 @@ def fill_previous_employment(wait, driver, data):
     if prev == "NO":
         return
 
-    # SAYFA READY
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
     time.sleep(1)
 
@@ -3907,7 +3906,7 @@ def fill_previous_employment(wait, driver, data):
 
         print(f"➡️ Employment #{i+1}")
 
-        # 🔴 ÖNCE SATIRIN GELDİĞİNDEN EMİN OL
+        # satır hazır mı
         wait.until(lambda d: len(d.find_elements(
             By.XPATH, "//input[contains(@id,'tbEmployerName')]"
         )) > i)
@@ -3974,40 +3973,46 @@ def fill_previous_employment(wait, driver, data):
             date_to[i]
         )
 
-        js_fill(fid(i, "tbDescribeDuties"), duties[i])
+        js_fill(fid(i, "tbDescribeDuties"), duties[i] or "General duties")
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
 
-        # ➕ YENİ SATIR EKLE
+        # ➕ yeni satır ekleme (AKILLI SKIP)
         if i < count - 1:
 
-            for attempt in range(3):
-                insert_buttons = driver.find_elements(
-                    By.XPATH, "//input[contains(@id,'InsertButtonPrevEmpl')]"
-                )
+            insert_buttons = driver.find_elements(
+                By.XPATH, "//a[contains(@id,'InsertButtonPrevEmpl')]"
+            )
 
-                if insert_buttons:
-                    btn = insert_buttons[-1]
+            if not insert_buttons:
+                print("⚠️ Insert button yok → devam ediliyor")
+                break
 
-                    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-                    time.sleep(0.3)
-                    driver.execute_script("arguments[0].click();", btn)
+            btn = insert_buttons[-1]
 
-                    # yeni satır bekle
-                    wait.until(lambda d: len(d.find_elements(
-                        By.XPATH, "//input[contains(@id,'tbEmployerName')]"
-                    )) > i+1)
+            # disabled mı?
+            if btn.get_attribute("disabled"):
+                print("⚠️ Insert button disabled → daha fazla eklenemiyor → devam")
+                break
 
-                    print("➕ Yeni employment satırı eklendi")
-                    break
-                else:
-                    print("⚠️ Insert button yok, retry...")
-                    time.sleep(1)
-            else:
-                raise Exception("❌ Insert button bulunamadı")
+            try:
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(0.3)
+                driver.execute_script("arguments[0].click();", btn)
+
+                # yeni satır geldi mi
+                wait.until(lambda d: len(d.find_elements(
+                    By.XPATH, "//input[contains(@id,'tbEmployerName')]"
+                )) > i+1)
+
+                print("➕ Yeni employment eklendi")
+
+            except Exception as e:
+                print(f"⚠️ Insert başarısız: {e} → devam ediliyor")
+                break
 
     click_outside(driver)
-    print("🟢 Previous Employment TAMAMLANDI")
+    print("🟢 Previous Employment TAMAMLANDI (limit kadar dolduruldu)")
 def fill_other_education(wait, driver, data):
     print("🎓 Other Education section başlıyor...")
 
