@@ -1,23 +1,13 @@
 # -*- coding: utf-8 -*-
+import os
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
 import sys
 import io
-
-def setup_stdout():
-    try:
-        if hasattr(sys.stdout, 'buffer'):
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-        if hasattr(sys.stderr, 'buffer'):
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except Exception:
-        pass
-
-setup_stdout()
-
 import argparse
 import time
 import requests
 import traceback
-import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -299,7 +289,7 @@ def wait_for_close_command(driver, job_id: str):
                 driver.quit()
             except Exception:
                 pass
-            return  # sys.exit yerine return — daemon devam eder
+            return
         if payload.get("close_ack") or job_status == "close_ack":
             print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
             break
@@ -657,7 +647,6 @@ if __name__ == "__main__":
     print(f"[BOT-{BOT_ID}] DS-160 BOT BASLADI (SUREKLI CALISIR)")
 
     while True:
-        setup_stdout()
         job = fetch_ds160_job()
         if not job:
             time.sleep(POLL_INTERVAL)
