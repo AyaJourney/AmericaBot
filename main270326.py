@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
 import io
+
+from ds160_full_flow import fill_ds160_full_application
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
@@ -49,6 +51,10 @@ SELENIUM_PAGELOAD_TIMEOUT = 120
 # DATA FLATTEN
 # =====================================================
 def flatten_job_data(data: dict) -> dict:
+    """
+    CRM'den gelen job data içinde raw_data, family_info vs nested key'ler olabilir.
+    raw_data'yı üst seviyeye düzleştir — mevcut key'lerin üzerine yazmaz.
+    """
     if not isinstance(data, dict):
         return data
     if "raw_data" in data and isinstance(data["raw_data"], dict):
@@ -59,6 +65,7 @@ def flatten_job_data(data: dict) -> dict:
 
 
 def get_field(data: dict, key: str, default: str = "") -> str:
+    """data'dan field al, yoksa raw_data'ya bak, yoksa default döndür."""
     val = data.get(key)
     if val:
         return str(val)
@@ -272,6 +279,28 @@ def take_and_send_screenshot(driver, job_id: str):
 
 
 # =====================================================
+# WAITING CLOSE LOOP
+# =====================================================
+def wait_for_close_command(driver, job_id: str):
+    update_job_status(job_id, "waiting_close")
+    print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
+    while True:
+        time.sleep(POLL_INTERVAL)
+        payload = poll_captcha_state(job_id)
+        if not payload:
+            continue
+        job_status = payload.get("status")
+        print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
+        if job_status == "close":
+            print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
+            driver.quit()
+            sys.exit(0)
+        if payload.get("close_ack") or job_status == "close_ack":
+            print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
+            break
+
+
+# =====================================================
 # CHROME
 # =====================================================
 USER_AGENTS = [
@@ -317,6 +346,7 @@ def run_ds160_until_captcha(job: dict):
     job_id = job["job_id"]
     data   = job.get("data", {}) or {}
 
+    # raw_data varsa düzleştir
     data = flatten_job_data(data)
 
     barcode_from_crm = data.get("BARCODE") or ""
@@ -432,17 +462,24 @@ def run_ds160_until_captcha(job: dict):
                 payload = poll_captcha_state(job_id)
                 if not payload:
                     continue
-                answer = payload.get("captcha_answer")
-                if answer and str(answer).strip():
-                    captcha_value = str(answer).strip()
-                    print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi")
-                    break
+                if payload.get("status") in ("captcha_refresh", "waiting_captcha"):
+                    answer = payload.get("captcha_answer")
+                    if answer and str(answer).strip():
+                        captcha_value = str(answer).strip()
+                        print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi")
+                        break
+                else:
+                    answer = payload.get("captcha_answer")
+                    if answer and str(answer).strip():
+                        captcha_value = str(answer).strip()
+                        print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi")
+                        break
 
         update_job_status(job_id, "captcha_verified")
 
-        # 5. RETRIEVE AKISI
+        # 5. RETRIEVE AKISI DEVAM
         if IS_RETRIEVE:
-            surname    = get_field(data, "SURNAME", "XXXXX")[:5].upper()
+            surname   = get_field(data, "SURNAME", "XXXXX")[:5].upper()
             birth_year = get_field(data, "BIRTH_YEAR", "1990")
 
             wait.until(EC.element_to_be_clickable(
@@ -514,8 +551,13 @@ def run_ds160_until_captcha(job: dict):
         if not barcode_value:
             raise RuntimeError("barcode_value set edilmedi")
 
-        # 7. BARCODE CRM'E BILDIR
         update_job_status(job_id, "barcode_received", {"barcode": barcode_value})
+
+        if IS_RETRIEVE:
+            handle_privacy_and_continue(wait, driver)
+            clear_personal_1_form(wait, driver)
+
+        # 7. BARCODE CRM'E BILDIR
         try:
             r = requests.post(
                 f"{CRM_BASE}/job/barcode",
@@ -528,31 +570,30 @@ def run_ds160_until_captcha(job: dict):
 
         update_job_status(job_id, "entered_form")
 
-        # 8. RETRIEVE ISE: Privacy + Personal1'e gec
-        if IS_RETRIEVE:
-            handle_privacy_and_continue(wait, driver)
-            clear_personal_1_form(wait, driver)
+        # 8. FORM DOLDUR
+        # if IS_RETRIEVE:
+        #     print(f"[BOT-{BOT_ID}] RESUME FLOW baslatiliyor...")
+        #     from ds160_resume_flow import fill_ds160_resume_application
 
-        # 9. FORM DOLDUR — HER ZAMAN FULL FLOW
-        print(f"[BOT-{BOT_ID}] FULL FLOW baslatiliyor...")
+        #     def on_photo_page():
+        #         print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
+        #         take_and_send_screenshot(driver, job_id)
+        #         wait_for_close_command(driver, job_id)
+
+        #     fill_ds160_resume_application(driver, wait, data, on_photo_page=on_photo_page)
+
+        # else:
+        #     print(f"[BOT-{BOT_ID}] FULL FLOW baslatiliyor...")
+        #     from ds160_full_flow import fill_ds160_full_application
+
+        #     def on_personal1_saved():
+        #         print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor...")
+        #         take_and_send_screenshot(driver, job_id)
+        #         wait_for_close_command(driver, job_id)
+
+        #     fill_ds160_full_application(driver, wait, data, on_personal1_saved=on_personal1_saved)
         from ds160_full_flow import fill_ds160_full_application
-
-        def on_personal1_saved():
-            # Personal 1 kaydedilince sadece screenshot at, durma
-            print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...")
-            take_and_send_screenshot(driver, job_id)
-
-        def on_photo_page():
-            # Fotograf sayfasina gelince screenshot at
-            print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
-            take_and_send_screenshot(driver, job_id)
-
-        fill_ds160_full_application(
-            driver, wait, data,
-            on_personal1_saved=on_personal1_saved,
-            on_photo_page=on_photo_page,
-        )
-
+        fill_ds160_full_application(driver, wait, data)
         update_job_status(job_id, "completed")
 
     except SystemExit:
