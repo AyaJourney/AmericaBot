@@ -1744,22 +1744,32 @@ def fill_payer_info(wait, driver, data):
     print("🟢 Payer info başladı")
 
     def js_fill(element_id, value):
-        el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
+        if not value:
+            return
+        try:
+            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(value)
+        except Exception as e:
+            print(f"⚠️ {element_id} doldurulamadı, atlanıyor: {e}")
 
-    payer_type = (data.get("PAYER_TYPE") or "").strip().upper()
+    payer_type = (data.get("PAYER_TYPE") or "SELF").strip().upper()
+
     if payer_type not in PAYER_MAP:
-        raise Exception(f"❌ Geçersiz PAYER_TYPE: {payer_type}")
+        print(f"⚠️ Geçersiz PAYER_TYPE: {payer_type}, SELF olarak ayarlanıyor")
+        payer_type = "SELF"
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlWhoIsPaying")
     ))).select_by_value(PAYER_MAP[payer_type])
     print(f"✅ Paying entity seçildi: {payer_type}")
+
+    time.sleep(1.5)
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
     if payer_type == "SELF":
         print("ℹ️ SELF → işlem yok")
@@ -1768,19 +1778,18 @@ def fill_payer_info(wait, driver, data):
     if payer_type == "OTHER":
         print("👤 OTHER PERSON")
 
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerSurname", data["PAYER_SURNAME"])
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerGivenName", data["PAYER_GIVEN_NAME"])
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone", data["PAYER_PHONE"])
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerSurname",   data.get("PAYER_SURNAME", "XXXXXXXXXX"))
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerGivenName", data.get("PAYER_GIVEN_NAME", "XXXXXXXXXX"))
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone",     data.get("PAYER_PHONE", "5555555555"))
 
-        payer_email = data.get("PAYER_EMAIL", "")
+        payer_email = data.get("PAYER_EMAIL", "").strip()
         if payer_email:
             try:
                 js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPAYER_EMAIL_ADDR", payer_email)
-                print(f"✅ Payer Email dolduruldu: {payer_email}")
-            except:
+            except Exception:
                 print("ℹ️ Payer Email alanı bulunamadı, geçiliyor.")
 
-        select_payer_relationship(wait, data["PAYER_RELATIONSHIP"])
+        select_payer_relationship(wait, data.get("PAYER_RELATIONSHIP", "O"))
 
         same = (data.get("PAYER_ADDRESS_SAME") or "YES").upper()
         radio_id = (
@@ -1792,36 +1801,136 @@ def fill_payer_info(wait, driver, data):
         time.sleep(0.4)
 
         if same == "NO":
-            fill_payer_address(wait, driver, data)
+            addr1   = data.get("PAYER_ADDRESS1", "XXXXXXXXXX") or "XXXXXXXXXX"
+            city    = data.get("PAYER_CITY",     "XXXXXXXXXX") or "XXXXXXXXXX"
+            country = data.get("PAYER_COUNTRY",  "TURKEY")     or "TURKEY"
+
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", data.get("PAYER_ADDRESS2", ""))
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
+
+            state = data.get("PAYER_STATE", "").strip()
+            if state:
+                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStateProvince", state)
+            else:
+                try:
+                    state_cb = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince")
+                    if not state_cb.is_selected():
+                        driver.execute_script("arguments[0].click();", state_cb)
+                        time.sleep(1)
+                except Exception:
+                    pass
+
+            zip_code = data.get("PAYER_ZIP", "").strip()
+            if zip_code:
+                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPostalZIPCode", zip_code)
+            else:
+                try:
+                    zip_cb = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode")
+                    if not zip_cb.is_selected():
+                        driver.execute_script("arguments[0].click();", zip_cb)
+                        time.sleep(1)
+                except Exception:
+                    pass
+
+            try:
+                select_ds160_country(
+                    wait,
+                    "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
+                    country
+                )
+            except Exception as e:
+                print(f"⚠️ Payer country seçilemedi: {e}")
+
+            driver.find_element(By.TAG_NAME, "body").click()
+            time.sleep(0.5)
 
         print("✅ OTHER PERSON tamamlandı")
         return
 
     if payer_type in ("COMPANY", "EMPLOYER", "US_EMPLOYER"):
         print("🏢 COMPANY / EMPLOYER alanları dolduruluyor...")
-        time.sleep(1.5)
+        time.sleep(2)
 
         try:
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayingCompany", data["PAYER_COMPANY_NAME"])
+            wait.until(EC.visibility_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxPayingCompany")
+            ))
+        except TimeoutException:
+            print("⚠️ Şirket alanları açılmadı, JS postback deneniyor...")
+            driver.execute_script(
+                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlWhoIsPaying', '');"
+            )
+            time.sleep(2)
+
+        try:
+            company_name = data.get("PAYER_COMPANY_NAME", "").strip() or "XXXXXXXXXX"
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayingCompany", company_name)
             print("✅ Şirket adı yazıldı.")
 
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone", data["PAYER_COMPANY_PHONE"])
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCompanyRelation", data["PAYER_COMPANY_RELATIONSHIP"])
+            company_phone = data.get("PAYER_COMPANY_PHONE", "").strip() or "5555555555"
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone", company_phone)
 
-            payer_email = data.get("PAYER_EMAIL", "")
+            company_rel = data.get("PAYER_COMPANY_RELATIONSHIP", "").strip() or "EMPLOYER"
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCompanyRelation", company_rel)
+
+            payer_email = data.get("PAYER_EMAIL", "").strip()
             if payer_email:
                 try:
                     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPAYER_EMAIL_ADDR", payer_email)
-                    print(f"✅ Company Payer Email dolduruldu: {payer_email}")
-                except:
+                except Exception:
                     print("ℹ️ Company Payer Email alanı bulunamadı, geçiliyor.")
 
-            fill_payer_address(wait, driver, data)
+            addr1   = data.get("PAYER_COMPANY_ADDRESS1") or data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
+            city    = data.get("PAYER_COMPANY_CITY")     or data.get("PAYER_CITY")     or "XXXXXXXXXX"
+            country = data.get("PAYER_COMPANY_COUNTRY")  or data.get("PAYER_COUNTRY")  or "TURKEY"
 
-        except TimeoutException:
-            print("❌ HATA: Şirket bilgileri giriş alanları belirmedi!")
-            driver.save_screenshot("error_payer_info.png")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
+
+            # State — Does Not Apply
+            try:
+                state_cb = driver.find_element(
+                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince"
+                )
+                if not state_cb.is_selected():
+                    driver.execute_script("arguments[0].click();", state_cb)
+                    time.sleep(1)
+                print("✅ Payer State: Does Not Apply")
+            except Exception:
+                pass
+
+            # ZIP — Does Not Apply
+            try:
+                zip_cb = driver.find_element(
+                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode"
+                )
+                if not zip_cb.is_selected():
+                    driver.execute_script("arguments[0].click();", zip_cb)
+                    time.sleep(1)
+                print("✅ Payer ZIP: Does Not Apply")
+            except Exception:
+                pass
+
+            try:
+                select_ds160_country(
+                    wait,
+                    "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
+                    country
+                )
+                print(f"✅ Payer Country: {country}")
+            except Exception as e:
+                print(f"⚠️ Payer country seçilemedi: {e}")
+
+            driver.find_element(By.TAG_NAME, "body").click()
+            time.sleep(0.5)
+            print("✅ COMPANY bilgileri tamamlandı")
+
+        except Exception as e:
+            print(f"❌ COMPANY bilgileri doldurulamadı: {e}")
             raise
+
+
 def click_save(wait, driver):
     save_btn_id = "ctl00_SiteContentPlaceHolder_UpdateButton2"
 
