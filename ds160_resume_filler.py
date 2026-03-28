@@ -114,6 +114,15 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("PRESENT_OCCUPATION","NOT_EMPLOYED")
     fb("PRESENT_OCCUPATION_EXPLAIN", "XXXXXXXXXX")
     fb("OTHER_NAME",        "NO")
+    fb("PAYER_ADDRESS1",  "XXXXXXXXXX")
+    fb("PAYER_CITY",      "XXXXXXXXXX")
+    fb("PAYER_COUNTRY",   "TURKEY")
+    fb("PAYER_COMPANY_ADDRESS1", "XXXXXXXXXX")
+    fb("PAYER_COMPANY_CITY",     "XXXXXXXXXX")
+    fb("PAYER_COMPANY_COUNTRY",  "TURKEY")
+    fb("PAYER_COMPANY_RELATIONSHIP", "EMPLOYER")
+    fb("PAYER_COMPANY_NAME", "XXXXXXXXXX")
+    fb("PAYER_COMPANY_PHONE", "5555555555")
 
     print("✅ enrich_data_with_fallbacks tamamlandı")
     return d
