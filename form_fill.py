@@ -1687,47 +1687,58 @@ def select_payer_relationship(wait, raw_value):
 def fill_payer_address(wait, driver, data):
 
     def js_fill(element_id, value):
-        el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
+        if not value:
+            return
+        try:
+            el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(value)
+        except Exception as e:
+            print(f"⚠️ {element_id} doldurulamadı, atlanıyor: {e}")
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", data["PAYER_ADDRESS1"])
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", data.get("PAYER_ADDRESS1", ""))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", data.get("PAYER_ADDRESS2", ""))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", data.get("PAYER_CITY", ""))
 
-    addr2 = (data.get("PAYER_ADDRESS2") or "").strip()
-    if addr2:
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", addr2)
-
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", data["PAYER_CITY"])
-
-    state = (data.get("PAYER_STATE") or "").strip()
+    state = data.get("PAYER_STATE", "").strip()
     if state:
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStateProvince", state)
     else:
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince")
-        )).click()
+        try:
+            wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince")
+            )).click()
+        except Exception:
+            pass
 
-    zip_code = (data.get("PAYER_ZIP") or "").strip()
+    zip_code = data.get("PAYER_ZIP", "").strip()
     if zip_code:
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPostalZIPCode", zip_code)
     else:
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode")
-        )).click()
+        try:
+            wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode")
+            )).click()
+        except Exception:
+            pass
 
-    select_ds160_country(
-        wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
-        data["PAYER_COUNTRY"]
-    )
+    payer_country = data.get("PAYER_COUNTRY", "").strip()
+    if payer_country:
+        try:
+            select_ds160_country(
+                wait,
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
+                payer_country
+            )
+        except Exception as e:
+            print(f"⚠️ Payer country seçilemedi: {e}")
 
     driver.find_element(By.TAG_NAME, "body").click()
     time.sleep(0.5)
-
 
 def fill_payer_info(wait, driver, data):
     print("🟢 Payer info başladı")
