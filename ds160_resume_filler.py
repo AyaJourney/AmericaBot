@@ -112,7 +112,14 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("US_STATE",          "NY")
     fb("PASSPORT_TYPE",     "REGULAR")
     fb("PRESENT_OCCUPATION","NOT_EMPLOYED")
-    fb("PRESENT_OCCUPATION_EXPLAIN", "XXXXXXXXXX")
+    occ = str(d.get("PRESENT_OCCUPATION", "")).strip().upper()
+    if not str(d.get("PRESENT_OCCUPATION_EXPLAIN", "")).strip():
+        if occ == "NOT_EMPLOYED":
+            d["PRESENT_OCCUPATION_EXPLAIN"] = "NOT EMPLOYED"
+        elif occ == "OTHER":
+            d["PRESENT_OCCUPATION_EXPLAIN"] = "OTHER OCCUPATION"
+        else:
+            d["PRESENT_OCCUPATION_EXPLAIN"] = "NOT EMPLOYED"
     fb("OTHER_NAME",        "NO")
     fb("PAYER_ADDRESS1",  "XXXXXXXXXX")
     fb("PAYER_CITY",      "XXXXXXXXXX")

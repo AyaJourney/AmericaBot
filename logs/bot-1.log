@@ -329,4 +329,3105 @@ DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
 ✅ MONEY_LAUNDERING: NO
 ✅ HUMAN_TRAFFICKING: NO
 ✅ ASSISTED_SEVERE_TRAFFICKING: NO
+✅ HUMAN_TRAFFICKING_RELATED: NO[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 8ac3e04c-72b6-43e2-a552-8b572ebed589
+[BOT-1] MODE: NEW
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Location seciliyor
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] New Application (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] New application -> barcode: AA00FFLD1N
+[BOT-1] Form menusune girildi
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+✅ Other Names seçildi: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+✅ Other Nationality: NO seçildi
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+✅ Specific travel seçildi: NO
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+🖱️ IV Petition 'NO' işaretlendi.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+ℹ️ Present Occupation sayfası bulunamadı veya atlandı: ❌ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED
+💾 Save butonuna basıldı
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: cf448708-472e-4617-88ff-a3508f34615b
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+🏢 Employer / School bilgileri dolduruluyor
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: eeeb0b33-3c68-4570-9b39-c6c0a43c7208
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: fe7f742f-0af0-43ed-a613-b574099db1e1
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] HATA:
+Traceback (most recent call last):
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\main.py", line 573, in run_ds160_until_captcha
+    fill_ds160_full_application(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        driver, wait, data,
+        ^^^^^^^^^^^^^^^^^^^
+        on_personal1_saved=on_personal1_saved,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        on_photo_page=on_photo_page,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\ds160_full_flow.py", line 261, in fill_ds160_full_application
+    click_continue_applications(wait, driver)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\form_fill.py", line 1960, in click_continue_applications
+    btn = wait.until(
+        EC.element_to_be_clickable((By.ID, btn_id))
+    )
+  File "C:\Users\1275\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\support\wait.py", line 138, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+
+[BOT-1] STATUS -> failed (200)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: aa8c99f5-b49a-458b-b667-5998ae4bad8f
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 22cdfd32-2bfb-4238-a130-7068003ca6ea
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha hatali: Please correct all areas in error as indicated below.
+The code entered does not match the code displayed on the page.
+[BOT-1] Yeni captcha aliniyor...
+[BOT-1] CAPTCHA reload tiklandi
+[BOT-1] CAPTCHA screenshot alindi (son deneme)
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi (REFRESH)
+[BOT-1] STATUS -> captcha_refresh (200)
+[BOT-1] Yeni captcha cevabi bekleniyor...
+[BOT-1] Yeni captcha cevabi alindi
+[BOT-1] Retrieve akisi (deneme 2)
+[BOT-1] Captcha gecti (deneme 2)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] HATA:
+Traceback (most recent call last):
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\main.py", line 573, in run_ds160_until_captcha
+    fill_ds160_full_application(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        driver, wait, data,
+        ^^^^^^^^^^^^^^^^^^^
+        on_personal1_saved=on_personal1_saved,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        on_photo_page=on_photo_page,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\ds160_full_flow.py", line 261, in fill_ds160_full_application
+    click_continue_applications(wait, driver)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\form_fill.py", line 1960, in click_continue_applications
+    btn = wait.until(
+        EC.element_to_be_clickable((By.ID, btn_id))
+    )
+  File "C:\Users\1275\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\support\wait.py", line 138, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+
+[BOT-1] STATUS -> failed (200)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: c6edd786-63e6-468e-b1b3-b8cc3f3ef44d
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] HATA:
+Traceback (most recent call last):
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\main.py", line 573, in run_ds160_until_captcha
+    fill_ds160_full_application(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        driver, wait, data,
+        ^^^^^^^^^^^^^^^^^^^
+        on_personal1_saved=on_personal1_saved,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        on_photo_page=on_photo_page,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\ds160_full_flow.py", line 261, in fill_ds160_full_application
+    click_continue_applications(wait, driver)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\form_fill.py", line 1960, in click_continue_applications
+    btn = wait.until(
+        EC.element_to_be_clickable((By.ID, btn_id))
+    )
+  File "C:\Users\1275\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\support\wait.py", line 138, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+
+[BOT-1] STATUS -> failed (200)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 3d66ff73-0f4a-47a7-b3b6-5642b0194522
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+DEBUG PRESENT_OCCUPATION: NOT EMPLOYED
+DEBUG PRESENT_OCCUPATION_EXPLAIN: DENEME
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] HATA:
+Traceback (most recent call last):
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\main.py", line 573, in run_ds160_until_captcha
+    fill_ds160_full_application(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        driver, wait, data,
+        ^^^^^^^^^^^^^^^^^^^
+        on_personal1_saved=on_personal1_saved,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        on_photo_page=on_photo_page,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\ds160_full_flow.py", line 263, in fill_ds160_full_application
+    click_continue_applications(wait, driver)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\1275\Desktop\AMERICA BOT\america\form_fill.py", line 1960, in click_continue_applications
+    btn = wait.until(
+        EC.element_to_be_clickable((By.ID, btn_id))
+    )
+  File "C:\Users\1275\AppData\Local\Programs\Python\Python313\Lib\site-packages\selenium\webdriver\support\wait.py", line 138, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: c3d73e34-06bb-4138-853d-fbee98653cf5
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+DEBUG PRESENT_OCCUPATION: NOT EMPLOYED
+DEBUG PRESENT_OCCUPATION_EXPLAIN: DENEME
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 1559c94a-fc3a-42de-821d-37043ce8c93e
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+DEBUG PRESENT_OCCUPATION: NOT EMPLOYED
+DEBUG PRESENT_OCCUPATION_EXPLAIN: DENEME
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Prev Employment
+✅ Occupation next geçildi.
+🏢 Previous Employment bölümü başladı
+✅ Previously Employed: NO
+🎓 Other Education section başlıyor...
+✅ Other Education: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Additional Work
+✅ Previous Employment/Education tamamlandı.
+✅ Military Service radio: NO
+🟥 Insurgent / Paramilitary Organization bölümü
+✅ Insurgent Organization: NO
+🟢 Additional Work/Education section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Health
+✅ Additional Work/Education tamamlandı.
+🟥 Health / Medical Security Section
+🩺 Communicable Disease
+✅ Communicable Disease: NO
+🧠 Mental / Physical Disorder
+✅ Disorder: NO
+💊 Drug Abuse / Addiction
+✅ Drug Abuse: NO
+🟢 Health / Medical Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Criminal
+🟥 Criminal / Security Section START
+✅ ARRESTED: NO
+✅ CONTROLLED_SUBSTANCES: NO
+✅ PROSTITUTION: NO
+✅ MONEY_LAUNDERING: NO
+✅ HUMAN_TRAFFICKING: NO
+✅ ASSISTED_SEVERE_TRAFFICKING: NO
 ✅ HUMAN_TRAFFICKING_RELATED: NO
+🟢 Criminal / Security Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Security Violations
+🟥 Security / Violations Section
+🧩 Illegal Activity
+✅ Illegal Activity: NO
+🧩 Terrorist Activity
+✅ Terrorist Activity: NO
+🧩 Terrorist Support
+✅ Terrorist Support: NO
+🧩 Terrorist Organization
+✅ Terrorist Organization: NO
+🧩 Terrorist Relative
+✅ Terrorist Relative: NO
+🧩 Genocide
+✅ Genocide: NO
+🧩 Torture
+✅ Torture: NO
+🧩 Extrajudicial/Political Violence
+✅ Extrajudicial/Political Violence: NO
+🧩 Child Soldier
+✅ Child Soldier: NO
+🧩 Religious Freedom
+✅ Religious Freedom: NO
+🧩 Population Controls
+✅ Population Controls: NO
+🧩 Coercive Transplant
+✅ Coercive Transplant: NO
+🟢 Security / Violations Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Removal
+🚨 REMOVAL & IMMIGRATION SECTION
+✅ JavaScript ile 2 adet 'NO' butonu işaretlendi.
+✅ REMOVAL & IMMIGRATION SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Misc Immigration
+📌 MISC IMMIGRATION / LEGAL VIOLATIONS SECTION
+ℹ️ AttWoReimb sorusu yok, atlanıyor
+✅ MISC IMMIGRATION / LEGAL VIOLATIONS SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Student POC
+ℹ️ Student POC sayfası yok (B1/B2), atlanıyor.
+🎓 SEVIS sayfası başlıyor (2-pass mode)
+➡ PASS 1: Study / SEVIS / Program
+➡ PASS 2: School fields
+🟢 SEVIS + School TAMAM (2-pass başarılı)
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 0f673a34-ceb0-49fa-8b0e-d2eeb2c7fd7c
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+DEBUG PRESENT_OCCUPATION: NOT EMPLOYED
+DEBUG PRESENT_OCCUPATION_EXPLAIN: DENEME
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Prev Employment
+✅ Occupation next geçildi.
+🏢 Previous Employment bölümü başladı
+✅ Previously Employed: NO
+🎓 Other Education section başlıyor...
+✅ Other Education: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Additional Work
+✅ Previous Employment/Education tamamlandı.
+✅ Military Service radio: NO
+🟥 Insurgent / Paramilitary Organization bölümü
+✅ Insurgent Organization: NO
+🟢 Additional Work/Education section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Health
+✅ Additional Work/Education tamamlandı.
+🟥 Health / Medical Security Section
+🩺 Communicable Disease
+✅ Communicable Disease: NO
+🧠 Mental / Physical Disorder
+✅ Disorder: NO
+💊 Drug Abuse / Addiction
+✅ Drug Abuse: NO
+🟢 Health / Medical Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Criminal
+🟥 Criminal / Security Section START
+✅ ARRESTED: NO
+✅ CONTROLLED_SUBSTANCES: NO
+✅ PROSTITUTION: NO
+✅ MONEY_LAUNDERING: NO
+✅ HUMAN_TRAFFICKING: NO
+✅ ASSISTED_SEVERE_TRAFFICKING: NO
+✅ HUMAN_TRAFFICKING_RELATED: NO
+🟢 Criminal / Security Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Security Violations
+🟥 Security / Violations Section
+🧩 Illegal Activity
+✅ Illegal Activity: NO
+🧩 Terrorist Activity
+✅ Terrorist Activity: NO
+🧩 Terrorist Support
+✅ Terrorist Support: NO
+🧩 Terrorist Organization
+✅ Terrorist Organization: NO
+🧩 Terrorist Relative
+✅ Terrorist Relative: NO
+🧩 Genocide
+✅ Genocide: NO
+🧩 Torture
+✅ Torture: NO
+🧩 Extrajudicial/Political Violence
+✅ Extrajudicial/Political Violence: NO
+🧩 Child Soldier
+✅ Child Soldier: NO
+🧩 Religious Freedom
+✅ Religious Freedom: NO
+🧩 Population Controls
+✅ Population Controls: NO
+🧩 Coercive Transplant
+✅ Coercive Transplant: NO
+🟢 Security / Violations Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Removal
+🚨 REMOVAL & IMMIGRATION SECTION
+✅ JavaScript ile 2 adet 'NO' butonu işaretlendi.
+✅ REMOVAL & IMMIGRATION SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Misc Immigration
+📌 MISC IMMIGRATION / LEGAL VIOLATIONS SECTION
+ℹ️ AttWoReimb sorusu yok, atlanıyor
+✅ MISC IMMIGRATION / LEGAL VIOLATIONS SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Student POC
+ℹ️ Student POC sayfası yok (B1/B2), atlanıyor.
+🎓 SEVIS sayfası başlıyor (2-pass mode)
+➡ PASS 1: Study / SEVIS / Program
+➡ PASS 2: School fields
+🟢 SEVIS + School TAMAM (2-pass başarılı)
+ℹ️ SEVIS sayfası yok veya hata, atlanıyor: Message: 
+
+📸 Fotoğraf sayfasına gelindi
+[BOT-1] Fotograf sayfasina gelindi, screenshot aliniyor...
+[BOT-1] Screenshot boyutu: 202768 chars
+[BOT-1] Screenshot gonderildi: 200
+[BOT-1] STATUS -> waiting_close (200)
+[BOT-1] Waiting close - kullanici onay bekleniyor...
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] Baslatildi
+[BOT-1] DS-160 BOT BASLADI (SUREKLI CALISIR)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] JOB: 5b440905-aad6-4ea4-a8f9-d65b25d67338
+[BOT-1] MODE: RETRIEVE
+[BOT-1] LOCATION: ANK
+[BOT-1] SURNAME: PARLAK
+[BOT-1] STATUS -> processing (200)
+[BOT-1] Chrome profil: C:\Users\1275\chrome-bot-1
+[BOT-1] Retrieve mode -> location atlandi
+[BOT-1] STATUS -> waiting_captcha (200)
+[BOT-1] CAPTCHA gonderildi
+[BOT-1] CAPTCHA bekleniyor...
+[BOT-1] Retrieve akisi (deneme 1)
+[BOT-1] Captcha gecti (deneme 1)
+[BOT-1] STATUS -> captcha_verified (200)
+[BOT-1] Retrieve bitti
+[BOT-1] Retrieve mode -> barcode: AA00FFLD1N
+[BOT-1] STATUS -> barcode_received (200)
+[BOT-1] CRM barcode bildirildi: 200
+[BOT-1] STATUS -> entered_form (200)
+[BOT-1] Personal 1'e geciliyor
+[BOT-1] Personal 1'e gecildi
+[BOT-1] Personal 1 hazir
+[BOT-1] Personal 1 temizleniyor
+[BOT-1] Personal 1 sifirlandı
+[BOT-1] FULL FLOW baslatiliyor...
+DEBUG PRESENT_OCCUPATION: NOT EMPLOYED
+DEBUG PRESENT_OCCUPATION_EXPLAIN: DENEME
+🧪 DS-160 FULL FLOW BAŞLADI
+ℹ️ VISIT1_STAY_LENGTH oluşturuldu: 1
+ℹ️ VISIT1_STAY_UNIT oluşturuldu: W
+✅ enrich_data_with_fallbacks tamamlandı
+🎓 EDU_00_SCHOOL_NAME: YOK
+🎓 EDU_01_SCHOOL_NAME: YOK
+🎓 OTHER_EDUCATION: NO
+ℹ️ Other Names zaten seçili: NO
+🚫 Telecode: NO seçildi
+✅ Gender seçildi: M
+✅ Marital Status seçildi: SINGLE
+✅ DOB girildi: 20-FEB-1993
+✅ Doğum yeri (şehir / eyalet) girildi
+✅ Doğum ülkesi seçildi: TURKEY
+💾 Save tıklandı
+▶ Continue Application (FORCE)
+✅ Continue Application postback gönderildi
+[BOT-1] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...
+[BOT-1] Screenshot boyutu: 735220 chars
+[BOT-1] Screenshot gonderildi: 200
+⏳ Next: Personal 2 butonu bekleniyor...
+➡ Next: Personal 2 tıklandı
+✅ Nationality seçildi: TURKEY
+ℹ Other Nationality zaten NO
+✅ Permanent Resident Other Country = NO
+✅ National ID girildi: 25070607546
+✅ SSN: Does Not Apply
+✅ Tax ID: Does Not Apply
+💾 Save butonuna basıldı
+✅ Sayfa kaydedildi (Save tamam)
+▶️ Continue Application butonuna basıldı
+✅ Continue Application tamamlandı
+➡️ Next: Travel butonuna basıldı
+✅ Travel sayfasına geçildi
+✅ Purpose seçildi: TEMP. BUSINESS OR PLEASURE VISITOR (B)
+✅ Alt Purpose seçildi: BUSINESS OR TOURISM (TEMPORARY VISITOR) (B1/B2)
+🛬 Intended arrival date dolduruluyor...
+✅ Intended Arrival Date: 2-APR-2026
+🎯 Intended Length of Stay TAMAM: 1 WEEK(S)
+✅ U.S. Address girildi
+🟢 Payer dropdown hazır
+🟢 Payer info başladı
+✅ Paying entity seçildi: SELF
+ℹ️ SELF → işlem yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Travel Companions
+🧭 Travel Companions başladı
+✅ Traveling with others: NO
+ℹ️ Travel companions yok
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Previous US Travel
+✅ Previous US Travel: NO
+✅ Previous Visa: NO
+✅ Previous Visa Refused: NO
+📋 IV Petition kontrol ediliyor...
+⚡ IV Petition zaten doğru işaretli.
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Address Phone
+ℹ️ State/Province: Does Not Apply
+✅ Country seçildi: TURKEY
+🌍 Home Address tamamlandı → TURKEY
+📬 Mailing Address Same as Home: YES
+📞 Phone bilgileri düzenleniyor...
+✅ Primary Phone: 05546434917
+✅ ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL değer girildi: 05546434918
+✅ Mobile Phone: 05546434918
+ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)
+📞 Additional Phone başlıyor
+✅ Additional Phone seçildi: NO
+ℹ️ Additional Phone yok → devam ediliyor
+✅ Email başarıyla girildi: s.metehan.parlak@gmail.com
+📧 Additional Email bölümü dolduruluyor...
+✅ Additional Email seçimi: NO
+📱 Social Media başladı
+ℹ️ Social Media: NONE seçildi
+DEBUG ADDITIONAL_SOCIAL RAW → ['NO']
+✅ Additional Social Media: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Passport
+🛂 Passport section başladı
+✅ Pasaport tipi seçildi: OFFICIAL
+✅ Country seçildi: TURKEY
+✅ Country seçildi: TURKEY
+🟢 Passport section TAMAMLANDI
+🟠 Lost Passport bölümü başladı
+✅ Lost Passport seçildi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → US POC
+🇺🇸 U.S. Point of Contact başladı
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME dolduruldu: UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME dolduruldu: UNKNOWN
+✅ POC isim dolduruldu: UNKNOWN UNKNOWN
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION dolduruldu: XXXX XXXX
+✅ POC organizasyon dolduruldu: XXXX XXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1 dolduruldu: XXXX XXX XXXXX XXXXX
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY dolduruldu: XXXXXXXX
+📍 Eyalet seçildi: CA
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD dolduruldu: 06580
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL dolduruldu: +905556664487
+✍️ ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR dolduruldu: deneme@deneme.com
+🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Family
+👨‍👩‍👧‍👦 Parents info başladı...
+✅ Tarih girildi: 01-JAN-1963
+📅 FATHER tarihi girildi: 01-JAN-1963
+✅ FATHER tamamlandı
+✅ Tarih girildi: 01-JAN-1968
+📅 MOTHER tarihi girildi: 01-JAN-1968
+✅ MOTHER tamamlandı
+🟢 Parents info TAMAMLANDI
+👪 Immediate Relatives başladı
+ℹ️ Immediate Relative yok
+👥 Other Relatives başladı
+✅ Other Relatives işaretlendi: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Spouse
+ℹ️ SINGLE — eş sayfası atlanıyor
+🔍 Present Occupation bölümü işleniyor...
+🧑‍💼 Present Occupation seçiliyor
+⚠️ Geçersiz PRESENT_OCCUPATION: NOT EMPLOYED, NOT_EMPLOYED olarak ayarlanıyor
+✅ Present Occupation seçildi: NOT_EMPLOYED → N
+✅ Seçim doğrulandı: N
+🧑‍💼 Occupation: NOT EMPLOYED
+⚠️ İşveren/Okul bilgileri doldurulamadı: Message: 
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x8dcdf3+10b03]
+	chromedriver!GetHandleVerifier [0x8dcf24+10c34]
+	chromedriver!(No symbol) [0x6c2120]
+	chromedriver!(No symbol) [0x70abca]
+	chromedriver!(No symbol) [0x70ae6b]
+	chromedriver!(No symbol) [0x74d0b2]
+	chromedriver!(No symbol) [0x72db54]
+	chromedriver!(No symbol) [0x74a9a5]
+	chromedriver!(No symbol) [0x72d8a6]
+	chromedriver!(No symbol) [0x700229]
+	chromedriver!(No symbol) [0x700fe4]
+	chromedriver!GetHandleVerifier [0xb448b9+2785c9]
+	chromedriver!GetHandleVerifier [0xb3feb5+273bc5]
+	chromedriver!GetHandleVerifier [0xb5e06b+291d7b]
+	chromedriver!GetHandleVerifier [0x8f5cc8+299d8]
+	chromedriver!GetHandleVerifier [0x8fd9fd+3170d]
+	chromedriver!GetHandleVerifier [0x8e58c8+195d8]
+	chromedriver!GetHandleVerifier [0x8e5a92+197a2]
+	chromedriver!GetHandleVerifier [0x8cee9a+2baa]
+	KERNEL32!BaseThreadInitThunk [0x775afcc9+19]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x777882ae+11e]
+	ntdll!RtlGetAppContainerNamedObjectPath [0x7778827e+ee]
+
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Prev Employment
+✅ Occupation next geçildi.
+🏢 Previous Employment bölümü başladı
+✅ Previously Employed: NO
+🎓 Other Education section başlıyor...
+✅ Other Education: NO
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Additional Work
+✅ Previous Employment/Education tamamlandı.
+✅ Military Service radio: NO
+🟥 Insurgent / Paramilitary Organization bölümü
+✅ Insurgent Organization: NO
+🟢 Additional Work/Education section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Health
+✅ Additional Work/Education tamamlandı.
+🟥 Health / Medical Security Section
+🩺 Communicable Disease
+✅ Communicable Disease: NO
+🧠 Mental / Physical Disorder
+✅ Disorder: NO
+💊 Drug Abuse / Addiction
+✅ Drug Abuse: NO
+🟢 Health / Medical Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Criminal
+🟥 Criminal / Security Section START
+✅ ARRESTED: NO
+✅ CONTROLLED_SUBSTANCES: NO
+✅ PROSTITUTION: NO
+✅ MONEY_LAUNDERING: NO
+✅ HUMAN_TRAFFICKING: NO
+✅ ASSISTED_SEVERE_TRAFFICKING: NO
+✅ HUMAN_TRAFFICKING_RELATED: NO
+🟢 Criminal / Security Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Security Violations
+🟥 Security / Violations Section
+🧩 Illegal Activity
+✅ Illegal Activity: NO
+🧩 Terrorist Activity
+✅ Terrorist Activity: NO
+🧩 Terrorist Support
+✅ Terrorist Support: NO
+🧩 Terrorist Organization
+✅ Terrorist Organization: NO
+🧩 Terrorist Relative
+✅ Terrorist Relative: NO
+🧩 Genocide
+✅ Genocide: NO
+🧩 Torture
+✅ Torture: NO
+🧩 Extrajudicial/Political Violence
+✅ Extrajudicial/Political Violence: NO
+🧩 Child Soldier
+✅ Child Soldier: NO
+🧩 Religious Freedom
+✅ Religious Freedom: NO
+🧩 Population Controls
+✅ Population Controls: NO
+🧩 Coercive Transplant
+✅ Coercive Transplant: NO
+🟢 Security / Violations Section TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Removal
+🚨 REMOVAL & IMMIGRATION SECTION
+✅ JavaScript ile 2 adet 'NO' butonu işaretlendi.
+✅ REMOVAL & IMMIGRATION SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Misc Immigration
+📌 MISC IMMIGRATION / LEGAL VIOLATIONS SECTION
+ℹ️ AttWoReimb sorusu yok, atlanıyor
+✅ MISC IMMIGRATION / LEGAL VIOLATIONS SECTION TAMAMLANDI
+💾 Save butonuna basıldı
+➡️ Continue Application tıklandı
+➡️ Next tıklandı → Student POC
+ℹ️ Student POC sayfası yok (B1/B2), atlanıyor.
+🎓 SEVIS sayfası başlıyor (2-pass mode)
+➡ PASS 1: Study / SEVIS / Program
+➡ PASS 2: School fields
+🟢 SEVIS + School TAMAM (2-pass başarılı)
+ℹ️ SEVIS sayfası yok veya hata, atlanıyor: Message: 
+
+📸 Fotoğraf sayfasına gelindi
+[BOT-1] Fotograf sayfasina gelindi, screenshot aliniyor...
+[BOT-1] Screenshot boyutu: 202504 chars
+[BOT-1] Screenshot gonderildi: 200
+[BOT-1] STATUS -> waiting_close (200)
+[BOT-1] Waiting close - kullanici onay bekleniyor...
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: waiting_close
+[BOT-1] waiting_close poll: close
+[BOT-1] Kapat komutu alindi, bot kapatiliyor...
+🎉 DS-160 FULL FORM TAMAMLANDI
+[BOT-1] STATUS -> completed (200)
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...
+[BOT-1] Queue kontrol ediliyor...

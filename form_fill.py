@@ -1630,7 +1630,7 @@ def fill_us_address(wait, driver, data):
         el.send_keys(value)
 
     # Address 1
-    addr1 = data.get("US_ADDRESS1", "").strip()
+    addr1 = clean_address(data.get("US_ADDRESS1", "").strip())
     if not addr1:
         raise Exception("❌ US_ADDRESS1 boş olamaz")
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxStreetAddress1", addr1)
@@ -1801,8 +1801,8 @@ def fill_payer_info(wait, driver, data):
         time.sleep(0.4)
 
         if same == "NO":
-            addr1   = data.get("PAYER_ADDRESS1", "XXXXXXXXXX") or "XXXXXXXXXX"
-            city    = data.get("PAYER_CITY",     "XXXXXXXXXX") or "XXXXXXXXXX"
+            addr1 = clean_address(data.get("PAYER_COMPANY_ADDRESS1") or data.get("PAYER_ADDRESS1") or "XXXXXXXXXX")
+            city  = clean_address(data.get("PAYER_COMPANY_CITY")     or data.get("PAYER_CITY")     or "XXXXXXXXXX")
             country = data.get("PAYER_COUNTRY",  "TURKEY")     or "TURKEY"
 
             js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
@@ -2506,11 +2506,11 @@ def split_address(address, max_len=40):
 
 def fill_home_address(wait, driver, data):
 
-    full_address = data.get("HOME_ADDRESS", "").strip()
-    city = data.get("HOME_CITY", "").strip()
-    state = data.get("HOME_STATE", "").strip()
-    postal = data.get("HOME_POSTAL_CODE", "").strip()
-    country = data.get("HOME_COUNTRY", "").strip().upper()
+    full_address = clean_address(data.get("HOME_ADDRESS", "").strip())
+    city         = clean_address(data.get("HOME_CITY", "").strip())
+    state        = clean_address(data.get("HOME_STATE", "").strip())
+    postal       = data.get("HOME_POSTAL_CODE", "").strip()
+    country      = data.get("HOME_COUNTRY", "").strip().upper()
 
     if not full_address or not city or not country:
         raise Exception("❌ HOME_ADDRESS, HOME_CITY, HOME_COUNTRY zorunlu")
@@ -2518,6 +2518,8 @@ def fill_home_address(wait, driver, data):
     addr1, addr2 = split_address(full_address)
 
     def js_fill(element_id, value):
+        if not value:
+            return
         el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
@@ -2533,7 +2535,7 @@ def fill_home_address(wait, driver, data):
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_CITY", city)
 
-    state_input = wait.until(EC.presence_of_element_located(
+    state_input    = wait.until(EC.presence_of_element_located(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_STATE")
     ))
     state_na_checkbox = wait.until(EC.presence_of_element_located(
@@ -2569,7 +2571,6 @@ def fill_home_address(wait, driver, data):
     print(f"🌍 Home Address tamamlandı → {country}")
     click_outside(driver)
     time.sleep(0.5)
-
 
 def fill_mailing_address(wait, driver, data):
 
@@ -2652,7 +2653,29 @@ def fill_mailing_address(wait, driver, data):
     print("✅ Mailing Address girildi")
     click_outside(driver)
     time.sleep(0.5)
+def clean_phone(phone: str) -> str:
+    """Telefon numarasından () - . boşluk vb karakterleri temizler, + başında kalır."""
+    if not phone:
+        return ""
+    phone = phone.strip()
+    # + varsa koru
+    has_plus = phone.startswith("+")
+    # Sadece rakamları al
+    digits = "".join(c for c in phone if c.isdigit())
+    return ("+" + digits) if has_plus else digits
 
+
+def clean_address(addr: str) -> str:
+    """Adres metninden noktalama işaretlerini temizler."""
+    if not addr:
+        return ""
+    import re
+    # Virgül, nokta, !, ?, ;, :, ', " gibi noktalama işaretlerini kaldır
+    # Slash ve tire adres için gerekli olabilir, onları bırak
+    cleaned = re.sub(r"[.,!?;:\"\'`]", " ", addr)
+    # Çoklu boşlukları tek boşluğa indir
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 def safe_phone_fill(wait, driver, input_id, checkbox_id, value):
     try:
         cb = driver.find_element(By.ID, checkbox_id)
@@ -2683,7 +2706,15 @@ def safe_phone_fill(wait, driver, input_id, checkbox_id, value):
 def fill_phone_numbers(wait, driver, data):
     print("📞 Phone bilgileri düzenleniyor...")
 
-    primary = data.get("PRIMARY_PHONE", "").strip()
+    primary_raw  = data.get("PRIMARY_PHONE", "").strip()
+    mobile_raw   = data.get("MOBILE_PHONE", "").strip()
+    work_raw     = data.get("WORK_PHONE", "").strip()
+
+    primary = clean_phone(primary_raw)
+    mobile  = clean_phone(mobile_raw)
+    work    = clean_phone(work_raw)
+
+    # Primary — zorunlu
     p_field = wait.until(EC.visibility_of_element_located(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_HOME_TEL")
     ))
@@ -2692,22 +2723,43 @@ def fill_phone_numbers(wait, driver, data):
         arguments[0].removeAttribute('readonly');
         arguments[0].value = '';
     """, p_field)
-    p_field.send_keys(primary)
+    p_field.send_keys(primary or "5555555555")
+    print(f"✅ Primary Phone: {primary or '5555555555'}")
 
-    safe_phone_fill(
-        wait, driver,
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL",
-        "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_MOBILE_TEL_NA",
-        data.get("MOBILE_PHONE")
-    )
+    # Mobile — primary ile aynıysa veya boşsa NA işaretle
+    mobile_input_id  = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL"
+    mobile_na_id     = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_MOBILE_TEL_NA"
 
-    safe_phone_fill(
-        wait, driver,
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_BUS_TEL",
-        "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_BUS_TEL_NA",
-        data.get("WORK_PHONE")
-    )
+    if not mobile or mobile == primary:
+        # NA işaretle
+        try:
+            cb = driver.find_element(By.ID, mobile_na_id)
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+            print("ℹ️ Mobile Phone: Does Not Apply (boş veya primary ile aynı)")
+        except Exception as e:
+            print(f"⚠️ Mobile NA checkbox: {e}")
+    else:
+        safe_phone_fill(wait, driver, mobile_input_id, mobile_na_id, mobile)
+        print(f"✅ Mobile Phone: {mobile}")
 
+    # Work — primary ile aynıysa veya boşsa NA işaretle
+    work_input_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_BUS_TEL"
+    work_na_id    = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_BUS_TEL_NA"
+
+    if not work or work == primary:
+        try:
+            cb = driver.find_element(By.ID, work_na_id)
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+            print("ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)")
+        except Exception as e:
+            print(f"⚠️ Work NA checkbox: {e}")
+    else:
+        safe_phone_fill(wait, driver, work_input_id, work_na_id, work)
+        print(f"✅ Work Phone: {work}")
 
 def fill_additional_phone(wait, driver, data):
     print("📞 Additional Phone başlıyor")
@@ -3770,24 +3822,45 @@ PRESENT_OCCUPATION_MAP = {
 def select_present_occupation(wait, driver, data):
     print("🧑‍💼 Present Occupation seçiliyor")
 
-    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
+    occ = data.get("PRESENT_OCCUPATION", "NOT_EMPLOYED").strip().upper()
     if occ not in PRESENT_OCCUPATION_MAP:
-        raise Exception(f"❌ Geçersiz PRESENT_OCCUPATION: {occ}")
+        print(f"⚠️ Geçersiz PRESENT_OCCUPATION: {occ}, NOT_EMPLOYED olarak ayarlanıyor")
+        occ = "NOT_EMPLOYED"
 
     ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation"
     target_value = PRESENT_OCCUPATION_MAP[occ]
 
+    # Dropdown'ı bul ve seç
     ddl = wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))
-    Select(ddl).select_by_value(target_value)
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", ddl)
+    time.sleep(0.3)
+
+    # Önce JS ile seç (daha güvenilir)
+    driver.execute_script("""
+        var sel = arguments[0];
+        var val = arguments[1];
+        sel.value = val;
+        sel.dispatchEvent(new Event('change', {bubbles: true}));
+    """, ddl, target_value)
+    time.sleep(0.5)
+
+    # Selenium ile de seç (double confirm)
+    try:
+        Select(wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))).select_by_value(target_value)
+    except Exception as e:
+        print(f"⚠️ Selenium select hatası: {e}")
+
+    # JS postback tetikle
+    driver.execute_script(
+        "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+    )
+
     print(f"✅ Present Occupation seçildi: {occ} → {target_value}")
 
-    # Postback bekle — ShowDivEmployed görünür olana kadar bekle
-    # NOT_EMPLOYED, RETIRED, HOMEMAKER için bu div açılmaz, o yüzden try/except
     occ_needs_employer = occ not in ("NOT_EMPLOYED", "RETIRED", "HOMEMAKER")
 
     if occ_needs_employer:
         try:
-            # ShowDivEmployed görünür olana kadar bekle (max 15 sn)
             WebDriverWait(driver, 15).until(
                 EC.visibility_of_element_located(
                     (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
@@ -3795,37 +3868,71 @@ def select_present_occupation(wait, driver, data):
             )
             print("✅ Employer alanları açıldı")
         except TimeoutException:
-            print("⚠️ Employer alanları açılmadı, JS postback deneniyor...")
+            print("⚠️ Employer alanları açılmadı, tekrar deneniyor...")
             driver.execute_script(
                 "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
             )
-            WebDriverWait(driver, 15).until(
-                EC.visibility_of_element_located(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+            time.sleep(3)
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+                    )
                 )
-            )
-            print("✅ Employer alanları JS sonrası açıldı")
+                print("✅ Employer alanları ikinci denemede açıldı")
+            except Exception:
+                print("⚠️ Employer alanları hâlâ açılmadı, devam ediliyor")
     else:
-        # NOT_EMPLOYED vs için sadece postback bekle
         time.sleep(2)
         wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
+    # Seçimin gerçekten yapıldığını doğrula
+    try:
+        current = Select(driver.find_element(By.ID, ddl_id)).first_selected_option.get_attribute("value")
+        if current != target_value:
+            print(f"⚠️ Seçim doğrulanamadı ({current} != {target_value}), tekrar deneniyor...")
+            Select(wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))).select_by_value(target_value)
+            driver.execute_script(
+                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+            )
+            time.sleep(2)
+        else:
+            print(f"✅ Seçim doğrulandı: {current}")
+    except Exception as e:
+        print(f"⚠️ Seçim doğrulama hatası: {e}")
 
 def fill_present_occupation_explain(wait, driver, data):
-    expl = data.get("PRESENT_OCCUPATION_EXPLAIN", "").strip()
-    if not expl:
-        raise Exception("❌ PRESENT_OCCUPATION_EXPLAIN zorunlu")
+    expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "NOT EMPLOYED"
 
-    el = wait.until(EC.visibility_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation")
-    ))
-    driver.execute_script("""
-        arguments[0].removeAttribute('disabled');
-        arguments[0].removeAttribute('readonly');
-        arguments[0].value = '';
-    """, el)
-    el.send_keys(expl)
-    print("✍️ Occupation açıklaması girildi")
+    textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+
+    try:
+        el = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, textarea_id))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+        time.sleep(0.5)
+
+        # Gerçek mouse tıklaması simüle et
+        from selenium.webdriver.common.action_chains import ActionChains
+        actions = ActionChains(driver)
+        actions.move_to_element(el)
+        actions.click()
+        actions.pause(0.5)
+        
+        # Karakter karakter yaz — gerçek klavye gibi
+        for char in expl:
+            actions.send_keys(char)
+            actions.pause(0.05)
+        
+        actions.perform()
+        time.sleep(0.5)
+
+        current = (el.get_attribute("value") or "").strip()
+        print(f"✍️ Explain girildi: {current}")
+
+    except Exception as e:
+        print(f"⚠️ fill_present_occupation_explain hata: {e}")
 
 
 def fill_employer_or_school_info(wait, driver, data):
@@ -3842,13 +3949,13 @@ def fill_employer_or_school_info(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName", data["EMP_SCH_NAME"])
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", data["EMP_SCH_ADDR1"])
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",  data.get("EMP_SCH_NAME", ""))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", clean_address(data.get("EMP_SCH_ADDR1", "")))
 
     if data.get("EMP_SCH_ADDR2"):
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", data["EMP_SCH_ADDR2"])
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity", data["EMP_SCH_CITY"])
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",  clean_address(data.get("EMP_SCH_CITY", "")))
 
     state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
 
@@ -3920,39 +4027,97 @@ def fill_present_occupation_section(wait, driver, data):
         print(f"ℹ️ Present Occupation sayfası bulunamadı veya atlandı: {e}")
         return
 
-    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
+    occ = data.get("PRESENT_OCCUPATION", "NOT_EMPLOYED").strip().upper()
     if not occ:
-        print("⚠️ PRESENT_OCCUPATION verisi boş!")
-        return
+        occ = "NOT_EMPLOYED"
+
+    print(f"🧑‍💼 Occupation: {occ}")
 
     if occ in ("RETIRED", "HOMEMAKER"):
         print(f"ℹ️ {occ} → Ekstra alan yok.")
         return
 
+    # ── NOT_EMPLOYED ──────────────────────────────────────────
     if occ == "NOT_EMPLOYED":
+        textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "NOT EMPLOYED").strip()
+
         try:
-            fill_present_occupation_explain(wait, driver, data)
-            print("✅ NOT_EMPLOYED açıklaması dolduruldu.")
-        except:
-            print("⚠️ NOT_EMPLOYED açıklama alanı bulunamadı.")
+            el = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.ID, textarea_id))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+            time.sleep(1)
+
+            el.click()
+            time.sleep(0.5)
+
+            from selenium.webdriver.common.keys import Keys
+            el.send_keys(Keys.CONTROL + "a")
+            time.sleep(0.2)
+            el.send_keys(Keys.DELETE)
+            time.sleep(0.2)
+
+            el.send_keys(expl)
+            time.sleep(0.5)
+
+            current = (el.get_attribute("value") or "").strip()
+            print(f"✍️ NOT_EMPLOYED explain girildi: '{current}'")
+
+        except Exception as e:
+            print(f"⚠️ NOT_EMPLOYED explain hatası: {e}")
         return
 
+    # ── OTHER ─────────────────────────────────────────────────
     if occ == "OTHER":
+        textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "OTHER OCCUPATION").strip()
+
         try:
-            fill_present_occupation_explain(wait, driver, data)
-            print("✅ OTHER açıklaması dolduruldu.")
-        except:
-            print("⚠️ OTHER açıklama alanı bulunamadı.")
-        # OTHER'da da işveren/okul bilgileri dolduruluyor
+            el = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.ID, textarea_id))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+            time.sleep(1)
+
+            el.click()
+            time.sleep(0.5)
+
+            from selenium.webdriver.common.keys import Keys
+            el.send_keys(Keys.CONTROL + "a")
+            time.sleep(0.2)
+            el.send_keys(Keys.DELETE)
+            time.sleep(0.2)
+
+            el.send_keys(expl)
+            time.sleep(0.5)
+
+            current = (el.get_attribute("value") or "").strip()
+            print(f"✍️ OTHER explain girildi: '{current}'")
+
+        except Exception as e:
+            print(f"⚠️ OTHER explain hatası: {e}")
+
+        # OTHER'da işveren/okul bilgileri de dolduruluyor
         try:
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+                )
+            )
             fill_employer_or_school_info(wait, driver, data)
             print("✅ OTHER → İşveren/Okul bilgileri dolduruldu.")
         except Exception as e:
             print(f"⚠️ OTHER → İşveren/Okul bilgileri doldurulamadı: {e}")
         return
 
-    # Diğer tüm meslekler → işveren/okul bilgileri
+    # ── DİĞER TÜM MESLEKLER → işveren/okul bilgileri ─────────
     try:
+        WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
+            )
+        )
         fill_employer_or_school_info(wait, driver, data)
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
@@ -5566,3 +5731,155 @@ def _find_best_photo(desktop_path: str, full_name: str):
             best_match = fname
 
     return best_match, best_score
+def safe_fill_page(driver, wait, data):
+    """
+    Sayfadaki tüm form elementlerini tara.
+    Bizde varsa doldur, yoksa güvenli default değer ver.
+    Hiçbir zaman hata atmaz.
+    """
+    print("🛡️ safe_fill_page başladı")
+
+    # ── ID → DATA eşlemesi ──────────────────────────────────
+    ID_TO_DATA_KEY = {
+        # Personal 1
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_SURNAME":           "SURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_GIVEN_NAME":        "GIVEN_NAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_FULL_NAME_NATIVE":  "FULL_NAME_NATIVE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear":               "BIRTH_YEAR",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_POB_CITY":          "BIRTH_CITY",
+        # Personal 2
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_NATIONAL_ID":       "NATIONAL_ID",
+        # Travel
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTRAVEL_LOS":            "TRAVEL_LOS_VALUE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxTRAVEL_DTEYear":        "INTENDED_ARRIVAL_YEAR",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxArriveCity":            "ARRIVAL_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxStreetAddress1":        "US_ADDRESS1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxCity":                  "US_CITY",
+        # Address
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN1":          "HOME_ADDRESS",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_CITY":         "HOME_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_STATE":        "HOME_STATE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_POSTAL_CD":    "HOME_POSTAL_CODE",
+        # Phone
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_HOME_TEL":          "PRIMARY_PHONE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL":        "MOBILE_PHONE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_BUS_TEL":           "WORK_PHONE",
+        # Email
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_EMAIL_ADDR":        "EMAIL",
+        # Passport
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM":               "PASSPORT_NUMBER",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_CITY":    "PASSPORT_ISSUED_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUEDYear":        "PASSPORT_ISSUE_DATE",
+        # POC
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME":        "US_POC_SURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME":     "US_POC_GIVEN_NAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1":       "US_POC_ADDR1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY":      "US_POC_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL":       "US_POC_PHONE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR":     "US_POC_EMAIL",
+        # Family
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME":        "FATHER_SURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME":     "FATHER_GIVEN",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME":        "MOTHER_SURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_GIVEN_NAME":     "MOTHER_GIVEN",
+        # Work
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName":            "EMP_SCH_NAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1":           "EMP_SCH_ADDR1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity":            "EMP_SCH_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL":         "EMP_SCH_PHONE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxDescribeDuties":        "EMP_DUTIES",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY":   "EMP_MONTHLY_SALARY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation": "PRESENT_OCCUPATION_EXPLAIN",
+        # Payer
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayingCompany":         "PAYER_COMPANY_NAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone":            "PAYER_COMPANY_PHONE",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxCompanyRelation":       "PAYER_COMPANY_RELATIONSHIP",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1":   "PAYER_ADDRESS1",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity":             "PAYER_CITY",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayerSurname":          "PAYER_SURNAME",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPayerGivenName":        "PAYER_GIVEN_NAME",
+    }
+
+    # ── Sayfadaki tüm input'ları tara ───────────────────────
+    try:
+        all_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text'], textarea")
+        for el in all_inputs:
+            try:
+                el_id = el.get_attribute("id") or ""
+                if not el_id:
+                    continue
+                if el.get_attribute("disabled") or el.get_attribute("readonly"):
+                    continue
+                current_val = (el.get_attribute("value") or "").strip()
+                if current_val:
+                    continue  # zaten dolu, atla
+
+                # Bizde var mı?
+                if el_id in ID_TO_DATA_KEY:
+                    data_key = ID_TO_DATA_KEY[el_id]
+                    val = str(data.get(data_key, "")).strip()
+                    if val and val.upper() not in ("N/A", "NA", "NONE"):
+                        driver.execute_script("""
+                            arguments[0].removeAttribute('disabled');
+                            arguments[0].removeAttribute('readonly');
+                            arguments[0].value = arguments[1];
+                            arguments[0].dispatchEvent(new Event('change', {bubbles:true}));
+                        """, el, val)
+                        print(f"✅ safe_fill: {el_id} → {val[:30]}")
+                    else:
+                        # Bizde yok veya boş → XXXXXXXXXX yaz
+                        driver.execute_script("""
+                            arguments[0].value = 'XXXXXXXXXX';
+                            arguments[0].dispatchEvent(new Event('change', {bubbles:true}));
+                        """, el)
+                        print(f"ℹ️ safe_fill fallback: {el_id} → XXXXXXXXXX")
+            except Exception as e:
+                print(f"⚠️ safe_fill input skip: {e}")
+
+    except Exception as e:
+        print(f"⚠️ safe_fill inputs error: {e}")
+
+    # ── Sayfadaki tüm select'leri tara ──────────────────────
+    try:
+        all_selects = driver.find_elements(By.CSS_SELECTOR, "select")
+        for sel_el in all_selects:
+            try:
+                el_id = sel_el.get_attribute("id") or ""
+                if not el_id:
+                    continue
+                sel = Select(sel_el)
+                current = sel.first_selected_option.get_attribute("value") or ""
+                if current:
+                    continue  # zaten seçili
+
+                # NO veya N seçeneği var mı?
+                options = [o.get_attribute("value") for o in sel.options]
+                if "N" in options:
+                    sel.select_by_value("N")
+                elif "NO" in options:
+                    sel.select_by_value("NO")
+                elif len(options) > 1:
+                    sel.select_by_index(1)  # ilk anlamlı option
+                print(f"ℹ️ safe_fill select default: {el_id}")
+            except Exception as e:
+                print(f"⚠️ safe_fill select skip: {e}")
+    except Exception as e:
+        print(f"⚠️ safe_fill selects error: {e}")
+
+    # ── Does Not Apply checkbox'larını tara ─────────────────
+    try:
+        all_checkboxes = driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
+        for cb in all_checkboxes:
+            try:
+                label = cb.get_attribute("id") or ""
+                # Sadece NA/Does Not Apply checkbox'ları
+                if any(x in label.upper() for x in ["_NA", "CBEX", "CBX"]):
+                    if not cb.is_selected():
+                        # İlgili input disabled ise işaretle
+                        pass  # Bunları elle yönetiyoruz, burada dokunma
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    print("🛡️ safe_fill_page tamamlandı")

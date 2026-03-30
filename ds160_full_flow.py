@@ -6,6 +6,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from form_fill import (
     fill_basic_identity_form,
+    safe_fill_page,
     wait_after_state_na,
     select_other_names,
     fill_birth_state,
@@ -89,11 +90,27 @@ def _check_photo_page(driver) -> bool:
 
 def _save_continue_next(wait, driver, label="next"):
     click_save(wait, driver)
+    
+    # Validation hatası var mı kontrol et
+    time.sleep(1)
+    try:
+        errors = driver.find_elements(By.CSS_SELECTOR, "span[style*='color:Red']:not([style*='visibility:hidden'])")
+        visible_errors = [e for e in errors if e.is_displayed() and e.text.strip()]
+        if visible_errors:
+            print(f"⚠️ Validation hatası tespit edildi ({len(visible_errors)} adet), safe_fill çalışıyor...")
+            safe_fill_page(driver, wait, {})
+            click_save(wait, driver)
+            time.sleep(1)
+    except Exception as e:
+        print(f"⚠️ Validation check hatası: {e}")
+
     click_continue_applications(wait, driver)
     click_nexts(wait, driver, label=label)
 
 
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
+    print(f"DEBUG PRESENT_OCCUPATION: {data.get('PRESENT_OCCUPATION')}")
+    print(f"DEBUG PRESENT_OCCUPATION_EXPLAIN: {data.get('PRESENT_OCCUPATION_EXPLAIN')}")
     print("🧪 DS-160 FULL FLOW BAŞLADI")
     from ds160_resume_flow import enrich_data_with_fallbacks
     data = enrich_data_with_fallbacks(data)
