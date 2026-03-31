@@ -4454,33 +4454,141 @@ def fill_languages(wait, driver, data):
 
 
 def fill_countries_visited(wait, driver, data):
-    val = data.get("COUNTRIES_VISITED", "NO").upper()
+    val = data.get("COUNTRIES_VISITED", "").strip()
+
+    # Ülke listesi varsa YES, yoksa NO
+    has_countries = val and val.upper() not in ("NO", "NONE", "")
+    country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
     radio = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0"
-        if val == "YES"
+        if has_countries
         else "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1"
     )
     wait.until(EC.element_to_be_clickable((By.ID, radio))).click()
+    time.sleep(1.5)
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-    if val != "YES":
+    if not has_countries:
+        print("ℹ️ Ziyaret edilen ülke yok")
         return
 
-    countries = [x.strip() for x in data["COUNTRIES_VISITED_LIST"].split(",")]
+    print(f"🌍 Ziyaret edilen ülkeler: {country_list}")
+
+    # Ülke adı map — DS-160'ın dropdown değerleriyle eşleştir
+    COUNTRY_MAP = {
+        "ALBANIA": "ALBANIA",
+        "BELGIUM": "BELGIUM",
+        "BULGARIA": "BULGARIA",
+        "CZECH REPUBLIC": "CZECH REPUBLIC",
+        "FRANCE": "FRANCE",
+        "GERMANY": "GERMANY",
+        "GREECE": "GREECE",
+        "HUNGARY": "HUNGARY",
+        "ITALY": "ITALY",
+        "MACEDONIA, THE FORMER YUGOSLAV REPUBLIC OF": "MACEDONIA, NORTH",
+        "MACEDONIA": "MACEDONIA, NORTH",
+        "NETHERLANDS": "NETHERLANDS",
+        "SWITZERLAND": "SWITZERLAND",
+        "UNITED KINGDOM": "UNITED KINGDOM",
+        "RUSSIA": "RUSSIA",
+        "UKRAINE": "UKRAINE",
+        "SPAIN": "SPAIN",
+        "PORTUGAL": "PORTUGAL",
+        "AUSTRIA": "AUSTRIA",
+        "POLAND": "POLAND",
+        "ROMANIA": "ROMANIA",
+        "SERBIA": "SERBIA",
+        "CROATIA": "CROATIA",
+        "SWEDEN": "SWEDEN",
+        "NORWAY": "NORWAY",
+        "DENMARK": "DENMARK",
+        "FINLAND": "FINLAND",
+        "IRELAND": "IRELAND",
+        "MALTA": "MALTA",
+        "CYPRUS": "CYPRUS",
+        "LUXEMBOURG": "LUXEMBOURG",
+        "UAE": "UNITED ARAB EMIRATES",
+        "UNITED ARAB EMIRATES": "UNITED ARAB EMIRATES",
+        "SAUDI ARABIA": "SAUDI ARABIA",
+        "JORDAN": "JORDAN",
+        "EGYPT": "EGYPT",
+        "MOROCCO": "MOROCCO",
+        "TUNISIA": "TUNISIA",
+        "CHINA": "CHINA",
+        "JAPAN": "JAPAN",
+        "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+        "INDIA": "INDIA",
+        "THAILAND": "THAILAND",
+        "INDONESIA": "INDONESIA",
+        "MALAYSIA": "MALAYSIA",
+        "SINGAPORE": "SINGAPORE",
+        "CANADA": "CANADA",
+        "MEXICO": "MEXICO",
+        "BRAZIL": "BRAZIL",
+        "ARGENTINA": "ARGENTINA",
+        "AUSTRALIA": "AUSTRALIA",
+        "NEW ZEALAND": "NEW ZEALAND",
+        "GEORGIA": "GEORGIA",
+        "ARMENIA": "ARMENIA",
+        "AZERBAIJAN": "AZERBAIJAN",
+        "UKRAINE": "UKRAINE",
+        "BELARUS": "BELARUS",
+        "MOLDOVA": "MOLDOVA",
+        "KOSOVO": "KOSOVO",
+        "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
+        "MONTENEGRO": "MONTENEGRO",
+        "NORTH MACEDONIA": "MACEDONIA, NORTH",
+    }
+
+    # Tekrarlayan ülkeleri kaldır
+    seen = set()
+    unique_countries = []
+    for c in country_list:
+        mapped = COUNTRY_MAP.get(c.upper(), c)
+        if mapped not in seen:
+            seen.add(mapped)
+            unique_countries.append(mapped)
+
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
 
-    for i, c in enumerate(countries):
+    for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
-        Select(wait.until(EC.element_to_be_clickable(
-            (By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
-        ))).select_by_visible_text(c)
+        try:
+            sel_el = wait.until(EC.element_to_be_clickable(
+                (By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
+            ))
+            sel = Select(sel_el)
 
-        if i < len(countries) - 1:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, f"{base}{idx}_InsertButtonCountriesVisited")
-            )).click()
-            time.sleep(1)
+            # Önce tam eşleşme dene
+            try:
+                sel.select_by_visible_text(country)
+                print(f"✅ Ülke seçildi: {country}")
+            except Exception:
+                # Kısmi eşleşme dene
+                options = [o.text for o in sel.options]
+                match = next((o for o in options if country.upper() in o.upper()), None)
+                if match:
+                    sel.select_by_visible_text(match)
+                    print(f"✅ Ülke kısmi eşleşme: {country} → {match}")
+                else:
+                    print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
+                    continue
 
+            if i < len(unique_countries) - 1:
+                try:
+                    wait.until(EC.element_to_be_clickable(
+                        (By.ID, f"{base}{idx}_InsertButtonCountriesVisited")
+                    )).click()
+                    time.sleep(1)
+                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                except Exception as e:
+                    print(f"⚠️ Ekle butonu tıklanamadı: {e}")
+
+        except Exception as e:
+            print(f"⚠️ Ülke {country} girilemedi: {e}")
+
+    print("✅ Ziyaret edilen ülkeler tamamlandı")
 
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
