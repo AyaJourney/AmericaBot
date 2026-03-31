@@ -4512,7 +4512,7 @@ def fill_countries_visited(wait, driver, data):
 
     # Tekrar eden ülkeleri temizle ve map'le
     COUNTRY_MAP = {
-       
+        
         "ALBANIA": "ALBANIA",
         "BELGIUM": "BELGIUM",
         "BULGARIA": "BULGARIA",
@@ -4611,7 +4611,15 @@ def fill_countries_visited(wait, driver, data):
 
             if matched:
                 sel.select_by_visible_text(matched)
-                print(f"✅ [{i+1}/{len(unique_countries)}] Ülke seçildi: {matched}")
+                # Change event tetikle
+                driver.execute_script(
+                    "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+                    sel_el
+                )
+                time.sleep(0.3)
+                # Seçim doğrula
+                current = Select(sel_el).first_selected_option.text
+                print(f"✅ [{i+1}/{len(unique_countries)}] Ülke seçildi: {current}")
             else:
                 print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
                 continue
@@ -4638,6 +4646,8 @@ def fill_countries_visited(wait, driver, data):
             print(f"⚠️ Ülke [{i}] {country} girilemedi: {e}")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
+
+
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
