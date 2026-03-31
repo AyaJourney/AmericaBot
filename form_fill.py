@@ -4456,7 +4456,6 @@ def fill_languages(wait, driver, data):
 def fill_countries_visited(wait, driver, data):
     val = data.get("COUNTRIES_VISITED", "").strip()
 
-    # Ülke listesi varsa YES, yoksa NO
     has_countries = val and val.upper() not in ("NO", "NONE", "")
     country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
@@ -4473,10 +4472,9 @@ def fill_countries_visited(wait, driver, data):
         print("ℹ️ Ziyaret edilen ülke yok")
         return
 
-    print(f"🌍 Ziyaret edilen ülkeler: {country_list}")
-
-    # Ülke adı map — DS-160'ın dropdown değerleriyle eşleştir
+    # Tekrarlayan ülkeleri kaldır
     COUNTRY_MAP = {
+       
         "ALBANIA": "ALBANIA",
         "BELGIUM": "BELGIUM",
         "BULGARIA": "BULGARIA",
@@ -4539,56 +4537,73 @@ def fill_countries_visited(wait, driver, data):
         "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
         "MONTENEGRO": "MONTENEGRO",
         "NORTH MACEDONIA": "MACEDONIA, NORTH",
+
     }
 
-    # Tekrarlayan ülkeleri kaldır
     seen = set()
     unique_countries = []
     for c in country_list:
-        mapped = COUNTRY_MAP.get(c.upper(), c)
+        mapped = COUNTRY_MAP.get(c.upper().strip(), c.upper().strip())
         if mapped not in seen:
             seen.add(mapped)
             unique_countries.append(mapped)
+
+    print(f"🌍 Ziyaret edilen ülkeler ({len(unique_countries)}): {unique_countries}")
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
 
     for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
         try:
-            sel_el = wait.until(EC.element_to_be_clickable(
+            sel_el = wait.until(EC.presence_of_element_located(
                 (By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
             ))
-            sel = Select(sel_el)
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sel_el)
+            time.sleep(0.3)
 
-            # Önce tam eşleşme dene
-            try:
-                sel.select_by_visible_text(country)
-                print(f"✅ Ülke seçildi: {country}")
-            except Exception:
-                # Kısmi eşleşme dene
-                options = [o.text for o in sel.options]
-                match = next((o for o in options if country.upper() in o.upper()), None)
+            sel = Select(sel_el)
+            options = [o.text.upper().strip() for o in sel.options]
+
+            # Tam eşleşme
+            if country in options:
+                sel.select_by_visible_text(country.title() if country.title() in [o.text for o in sel.options] else country)
+                # Büyük/küçük harf farkı için
+                matched = next((o.text for o in sel.options if o.text.upper().strip() == country), None)
+                if matched:
+                    sel.select_by_visible_text(matched)
+                    print(f"✅ Ülke seçildi: {matched}")
+                else:
+                    print(f"⚠️ Ülke bulunamadı: {country}")
+                    continue
+            else:
+                # Kısmi eşleşme
+                match = next((o.text for o in sel.options if country in o.text.upper()), None)
                 if match:
                     sel.select_by_visible_text(match)
                     print(f"✅ Ülke kısmi eşleşme: {country} → {match}")
                 else:
-                    print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
+                    print(f"⚠️ Ülke dropdown'da yok, atlanıyor: {country}")
                     continue
 
+            # Son ülke değilse Add Another tıkla
             if i < len(unique_countries) - 1:
                 try:
-                    wait.until(EC.element_to_be_clickable(
-                        (By.ID, f"{base}{idx}_InsertButtonCountriesVisited")
-                    )).click()
-                    time.sleep(1)
+                    add_btn_id = f"{base}{idx}_InsertButtonCountriesVisited"
+                    # <a> tag'i olduğu için JS ile tıkla
+                    driver.execute_script(
+                        f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{idx}$InsertButtonCountriesVisited','');"
+                    )
+                    time.sleep(1.5)
                     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                    print(f"➕ Yeni ülke satırı açıldı")
                 except Exception as e:
-                    print(f"⚠️ Ekle butonu tıklanamadı: {e}")
+                    print(f"⚠️ Add Another tıklanamadı: {e}")
 
         except Exception as e:
             print(f"⚠️ Ülke {country} girilemedi: {e}")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
+
 
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
