@@ -4456,181 +4456,173 @@ def fill_languages(wait, driver, data):
 def fill_countries_visited(wait, driver, data):
     val = data.get("COUNTRIES_VISITED", "").strip()
     
-    # 1. Veri Kontrolü
+    # 1. Veri Hazırlığı
     has_countries = val and val.upper() not in ("NO", "NONE", "", "HAYIR")
+    # Virgülle ayrılmış ülkeleri temizle
     country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
-    # 2. Ülke Yoksa "NO" Seç ve Bitir
+    # 2. Ülke Yoksa "NO" Seçeneğine Tıkla
     if not has_countries:
         try:
-            no_radio_id = "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1"
-            no_radio = wait.until(EC.element_to_be_clickable((By.ID, no_radio_id)))
+            no_radio = wait.until(EC.element_to_be_clickable((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1")))
             driver.execute_script("arguments[0].click();", no_radio)
-            print("ℹ️ Ülke yok: NO seçildi.")
+            print("ℹ️ Ziyaret edilen ülke yok: 'NO' seçildi.")
             return
         except Exception as e:
-            print(f"⚠️ NO radio seçilemedi: {e}")
+            print(f"⚠️ NO seçilemedi: {e}")
             return
 
-    # 3. Ülke Varsa "YES" Seç
+    # 3. Ülke Varsa "YES" Seçeneğine Tıkla
     try:
-        yes_radio_id = "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0"
-        yes_radio = wait.until(EC.presence_of_element_located((By.ID, yes_radio_id)))
-        
+        yes_radio = wait.until(EC.presence_of_element_located((By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0")))
         if not yes_radio.is_selected():
             driver.execute_script("arguments[0].click();", yes_radio)
-            print("✅ YES seçildi, formun yüklenmesi bekleniyor...")
-            # YES tıklandıktan sonra postback olur, DOM'un tazelenmesini bekle
-            time.sleep(3) 
-        else:
-            print("ℹ️ YES zaten seçili.")
+            print("✅ 'YES' seçildi. Formun yüklenmesi bekleniyor...")
+            time.sleep(3) # Postback için bekleme
     except Exception as e:
-        print(f"⚠️ YES radio hatası: {e}")
+        print(f"⚠️ YES seçilemedi: {e}")
 
-    # 4. Ülke Eşleştirme Sözlüğü (Mapping)
+    # 4. Formdaki Dropdown İsimleriyle Eşleştirme (Mapping)
+    # Senin HTML'indeki tam metinlere göre güncelledim
     COUNTRY_MAP = {
-      
-        "ALBANIA": "ALBANIA",
-        "BELGIUM": "BELGIUM",
-        "BULGARIA": "BULGARIA",
-        "CZECH REPUBLIC": "CZECH REPUBLIC",
-        "FRANCE": "FRANCE",
-        "GERMANY": "GERMANY",
-        "GREECE": "GREECE",
-        "HUNGARY": "HUNGARY",
-        "ITALY": "ITALY",
-        "MACEDONIA, THE FORMER YUGOSLAV REPUBLIC OF": "MACEDONIA, NORTH",
-        "MACEDONIA": "MACEDONIA, NORTH",
-        "NETHERLANDS": "NETHERLANDS",
-        "SWITZERLAND": "SWITZERLAND",
-        "UNITED KINGDOM": "UNITED KINGDOM",
-        "RUSSIA": "RUSSIA",
-        "UKRAINE": "UKRAINE",
-        "SPAIN": "SPAIN",
-        "PORTUGAL": "PORTUGAL",
-        "AUSTRIA": "AUSTRIA",
-        "POLAND": "POLAND",
-        "ROMANIA": "ROMANIA",
-        "SERBIA": "SERBIA",
-        "CROATIA": "CROATIA",
-        "SWEDEN": "SWEDEN",
-        "NORWAY": "NORWAY",
-        "DENMARK": "DENMARK",
-        "FINLAND": "FINLAND",
-        "IRELAND": "IRELAND",
-        "MALTA": "MALTA",
-        "CYPRUS": "CYPRUS",
-        "LUXEMBOURG": "LUXEMBOURG",
-        "UAE": "UNITED ARAB EMIRATES",
-        "UNITED ARAB EMIRATES": "UNITED ARAB EMIRATES",
-        "SAUDI ARABIA": "SAUDI ARABIA",
-        "JORDAN": "JORDAN",
-        "EGYPT": "EGYPT",
-        "MOROCCO": "MOROCCO",
-        "TUNISIA": "TUNISIA",
-        "CHINA": "CHINA",
-        "JAPAN": "JAPAN",
-        "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
-        "INDIA": "INDIA",
-        "THAILAND": "THAILAND",
-        "INDONESIA": "INDONESIA",
-        "MALAYSIA": "MALAYSIA",
-        "SINGAPORE": "SINGAPORE",
-        "CANADA": "CANADA",
-        "MEXICO": "MEXICO",
-        "BRAZIL": "BRAZIL",
-        "ARGENTINA": "ARGENTINA",
-        "AUSTRALIA": "AUSTRALIA",
-        "NEW ZEALAND": "NEW ZEALAND",
-        "GEORGIA": "GEORGIA",
-        "ARMENIA": "ARMENIA",
-        "AZERBAIJAN": "AZERBAIJAN",
-        "UKRAINE": "UKRAINE",
-        "BELARUS": "BELARUS",
-        "MOLDOVA": "MOLDOVA",
-        "KOSOVO": "KOSOVO",
-        "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
-        "MONTENEGRO": "MONTENEGRO",
-        "NORTH MACEDONIA": "MACEDONIA, NORTH",
-
+       "USA": "UNITED STATES OF AMERICA",
+    "UNITED STATES": "UNITED STATES OF AMERICA",
+    "UK": "UNITED KINGDOM",
+    "ENGLAND": "UNITED KINGDOM",
+    "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+    "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+    "MACEDONIA": "MACEDONIA, NORTH",
+    "NORTH MACEDONIA": "MACEDONIA, NORTH",
+    "UAE": "UNITED ARAB EMIRATES",
+    "TURKEY": "TURKEY",
+    "TÜRKİYE": "TURKEY",
+    "VATICAN": "HOLY SEE (VATICAN CITY)",
+    "BOSNIA": "BOSNIA-HERZEGOVINA",
+    "BOSNIA HERZEGOVINA": "BOSNIA-HERZEGOVINA",
+    "CABO VERDE": "CABO VERDE", # HTML'de "CAPE VERDE" değil, "CABO VERDE" geçiyor
+    "CONGO DEMOCRATIC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
+    "CONGO REPUBLIC": "CONGO, REPUBLIC OF THE",
+    "CZECHIA": "CZECH REPUBLIC",
+    
+    # Geri kalanlar HTML ile birebir örtüşüyor:
+    "ALBANIA": "ALBANIA",
+    "BELGIUM": "BELGIUM",
+    "BULGARIA": "BULGARIA",
+    "FRANCE": "FRANCE",
+    "GERMANY": "GERMANY",
+    "GREECE": "GREECE",
+    "HUNGARY": "HUNGARY",
+    "ITALY": "ITALY",
+    "NETHERLANDS": "NETHERLANDS",
+    "SWITZERLAND": "SWITZERLAND",
+    "RUSSIA": "RUSSIA",
+    "UKRAINE": "UKRAINE",
+    "SPAIN": "SPAIN",
+    "PORTUGAL": "PORTUGAL",
+    "AUSTRIA": "AUSTRIA",
+    "POLAND": "POLAND",
+    "ROMANIA": "ROMANIA",
+    "SERBIA": "SERBIA",
+    "CROATIA": "CROATIA",
+    "SWEDEN": "SWEDEN",
+    "NORWAY": "NORWAY",
+    "DENMARK": "DENMARK",
+    "FINLAND": "FINLAND",
+    "IRELAND": "IRELAND",
+    "MALTA": "MALTA",
+    "CYPRUS": "CYPRUS",
+    "LUXEMBOURG": "LUXEMBOURG",
+    "SAUDI ARABIA": "SAUDI ARABIA",
+    "JORDAN": "JORDAN",
+    "EGYPT": "EGYPT",
+    "MOROCCO": "MOROCCO",
+    "TUNISIA": "TUNISIA",
+    "CHINA": "CHINA",
+    "JAPAN": "JAPAN",
+    "INDIA": "INDIA",
+    "THAILAND": "THAILAND",
+    "INDONESIA": "INDONESIA",
+    "MALAYSIA": "MALAYSIA",
+    "SINGAPORE": "SINGAPORE",
+    "CANADA": "CANADA",
+    "MEXICO": "MEXICO",
+    "BRAZIL": "BRAZIL",
+    "ARGENTINA": "ARGENTINA",
+    "AUSTRALIA": "AUSTRALIA",
+    "NEW ZEALAND": "NEW ZEALAND",
+    "GEORGIA": "GEORGIA",
+    "ARMENIA": "ARMENIA",
+    "AZERBAIJAN": "AZERBAIJAN",
+    "BELARUS": "BELARUS",
+    "MOLDOVA": "MOLDOVA",
+    "KOSOVO": "KOSOVO",
+    "MONTENEGRO": "MONTENEGRO"
     }
 
     seen = set()
     unique_countries = []
     for c in country_list:
-        upper_c = c.upper().strip()
-        mapped = COUNTRY_MAP.get(upper_c, upper_c)
+        c_upper = c.upper().strip()
+        mapped = COUNTRY_MAP.get(c_upper, c_upper)
         if mapped not in seen:
             seen.add(mapped)
             unique_countries.append(mapped)
 
-    print(f"🌍 İşlenecek Ülkeler: {unique_countries}")
+    print(f"🌍 İşlenecek ülkeler: {unique_countries}")
 
-    # 5. Ülkeleri Tek Tek Girme Döngüsü
-    for i, country in enumerate(unique_countries):
+    # 5. Ülkeleri Döngüyle Gir
+    for i, country_name in enumerate(unique_countries):
+        idx = f"{i:02d}" # ctl00, ctl01, ctl02...
+        ddl_id = f"ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl{idx}_ddlCOUNTRIES_VISITED"
+        
         try:
-            # Her döngü başında dropdown'ları yeniden bul (Postback sonrası elementler ölür)
-            xpath_ddl = "//select[contains(@id, 'ddlCOUNTRIES_VISITED')]"
+            # Dropdown'ın sayfada görünmesini bekle
+            dropdown_el = wait.until(EC.visibility_of_element_located((By.ID, ddl_id)))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", dropdown_el)
+            time.sleep(0.5)
+
+            sel = Select(dropdown_el)
             
-            # Dropdown'ların görünür olmasını bekle
-            wait.until(EC.visibility_of_any_elements_located((By.XPATH, xpath_ddl)))
-            all_ddls = driver.find_elements(By.XPATH, xpath_ddl)
-            
-            # Eğer i. indexte dropdown yoksa (eklenememişse) dur
-            if i >= len(all_ddls):
-                print(f"❌ Hata: {i+1}. satır dropdown bulunamadı!")
-                break
-                
-            current_sel_el = all_ddls[i]
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", current_sel_el)
-            
-            sel = Select(current_sel_el)
-            
-            # Dropdown içinden doğru metni bul (Tam veya Kısmi eşleşme)
-            matched_text = None
+            # HTML içindeki <option> metinleriyle birebir veya kısmi eşleşme ara
+            target_text = None
             for option in sel.options:
-                opt_txt = option.text.upper().strip()
-                if country == opt_txt or country in opt_txt:
-                    matched_text = option.text
+                opt_text = option.text.upper().strip()
+                # Tam eşleşme veya metnin içinde geçme kontrolü
+                if country_name == opt_text or country_name in opt_text:
+                    target_text = option.text
                     break
             
-            if matched_text:
-                sel.select_by_visible_text(matched_text)
-                print(f"📍 [{i+1}/{len(unique_countries)}] Seçildi: {matched_text}")
+            if target_text:
+                sel.select_by_visible_text(target_text)
+                print(f"✅ [{i+1}] Seçildi: {target_text}")
                 
-                # Change event tetikle (Bazı formlar buna ihtiyaç duyar)
-                driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", current_sel_el)
+                # ASP.NET için 'change' event tetikle
+                driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles: true}));", dropdown_el)
                 time.sleep(0.5)
             else:
-                print(f"⚠️ Ülke listede bulunamadı: {country}")
+                print(f"⚠️ Ülke listede bulunamadı: {country_name}")
                 continue
 
-            # 6. Son Ülke Değilse "Add Another" (Insert) Butonuna Tıkla
+            # 6. Eğer daha eklenecek ülke varsa 'Add Another' butonuna bas
             if i < len(unique_countries) - 1:
-                # Mevcut dropdown'ın ID'sinden yola çıkarak ilgili satırın Insert butonunu bul
-                curr_id = current_sel_el.get_attribute("id")
-                # ID örneği: ...dtlCountriesVisited_ctl00_ddlCOUNTRIES_VISITED
-                # Hedef ID: ...dtlCountriesVisited_ctl00_InsertButtonCountriesVisited
-                btn_id = curr_id.replace("ddlCOUNTRIES_VISITED", "InsertButtonCountriesVisited")
+                # Buton ID'sini Dropdown ID'sinden türetiyoruz
+                btn_id = ddl_id.replace("ddlCOUNTRIES_VISITED", "InsertButtonCountriesVisited")
+                # ASP.NET PostBack formatına çevir (Alt çizgileri dolara çevir)
+                postback_event = btn_id.replace("_", "$")
                 
-                try:
-                    # ASP.NET PostBack tetikle veya butona tıkla
-                    # replace('_', '$') ASP.NET'in __doPostBack standart formatıdır
-                    postback_arg = btn_id.replace("_", "$")
-                    print(f"➕ Yeni satır ekleniyor (Index: {i})...")
-                    driver.execute_script(f"__doPostBack('{postback_arg}','');")
-                    
-                    # Sayfanın yüklenmesini ve yeni dropdown sayısının artmasını bekle
-                    time.sleep(2)
-                    wait.until(lambda d: len(d.find_elements(By.XPATH, xpath_ddl)) > i + 1)
-                except Exception as ex:
-                    print(f"⚠️ Yeni satır ekleme hatası: {ex}")
-                    
+                print(f"➕ Sonraki ülke için yeni satır ekleniyor...")
+                driver.execute_script(f"__doPostBack('{postback_event}','');")
+                
+                # Yeni satırın (bir sonraki ID'nin) gelmesini bekle
+                next_idx = f"{i+1:02d}"
+                next_id = ddl_id.replace(f"ctl{idx}", f"ctl{next_idx}")
+                wait.until(EC.presence_of_element_located((By.ID, next_id)))
+                time.sleep(1.5) # Sayfanın tam oturması için
+
         except Exception as e:
-            print(f"❌ [{i}] {country} işlenirken kritik hata: {e}")
+            print(f"❌ [{i}] {country_name} girilirken hata: {e}")
 
-    print("✅ Ülke girişi tamamlandı.")
-
+    print("✨ Tüm ülke giriş işlemleri tamamlandı.")
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
