@@ -4042,8 +4042,7 @@ def fill_present_occupation_section(wait, driver, data):
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
         expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip()
         if not expl:
-            expl = "NOT EMPLOYED"
-
+            expl = "XXXXX"
 
         try:
             el = WebDriverWait(driver, 15).until(
@@ -4052,23 +4051,18 @@ def fill_present_occupation_section(wait, driver, data):
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
             time.sleep(1)
 
-            driver.execute_script("""
-                arguments[0].value = '';
-                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
-            """, el)
+        # Mevcut değeri JS ile temizle
+            driver.execute_script("arguments[0].value = '';", el)
             time.sleep(0.3)
 
             el.click()
             time.sleep(0.3)
 
-          
-
             from selenium.webdriver.common.keys import Keys
             el.send_keys(Keys.CONTROL + "a")
-            time.sleep(0.2)
+            time.sleep(0.1)
             el.send_keys(Keys.DELETE)
-            time.sleep(0.2)
-
+            time.sleep(0.1)
             el.send_keys(expl)
             time.sleep(0.5)
 
@@ -4078,7 +4072,6 @@ def fill_present_occupation_section(wait, driver, data):
         except Exception as e:
             print(f"⚠️ NOT_EMPLOYED explain hatası: {e}")
         return
-
     # ── OTHER ─────────────────────────────────────────────────
     if occ == "OTHER":
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
@@ -4536,81 +4529,18 @@ def fill_countries_visited(wait, driver, data):
             print("❌ Dropdown açılamadı, ülkeler atlanıyor")
             return
 
-    # Tekrar eden ülkeleri temizle ve map'le
+    # Ülke map
     COUNTRY_MAP = {
-       
-     "USA": "UNITED STATES OF AMERICA",
-    "UNITED STATES": "UNITED STATES OF AMERICA",
-    "UK": "UNITED KINGDOM",
-    "ENGLAND": "UNITED KINGDOM",
-    "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
-    "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
-    "MACEDONIA": "MACEDONIA, NORTH",
-    "NORTH MACEDONIA": "MACEDONIA, NORTH",
-    "UAE": "UNITED ARAB EMIRATES",
-    "TURKEY": "TURKEY",
-    "TÜRKİYE": "TURKEY",
-    "VATICAN": "HOLY SEE (VATICAN CITY)",
-    "BOSNIA": "BOSNIA-HERZEGOVINA",
-    "BOSNIA HERZEGOVINA": "BOSNIA-HERZEGOVINA",
-    "CABO VERDE": "CABO VERDE", # HTML'de "CAPE VERDE" değil, "CABO VERDE" geçiyor
-    "CONGO DEMOCRATIC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
-    "CONGO REPUBLIC": "CONGO, REPUBLIC OF THE",
-    "CZECHIA": "CZECH REPUBLIC",
-    
-    # Geri kalanlar HTML ile birebir örtüşüyor:
-    "ALBANIA": "ALBANIA",
-    "BELGIUM": "BELGIUM",
-    "BULGARIA": "BULGARIA",
-    "FRANCE": "FRANCE",
-    "GERMANY": "GERMANY",
-    "GREECE": "GREECE",
-    "HUNGARY": "HUNGARY",
-    "ITALY": "ITALY",
-    "NETHERLANDS": "NETHERLANDS",
-    "SWITZERLAND": "SWITZERLAND",
-    "RUSSIA": "RUSSIA",
-    "UKRAINE": "UKRAINE",
-    "SPAIN": "SPAIN",
-    "PORTUGAL": "PORTUGAL",
-    "AUSTRIA": "AUSTRIA",
-    "POLAND": "POLAND",
-    "ROMANIA": "ROMANIA",
-    "SERBIA": "SERBIA",
-    "CROATIA": "CROATIA",
-    "SWEDEN": "SWEDEN",
-    "NORWAY": "NORWAY",
-    "DENMARK": "DENMARK",
-    "FINLAND": "FINLAND",
-    "IRELAND": "IRELAND",
-    "MALTA": "MALTA",
-    "CYPRUS": "CYPRUS",
-    "LUXEMBOURG": "LUXEMBOURG",
-    "SAUDI ARABIA": "SAUDI ARABIA",
-    "JORDAN": "JORDAN",
-    "EGYPT": "EGYPT",
-    "MOROCCO": "MOROCCO",
-    "TUNISIA": "TUNISIA",
-    "CHINA": "CHINA",
-    "JAPAN": "JAPAN",
-    "INDIA": "INDIA",
-    "THAILAND": "THAILAND",
-    "INDONESIA": "INDONESIA",
-    "MALAYSIA": "MALAYSIA",
-    "SINGAPORE": "SINGAPORE",
-    "CANADA": "CANADA",
-    "MEXICO": "MEXICO",
-    "BRAZIL": "BRAZIL",
-    "ARGENTINA": "ARGENTINA",
-    "AUSTRALIA": "AUSTRALIA",
-    "NEW ZEALAND": "NEW ZEALAND",
-    "GEORGIA": "GEORGIA",
-    "ARMENIA": "ARMENIA",
-    "AZERBAIJAN": "AZERBAIJAN",
-    "BELARUS": "BELARUS",
-    "MOLDOVA": "MOLDOVA",
-    "KOSOVO": "KOSOVO",
-    "MONTENEGRO": "MONTENEGRO"
+        "MACEDONIA, THE FORMER YUGOSLAV REPUBLIC OF": "MACEDONIA, NORTH",
+        "MACEDONIA": "MACEDONIA, NORTH",
+        "NORTH MACEDONIA": "MACEDONIA, NORTH",
+        "UAE": "UNITED ARAB EMIRATES",
+        "UK": "UNITED KINGDOM",
+        "USA": "UNITED STATES OF AMERICA",
+        "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+        "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "CZECH REPUBLIC": "CZECH REPUBLIC",
+        "LAND ISLANDS": "ALAND ISLANDS",
     }
 
     seen = set()
@@ -4621,14 +4551,55 @@ def fill_countries_visited(wait, driver, data):
             seen.add(mapped)
             unique_countries.append(mapped)
 
-    print(f"🌍 Ziyaret edilen ülkeler ({len(unique_countries)}): {unique_countries}")
+    print(f"🌍 Hedef ülkeler ({len(unique_countries)}): {unique_countries}")
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
 
+    # ── Sayfadaki mevcut ülkeleri oku ──────────────────────────
+    existing_countries = []
+    try:
+        i = 0
+        while True:
+            idx = f"{i:02d}"
+            try:
+                sel_el = driver.find_element(By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
+                selected = Select(sel_el).first_selected_option
+                text = selected.text.upper().strip()
+                val_attr = selected.get_attribute("value")
+                if val_attr and val_attr != "":
+                    existing_countries.append(text)
+                i += 1
+            except Exception:
+                break
+    except Exception:
+        pass
+
+    print(f"🔍 Sayfadaki mevcut ülkeler ({len(existing_countries)}): {existing_countries}")
+
+    # Aynıysa atla
+    if existing_countries == unique_countries:
+        print("✅ Ülkeler zaten doğru, atlanıyor")
+        return
+
+    # Fazla satırları sil — sondan başa doğru
+    while len(existing_countries) > 1:
+        try:
+            last_idx = f"{len(existing_countries)-1:02d}"
+            driver.execute_script(
+                f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{last_idx}$DeleteButtonCountriesVisited','');"
+            )
+            time.sleep(1.5)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            existing_countries.pop()
+            print(f"🗑️ Fazla satır silindi, kalan: {len(existing_countries)}")
+        except Exception as e:
+            print(f"⚠️ Satır silinemedi: {e}")
+            break
+
+    # ── Ülkeleri doldur ────────────────────────────────────────
     for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
         try:
-            # Dropdown'ı bekle
             sel_el = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED"))
             )
@@ -4678,6 +4649,7 @@ def fill_countries_visited(wait, driver, data):
             print(f"⚠️ Ülke [{i}] {country} girilemedi: {e}")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
+
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
