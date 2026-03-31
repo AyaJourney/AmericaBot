@@ -4040,7 +4040,10 @@ def fill_present_occupation_section(wait, driver, data):
     # ── NOT_EMPLOYED ──────────────────────────────────────────
     if occ == "NOT_EMPLOYED":
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
-        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "NOT EMPLOYED").strip()
+        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip()
+        if not expl:
+            expl = "NOT EMPLOYED"
+
 
         try:
             el = WebDriverWait(driver, 15).until(
@@ -4049,8 +4052,16 @@ def fill_present_occupation_section(wait, driver, data):
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
             time.sleep(1)
 
+            driver.execute_script("""
+                arguments[0].value = '';
+                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+            """, el)
+            time.sleep(0.3)
+
             el.click()
-            time.sleep(0.5)
+            time.sleep(0.3)
+
+          
 
             from selenium.webdriver.common.keys import Keys
             el.send_keys(Keys.CONTROL + "a")
