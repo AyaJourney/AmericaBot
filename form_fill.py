@@ -4460,42 +4460,57 @@ def fill_countries_visited(wait, driver, data):
     country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
     if not has_countries:
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1")
-        )).click()
-        time.sleep(1)
+        try:
+            no_radio = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_1")
+            ))
+            driver.execute_script("arguments[0].click();", no_radio)
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠️ NO radio tıklanamadı: {e}")
         print("ℹ️ Ziyaret edilen ülke yok")
         return
 
-    # YES zaten seçili olabilir, postback tetikle
-    yes_radio = wait.until(EC.presence_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0")
-    ))
-    
-    if not yes_radio.is_selected():
-        driver.execute_script("arguments[0].click();", yes_radio)
-        time.sleep(1.5)
-    else:
-        # Zaten seçili — JS ile postback tetikle
-        driver.execute_script(
-            "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$rblCOUNTRIES_VISITED_IND$0','');"
-        )
-        time.sleep(1.5)
+    # YES radio kontrolü
+    try:
+        yes_radio = wait.until(EC.presence_of_element_located(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0")
+        ))
+        if not yes_radio.is_selected():
+            driver.execute_script("arguments[0].click();", yes_radio)
+            print("✅ YES seçildi")
+            time.sleep(2)
+        else:
+            print("ℹ️ YES zaten seçili, postback tetikleniyor...")
+            driver.execute_script(
+                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$rblCOUNTRIES_VISITED_IND$0','');"
+            )
+            time.sleep(2)
+    except Exception as e:
+        print(f"⚠️ YES radio hatası: {e}")
 
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-    # Dropdown görünür olana kadar bekle
+    # Dropdown açılana kadar bekle
+    ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl00_ddlCOUNTRIES_VISITED"
     try:
-        wait.until(EC.visibility_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl00_ddlCOUNTRIES_VISITED")
-        ))
+        wait.until(EC.visibility_of_element_located((By.ID, ddl_id)))
+        print("✅ Ülke dropdown'ı açıldı")
     except TimeoutException:
-        print("⚠️ Ülke dropdown'ı açılmadı, tekrar deneniyor...")
+        print("⚠️ Dropdown açılmadı, tekrar postback deneniyor...")
         driver.execute_script(
             "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$rblCOUNTRIES_VISITED_IND$0','');"
         )
         time.sleep(2)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        try:
+            wait.until(EC.visibility_of_element_located((By.ID, ddl_id)))
+            print("✅ Dropdown ikinci denemede açıldı")
+        except Exception:
+            print("❌ Dropdown açılamadı, ülkeler atlanıyor")
+            return
 
+    # Tekrar eden ülkeleri temizle ve map'le
     COUNTRY_MAP = {
        
         "ALBANIA": "ALBANIA",
@@ -4578,37 +4593,51 @@ def fill_countries_visited(wait, driver, data):
     for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
         try:
-            sel_el = wait.until(EC.presence_of_element_located(
-                (By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
-            ))
+            # Dropdown'ı bekle
+            sel_el = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED"))
+            )
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sel_el)
-            time.sleep(0.3)
+            time.sleep(0.5)
 
             sel = Select(sel_el)
+
+            # Tam eşleşme
             matched = next((o.text for o in sel.options if o.text.upper().strip() == country), None)
+
+            # Kısmi eşleşme
             if not matched:
                 matched = next((o.text for o in sel.options if country in o.text.upper()), None)
 
             if matched:
                 sel.select_by_visible_text(matched)
-                print(f"✅ Ülke seçildi: {matched}")
+                print(f"✅ [{i+1}/{len(unique_countries)}] Ülke seçildi: {matched}")
             else:
                 print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
                 continue
 
+            # Son ülke değilse Add Another tıkla
             if i < len(unique_countries) - 1:
-                driver.execute_script(
-                    f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{idx}$InsertButtonCountriesVisited','');"
-                )
-                time.sleep(1.5)
-                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-                print(f"➕ Yeni ülke satırı açıldı")
+                try:
+                    driver.execute_script(
+                        f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{idx}$InsertButtonCountriesVisited','');"
+                    )
+                    time.sleep(1.5)
+                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+                    # Yeni satırın açıldığını doğrula
+                    next_idx = f"{i+1:02d}"
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.ID, f"{base}{next_idx}_ddlCOUNTRIES_VISITED"))
+                    )
+                    print(f"➕ Yeni satır açıldı: {next_idx}")
+                except Exception as e:
+                    print(f"⚠️ Add Another hatası: {e}")
 
         except Exception as e:
-            print(f"⚠️ Ülke {country} girilemedi: {e}")
+            print(f"⚠️ Ülke [{i}] {country} girilemedi: {e}")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
-
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
