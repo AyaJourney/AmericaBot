@@ -4104,11 +4104,12 @@ def fill_present_occupation_section(wait, driver, data):
 
         # OTHER'da işveren/okul bilgileri de dolduruluyor
         try:
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, 25).until(
                 EC.visibility_of_element_located(
                     (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
                 )
             )
+            time.sleep(1.0)
             fill_employer_or_school_info(wait, driver, data)
             print("✅ OTHER → İşveren/Okul bilgileri dolduruldu.")
         except Exception as e:
@@ -4117,7 +4118,7 @@ def fill_present_occupation_section(wait, driver, data):
 
     # ── DİĞER TÜM MESLEKLER → işveren/okul bilgileri ─────────
     try:
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 25).until(
             EC.visibility_of_element_located(
                 (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
             )
