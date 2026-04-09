@@ -24,6 +24,292 @@ from typing import Optional
 # TEMEL YARDIMCILAR
 # ══════════════════════════════════════════════
 
+def translate_school_name(name: str) -> str:
+    """
+    Türkçe okul/kurum isimlerini İngilizce karşılığına çevirir.
+    Önce bilinen kalıpları replace eder, sonra ASCII'ye çevirir.
+    """
+    if not name:
+        return ""
+
+    # Türkçe → İngilizce okul terimleri
+    SCHOOL_TERMS = {
+        # Okul tipleri
+        "ANADOLU LISESI":           "ANATOLIAN HIGH SCHOOL",
+        "ANADOLU LİSESİ":           "ANATOLIAN HIGH SCHOOL",
+        "FEN LISESI":               "SCIENCE HIGH SCHOOL",
+        "FEN LİSESİ":               "SCIENCE HIGH SCHOOL",
+        "IMAM HATIP LISESI":        "IMAM HATIP HIGH SCHOOL",
+        "İMAM HATİP LİSESİ":       "IMAM HATIP HIGH SCHOOL",
+        "IMAM HATIP ORTAOKULU":     "IMAM HATIP MIDDLE SCHOOL",
+        "İMAM HATİP ORTAOKULU":    "IMAM HATIP MIDDLE SCHOOL",
+        "SOSYAL BILIMLER LISESI":   "SOCIAL SCIENCES HIGH SCHOOL",
+        "SOSYAL BİLİMLER LİSESİ":  "SOCIAL SCIENCES HIGH SCHOOL",
+        "SPOR LISESI":              "SPORTS HIGH SCHOOL",
+        "SPOR LİSESİ":              "SPORTS HIGH SCHOOL",
+        "GUZEL SANATLAR LISESI":    "FINE ARTS HIGH SCHOOL",
+        "GÜZEL SANATLAR LİSESİ":   "FINE ARTS HIGH SCHOOL",
+        "MESLEKI VE TEKNIK ANADOLU LISESI": "VOCATIONAL AND TECHNICAL ANATOLIAN HIGH SCHOOL",
+        "MESLEKİ VE TEKNİK ANADOLU LİSESİ": "VOCATIONAL AND TECHNICAL ANATOLIAN HIGH SCHOOL",
+        "TEKNIK LISESI":            "TECHNICAL HIGH SCHOOL",
+        "TEKNİK LİSESİ":           "TECHNICAL HIGH SCHOOL",
+        "TICARET LISESI":           "COMMERCE HIGH SCHOOL",
+        "TİCARET LİSESİ":          "COMMERCE HIGH SCHOOL",
+        "ENDUSTRI MESLEK LISESI":   "INDUSTRIAL VOCATIONAL HIGH SCHOOL",
+        "ENDÜSTRİ MESLEK LİSESİ":  "INDUSTRIAL VOCATIONAL HIGH SCHOOL",
+        "MESLEK LISESI":            "VOCATIONAL HIGH SCHOOL",
+        "MESLEK LİSESİ":           "VOCATIONAL HIGH SCHOOL",
+        "LISESI":                   "HIGH SCHOOL",
+        "LİSESİ":                  "HIGH SCHOOL",
+        "ILKOKULU":                 "PRIMARY SCHOOL",
+        "İLKOKULU":                "PRIMARY SCHOOL",
+        "ILKOKUL":                  "PRIMARY SCHOOL",
+        "İLKOKUL":                 "PRIMARY SCHOOL",
+        "ORTAOKULU":                "MIDDLE SCHOOL",
+        "ORTAOKUL":                 "MIDDLE SCHOOL",
+        "UNIVERSITESI":             "UNIVERSITY",
+        "ÜNİVERSİTESİ":           "UNIVERSITY",
+        "UNIVERSITE":               "UNIVERSITY",
+        "ÜNİVERSİTE":             "UNIVERSITY",
+        "YUKSEKOKULU":              "COLLEGE",
+        "YÜKSEKOKULu":            "COLLEGE",
+        "MESLEKOKULU":              "VOCATIONAL COLLEGE",
+        "ENSTITUSU":                "INSTITUTE",
+        "ENSTİTÜSÜ":              "INSTITUTE",
+        "FAKULTESI":                "FACULTY",
+        "FAKÜLTESİ":              "FACULTY",
+        "BOLUMU":                   "DEPARTMENT",
+        "BÖLÜMÜ":                  "DEPARTMENT",
+        "KOLEJI":                   "COLLEGE",
+        "KOLEJİ":                  "COLLEGE",
+        "KOLEJI":                   "COLLEGE",
+        "EGITIM FAKULTESI":         "FACULTY OF EDUCATION",
+        "EĞİTİM FAKÜLTESİ":      "FACULTY OF EDUCATION",
+        "TIP FAKULTESI":            "FACULTY OF MEDICINE",
+        "TIP FAKÜLTESİ":          "FACULTY OF MEDICINE",
+        "HUKUK FAKULTESI":          "FACULTY OF LAW",
+        "HUKUK FAKÜLTESİ":        "FACULTY OF LAW",
+        "IKTISADI VE IDARI BILIMLER": "ECONOMICS AND ADMINISTRATIVE SCIENCES",
+        "İKTİSADİ VE İDARİ BİLİMLER": "ECONOMICS AND ADMINISTRATIVE SCIENCES",
+        "MUHENDISLIK FAKULTESI":    "FACULTY OF ENGINEERING",
+        "MÜHENDİSLİK FAKÜLTESİ": "FACULTY OF ENGINEERING",
+        "AKADEMISI":                "ACADEMY",
+        "AKADEMİSİ":              "ACADEMY",
+        "TIP":                      "MEDICINE",
+        "BAKANLIGI":                "MINISTRY",
+        "BAKANLIĞI":               "MINISTRY",
+        "MUDURLUGU":                "DIRECTORATE",
+        "MÜDÜRLÜĞÜ":             "DIRECTORATE",
+        "KURUMU":                   "INSTITUTION",
+        "TESKILATI":                "ORGANIZATION",
+        "TEŞKİLATI":              "ORGANIZATION",
+
+        # Şirket ünvanı kısaltmaları
+        "LTD.STI.":                 "LTD CO",
+        "LTD.ŞTİ.":               "LTD CO",
+        "LTD STI":                  "LTD CO",
+        "LTD STI.":                 "LTD CO",
+        "LIMITED SIRKETI":          "LIMITED COMPANY",
+        "LİMİTED ŞİRKETİ":       "LIMITED COMPANY",
+        "A.S.":                     "INC",
+        "A.S":                      "INC",
+        "ANONIM SIRKETI":           "JOINT STOCK COMPANY",
+        "ANONİM ŞİRKETİ":        "JOINT STOCK COMPANY",
+        "SAN.TIC.LTD.STI.":        "INDUSTRY TRADE LTD CO",
+        "SAN.TIC.LTD.STI":         "INDUSTRY TRADE LTD CO",
+        "SAN.TİC.LTD.ŞTİ.":      "INDUSTRY TRADE LTD CO",
+        "SAN.TİC.LTD.ŞTİ":       "INDUSTRY TRADE LTD CO",
+        "HIZ.SAN.TIC.LTD.STI.":   "SERVICE INDUSTRY TRADE LTD CO",
+        "HIZ.SAN.TIC.LTD.STI":    "SERVICE INDUSTRY TRADE LTD CO",
+        "HIZ.TIC.LTD.STI.":       "SERVICE TRADE LTD CO",
+        "HIZ.TIC.LTD.STI":        "SERVICE TRADE LTD CO",
+        "HIZ.":                    "SERVICE",
+        "HIZ":                     "SERVICE",
+        "HIZMET":                  "SERVICE",
+        "TIC.SAN.LTD.STI.":        "TRADE INDUSTRY LTD CO",
+        "TIC.SAN.LTD.STI":         "TRADE INDUSTRY LTD CO",
+        "TİC.SAN.LTD.ŞTİ.":      "TRADE INDUSTRY LTD CO",
+        "TİC.SAN.LTD.ŞTİ":       "TRADE INDUSTRY LTD CO",
+        "TIC.LTD.STI.":            "TRADE LTD CO",
+        "TİC.LTD.ŞTİ.":          "TRADE LTD CO",
+        "SAN.TIC.A.S.":            "INDUSTRY TRADE INC",
+        "SAN.TİC.A.Ş.":          "INDUSTRY TRADE INC",
+        "TIC.A.S.":                "TRADE INC",
+        "TİC.A.Ş.":              "TRADE INC",
+        "SAN.A.S.":                "INDUSTRY INC",
+        "SAN.A.Ş.":              "INDUSTRY INC",
+        "TIC.SAN.":                "TRADE INDUSTRY",
+        "TİC.SAN.":              "TRADE INDUSTRY",
+        "DIS TIC.":                 "FOREIGN TRADE",
+        "DIŞ TİC.":               "FOREIGN TRADE",
+        "DIS.TIC.":                "FOREIGN TRADE",
+        "DIŞ.TİC.":              "FOREIGN TRADE",
+        "DIS TIC":                 "FOREIGN TRADE",
+        "DIŞ TİC":               "FOREIGN TRADE",
+        "DIS TICARET":             "FOREIGN TRADE",
+        "DIS":                     "FOREIGN",
+        "DIŞ TİCARET":           "FOREIGN TRADE",
+        "INS.TIC.LTD.STI.":       "CONSTRUCTION TRADE LTD CO",
+        "İNŞ.TİC.LTD.ŞTİ.":    "CONSTRUCTION TRADE LTD CO",
+        "MUH.MIM.":                "ENGINEERING ARCHITECTURE",
+        "MÜH.MİM.":             "ENGINEERING ARCHITECTURE",
+        "TAAH.":                   "CONTRACTING",
+        "TAAHHUDU":                "CONTRACTING",
+        "TAAHHUT":                 "CONTRACTING",
+        "NAK.":                    "TRANSPORTATION",
+        "NAKLIYAT":                "TRANSPORTATION",
+        "NAKLİYAT":              "TRANSPORTATION",
+        "OTM.":                    "AUTOMOTIVE",
+        "OTOMOTIV":                "AUTOMOTIVE",
+        "OTOMOTİV":              "AUTOMOTIVE",
+        "BILG.":                   "COMPUTER",
+        "BİLG.":                 "COMPUTER",
+        "INS.":                    "CONSTRUCTION",
+        "İNŞ.":                  "CONSTRUCTION",
+        "INSAAT":                  "CONSTRUCTION",
+        "İNŞAAT":                "CONSTRUCTION",
+        "GIDA":                    "FOOD",
+        "TARIM":                   "AGRICULTURE",
+        "TEKSTIL":                 "TEXTILE",
+        "TEKSTİL":               "TEXTILE",
+        "MAKINA":                  "MACHINERY",
+        "MAKİNA":                "MACHINERY",
+        "ELEKTRIK":                "ELECTRICAL",
+        "ELEKTRİK":              "ELECTRICAL",
+        "PETROL":                  "PETROLEUM",
+        "KIMYA":                   "CHEMICAL",
+        "KİMYA":                 "CHEMICAL",
+        "SAGLIK":                  "HEALTH",
+        "SAĞLIK":                "HEALTH",
+        "TURIZM":                  "TOURISM",
+        "TURİZM":                "TOURISM",
+        "MEDYA":                   "MEDIA",
+        "HIZMET":                  "SERVICE",
+        "YAPI":                    "CONSTRUCTION",
+        "EMLAK":                   "REAL ESTATE",
+        "SIGORTA":                 "INSURANCE",
+        "FINANS":                  "FINANCE",
+        "FİNANS":                "FINANCE",
+        "HOLDING":                 "HOLDING",
+        "GRUP":                    "GROUP",
+        "ENTERNASYONAL":           "INTERNATIONAL",
+        "ULUSLARARASI":            "INTERNATIONAL",
+        "SAN.TIC.LTD.STI.":        "INDUSTRY TRADE LTD CO",
+        "SAN.TIC.LTD.STI":         "INDUSTRY TRADE LTD CO",
+        "TIC.LTD.STI.":            "TRADE LTD CO",
+        "TIC.LTD.STI":             "TRADE LTD CO",
+        "LTD.STI.":                "LTD CO",
+        "LTD.STI":                 "LTD CO",
+        "A.S.":                    "INC",
+        "A.S":                     "INC",
+        "SAN":                     "INDUSTRY",
+        "TIC":                     "TRADE",
+        "LTD":                     "LTD",
+        "HIZ":                     "SERVICE",
+        "NAK":                     "TRANSPORTATION",
+        "INS":                     "CONSTRUCTION",
+        "MUH":                     "ENGINEERING",
+        "MIM":                     "ARCHITECTURE",
+        "OTM":                     "AUTOMOTIVE",
+        "SAN TIC LTD STI":         "INDUSTRY TRADE LTD CO",
+        "TIC SAN LTD STI":         "TRADE INDUSTRY LTD CO",
+        "HIZ SAN TIC LTD STI":     "SERVICE INDUSTRY TRADE LTD CO",
+        "TIC LTD STI":             "TRADE LTD CO",
+        "LTD STI":                 "LTD CO",
+
+        # Yaygın Türkçe kelimeler
+        "DEVLET":                   "STATE",
+        "OZEL":                     "PRIVATE",
+        "ÖZEL":                    "PRIVATE",
+        "TURK":                     "TURKISH",
+        "TÜRK":                    "TURKISH",
+        "MILLI":                    "NATIONAL",
+        "MİLLİ":                   "NATIONAL",
+        "VAKIF":                    "FOUNDATION",
+        "VAKFI":                    "FOUNDATION",
+        "EGITIM":                   "EDUCATION",
+        "EĞİTİM":                 "EDUCATION",
+        "BILIM":                    "SCIENCE",
+        "BİLİM":                   "SCIENCE",
+        "TEKNIK":                   "TECHNICAL",
+        "TEKNİK":                  "TECHNICAL",
+        "ENDUSTRI":                 "INDUSTRY",
+        "ENDÜSTRİ":               "INDUSTRY",
+        "SAGLIK":                   "HEALTH",
+        "SAĞLIK":                  "HEALTH",
+        "TICARET":                  "COMMERCE",
+        "TİCARET":                 "COMMERCE",
+        "MUHENDISLIK":              "ENGINEERING",
+        "MÜHENDİSLİK":           "ENGINEERING",
+        "MIMARLIK":                 "ARCHITECTURE",
+        "MİMARLIK":               "ARCHITECTURE",
+        "ISLETME":                  "BUSINESS",
+        "İŞLETME":                "BUSINESS",
+        "IKTISAT":                  "ECONOMICS",
+        "İKTİSAT":                "ECONOMICS",
+        "HUKUK":                    "LAW",
+        "ILAHIYAT":                 "THEOLOGY",
+        "İLAHİYAT":               "THEOLOGY",
+        "GUZEL SANATLAR":           "FINE ARTS",
+        "GÜZEL SANATLAR":          "FINE ARTS",
+        "BEDEN EGITIMI":            "PHYSICAL EDUCATION",
+        "BEDEN EĞİTİMİ":          "PHYSICAL EDUCATION",
+        "SPOR BILIMLERI":           "SPORTS SCIENCES",
+        "SPOR BİLİMLERİ":         "SPORTS SCIENCES",
+        "VETERINER":                "VETERINARY",
+        "ECZACILIK":                "PHARMACY",
+        "DISHEKIMLIGI":             "DENTISTRY",
+        "DİŞHEKİMLİĞİ":          "DENTISTRY",
+        "ILETISIM":                 "COMMUNICATION",
+        "İLETİŞİM":               "COMMUNICATION",
+        "SOSYAL BILIMLER":          "SOCIAL SCIENCES",
+        "SOSYAL BİLİMLER":        "SOCIAL SCIENCES",
+        "FEN BILIMLERI":            "NATURAL SCIENCES",
+        "FEN BİLİMLERİ":          "NATURAL SCIENCES",
+        "INSAAT":                   "CIVIL",
+        "İNŞAAT":                 "CIVIL",
+        "MAKINE":                   "MECHANICAL",
+        "MAKİNE":                  "MECHANICAL",
+        "ELEKTRIK":                 "ELECTRICAL",
+        "ELEKTRİK":               "ELECTRICAL",
+        "ELEKTRONIK":               "ELECTRONICS",
+        "ELEKTRONİK":             "ELECTRONICS",
+        "BILGISAYAR":               "COMPUTER",
+        "BİLGİSAYAR":            "COMPUTER",
+        "ENDUSTRIYEL":              "INDUSTRIAL",
+        "ENDÜSTRİYEL":           "INDUSTRIAL",
+        "ULUSLARARASI":             "INTERNATIONAL",
+        "AVRUPA":                   "EUROPEAN",
+        "AMERIKAN":                 "AMERICAN",
+        "AMERIKAN":                 "AMERICAN",
+    }
+
+    # Önce ASCII'ye çevir
+    text = to_ascii_upper(name.strip())
+
+    # Bilinen kalıpları replace et (uzundan kısaya sırala)
+    sorted_terms = sorted(SCHOOL_TERMS.items(), key=lambda x: len(x[0]), reverse=True)
+    for tr, en in sorted_terms:
+        tr_ascii = to_ascii_upper(tr)
+        en_ascii = to_ascii_upper(en)
+        # Boşlukla ayrılmış hali dene
+        pattern = r'(^|(?<=\s))' + re.escape(tr_ascii) + r'($|(?=\s)|(?=\.))'
+        text = re.sub(pattern, en_ascii, text)
+        # Nokta yerine boşluk koy, tekrar dene
+        tr_spaced = tr_ascii.replace('.', ' ').strip()
+        if tr_spaced != tr_ascii:
+            text_spaced = text.replace('.', ' ')
+            pattern2 = r'(^|(?<=\s))' + re.escape(tr_spaced) + r'($|(?=\s))'
+            text_spaced = re.sub(pattern2, en_ascii, text_spaced)
+            if text_spaced != text.replace('.', ' '):
+                text = text_spaced
+
+    # Çoklu boşlukları temizle
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def to_ascii_upper(text: str) -> str:
     """
     Türkçe/özel karakterleri ASCII'ye çevirir ve büyük harf yapar.
@@ -813,8 +1099,8 @@ def clean_all(raw: dict) -> dict:
     )[:4000]
     data["EMP_SCH_NAME"]    = re.sub(r"\s+", " ", re.sub(
         r"[,\.!?;:\"\'`@]", " ",
-        to_ascii_upper(raw.get("EMP_SCH_NAME",""))
-    )).strip()[:75]   # maxlength=75 (eski 50 yanlıştı)
+        translate_school_name(raw.get("EMP_SCH_NAME",""))
+    )).strip()[:75]   # maxlength=75
     data["EMP_SCH_ADDR1"]   = clean_address_line(raw.get("EMP_SCH_ADDR1",""), 40)
     data["EMP_SCH_ADDR2"]   = clean_address_line(raw.get("EMP_SCH_ADDR2",""), 40)
     data["EMP_SCH_CITY"]    = clean_city(raw.get("EMP_SCH_CITY",""), 20)

@@ -20,6 +20,7 @@ from selenium.common.exceptions import (
     WebDriverException,
 )
 from webdriver_manager.chrome import ChromeDriverManager
+from cleaner import clean_all
 
 # =====================================================
 # ARG PARSE
@@ -341,7 +342,15 @@ def run_ds160_until_captcha(job: dict):
     job_id = job["job_id"]
     data   = job.get("data", {}) or {}
 
+    # 1. Ham veriyi düzleştir
     data = flatten_job_data(data)
+
+    # 2. Temizle — Türkçe karakter, tarih, okul/şirket isimleri
+    try:
+        data = clean_all(data)
+        print(f"[BOT-{BOT_ID}] Veri temizlendi ({len(data)} alan)")
+    except Exception as e:
+        print(f"[BOT-{BOT_ID}] clean_all hatasi (devam ediliyor): {e}")
 
     barcode_from_crm = data.get("BARCODE") or ""
     IS_RETRIEVE      = bool(barcode_from_crm.strip())
@@ -562,7 +571,7 @@ def run_ds160_until_captcha(job: dict):
         from ds160_full_flow import fill_ds160_full_application
 
         def on_personal1_saved():
-            print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor, devam ediliyor...")
+            print(f"[BOT-{BOT_ID}] Personal 1 kaydedildi, screenshot aliniyor...")
             take_and_send_screenshot(driver, job_id)
 
         def on_photo_page():

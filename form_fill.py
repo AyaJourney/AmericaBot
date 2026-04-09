@@ -3,7 +3,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
-
+from auto_fix import fix_country_select, fix_date, fix_text_value, fix_validation_errors, check_validation_errors
 
 
 PAYER_MAP = {
@@ -840,21 +840,28 @@ def select_nationality(wait, driver, nationality_text):
 
 
 def select_country_by_name(wait, select_id, country_text):
+    from auto_fix import fix_country_select
     if not country_text:
         raise Exception("❌ Country boş olamaz")
 
-    country = country_text.strip().upper()
-    select = Select(wait.until(EC.element_to_be_clickable((By.ID, select_id))))
+    # Önce normal yolla dene
+    try:
+        country = country_text.strip().upper()
+        select = Select(wait.until(EC.element_to_be_clickable((By.ID, select_id))))
+        for option in select.options:
+            if option.text.strip().upper() == country:
+                select.select_by_visible_text(option.text)
+                print(f"✅ Country seçildi: {option.text}")
+                return
+    except Exception:
+        pass
 
-    for option in select.options:
-        if option.text.strip().upper() == country:
-            select.select_by_visible_text(option.text)
-            print(f"✅ Country seçildi: {option.text}")
-            return
+    # Bulunamazsa auto_fix dene
+    driver = wait._driver
+    if fix_country_select(driver, select_id, country_text):
+        return
 
-    raise Exception(f"❌ Country bulunamadı: {country}")
-
-
+    raise Exception(f"❌ Country bulunamadı: {country_text}")
 def select_other_nationality(wait, driver, answer):
     answer = answer.strip().upper()
 
@@ -1511,32 +1518,55 @@ SOCIAL_MEDIA_MAP = {
 }
 
 PASSPORT_TYPE_MAP = {
-    "REGULAR": "R",
-    "OFFICIAL": "O",
-    "DIPLOMATIC": "D",
-    "LAISSEZ": "L",
-    "OTHER": "T",
+    "REGULAR": "R",  "R": "R",
+    "OFFICIAL": "O", "O": "O",
+    "DIPLOMATIC": "D", "D": "D",
+    "LAISSEZ": "L",  "L": "L", "LAISSEZ-PASSER": "L",
+    "OTHER": "T",    "T": "T",
 }
 def fill_intended_arrival_date(wait, driver, data):
     print("🛬 Intended arrival date dolduruluyor...")
+    from datetime import datetime, timedelta
 
-    day_raw = (data.get("INTENDED_ARRIVAL_DAY") or "").strip()
-    mon_raw = str(data.get("INTENDED_ARRIVAL_MONTH") or "").strip().upper()
+    day_raw  = (data.get("INTENDED_ARRIVAL_DAY") or "").strip()
+    mon_raw  = str(data.get("INTENDED_ARRIVAL_MONTH") or "").strip().upper()
     year_raw = (data.get("INTENDED_ARRIVAL_YEAR") or "").strip()
 
     if not day_raw or not mon_raw or not year_raw:
         raise Exception("❌ INTENDED_ARRIVAL_DAY / MONTH / YEAR boş olamaz")
 
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    # Tarih geçmişte mi kontrol et
+    try:
+        if mon_raw.isdigit():
+            mon_num = int(mon_raw)
+        else:
+            mon_num = int(MONTH_MAP.get(mon_raw, "1"))
+        arrival = datetime(int(year_raw), mon_num, int(day_raw))
+        today   = datetime.now()
+
+        if arrival <= today:
+            print(f"⚠️ Varış tarihi geçmişte ({day_raw}-{mon_raw}-{year_raw}), 90 gün sonrasına ayarlanıyor...")
+            future   = today + timedelta(days=90)
+            day_raw  = str(future.day)
+            mon_raw  = MON_STR[future.month - 1]
+            year_raw = str(future.year)
+            print(f"✅ Yeni varış tarihi: {day_raw}-{mon_raw}-{year_raw}")
+    except Exception as e:
+        print(f"⚠️ Tarih kontrol hatası: {e}")
+
     try:
         day_val = str(int(day_raw))
-    except:
+    except Exception:
         day_val = day_raw
 
     if mon_raw.isdigit():
-        mon_val = str(int(mon_raw))
+        mon_val  = str(int(mon_raw))
         mon_text = None
     else:
-        mon_val = MONTH_MAP.get(mon_raw)
+        mon_val  = MONTH_MAP.get(mon_raw)
         mon_text = mon_raw
 
     if not mon_val:
@@ -1547,7 +1577,7 @@ def fill_intended_arrival_date(wait, driver, data):
     )))
     try:
         day_dd.select_by_value(day_val)
-    except:
+    except Exception:
         day_dd.select_by_value(day_val.zfill(2))
     time.sleep(0.2)
 
@@ -1556,7 +1586,7 @@ def fill_intended_arrival_date(wait, driver, data):
     )))
     try:
         month_dd.select_by_value(mon_val)
-    except:
+    except Exception:
         if mon_text:
             month_dd.select_by_visible_text(mon_text)
         else:
@@ -1577,10 +1607,7 @@ def fill_intended_arrival_date(wait, driver, data):
 
     driver.find_element(By.TAG_NAME, "body").click()
     time.sleep(0.6)
-
     print(f"✅ Intended Arrival Date: {day_val}-{mon_raw}-{year_raw}")
-
-
 def fill_intended_length_of_stay(wait, driver, data):
     raw_value = str(data.get("TRAVEL_LOS_VALUE", "")).strip()
     raw_unit = str(data.get("TRAVEL_LOS_UNIT", "")).strip().upper()
@@ -3050,28 +3077,29 @@ def fill_passport_info(wait, driver, data):
         """, el)
         el.send_keys(value)
 
-    passport_type = data["PASSPORT_TYPE"].strip().upper()
+    passport_type = data.get("PASSPORT_TYPE", "REGULAR").strip().upper()
     type_value = PASSPORT_TYPE_MAP.get(passport_type)
     if not type_value:
-        raise Exception(f"❌ Geçersiz PASSPORT_TYPE: {passport_type}")
+        print(f"⚠️ Geçersiz PASSPORT_TYPE: {passport_type}, REGULAR olarak devam ediliyor")
+        type_value = "R"
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_TYPE")
     ))).select_by_value(type_value)
-    print(f"✅ Pasaport tipi seçildi: {passport_type}")
+    print(f"✅ Pasaport tipi seçildi: {passport_type} → {type_value}")
 
     time.sleep(1.5)
     wait.until(EC.visibility_of_element_located(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM")
     ))
 
-    if passport_type == "OTHER":
+    if type_value == "T":
         expl = data.get("PASSPORT_OTHER_EXPL", "").strip()
         if not expl:
-            raise Exception("❌ PASSPORT_TYPE=OTHER ise PASSPORT_OTHER_EXPL zorunlu")
+            expl = "OTHER TRAVEL DOCUMENT"
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPptOtherExpl", expl)
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM", str(data["PASSPORT_NUMBER"]).strip())
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM", str(data.get("PASSPORT_NUMBER", "")).strip())
 
     book_num = data.get("PASSPORT_BOOK_NUMBER", "").strip().upper()
     if book_num in ("", "NA", "N/A", "DOES NOT APPLY"):
@@ -3083,24 +3111,24 @@ def fill_passport_info(wait, driver, data):
     else:
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_BOOK_NUM", book_num)
 
-    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_CNTRY", data["PASSPORT_ISSUED_COUNTRY"])
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_CITY", data["PASSPORT_ISSUED_CITY"])
+    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_CNTRY", data.get("PASSPORT_ISSUED_COUNTRY", "TURKEY"))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_CITY", data.get("PASSPORT_ISSUED_CITY", ""))
 
     state = data.get("PASSPORT_ISSUED_STATE", "").strip()
     if state and state.upper() not in ("NA", "N/A"):
         try:
             js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_STATE", state)
-        except:
-            print("⚠️ State alanı bulunamadı veya pasif, atlanıyor.")
+        except Exception:
+            print("⚠️ State alanı bulunamadı, atlanıyor.")
 
-    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_IN_CNTRY", data["PASSPORT_ISSUED_IN_COUNTRY"])
+    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_IN_CNTRY", data.get("PASSPORT_ISSUED_IN_COUNTRY", "TURKEY"))
 
     fill_date_dd_mmm_yyyy(
         wait, driver,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay",
         "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEMonth",
         "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUEDYear",
-        data["PASSPORT_ISSUE_DATE"]
+        data.get("PASSPORT_ISSUE_DATE", "")
     )
 
     exp_date = data.get("PASSPORT_EXPIRY_DATE", "").strip().upper()
@@ -3116,11 +3144,10 @@ def fill_passport_info(wait, driver, data):
             "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_EXPIRE_DTEDay",
             "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_EXPIRE_DTEMonth",
             "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_EXPIREYear",
-            data["PASSPORT_EXPIRY_DATE"]
+            data.get("PASSPORT_EXPIRY_DATE", "")
         )
 
     print("🟢 Passport section TAMAMLANDI")
-
 
 def fill_lost_passport(wait, driver, data):
     print("🟠 Lost Passport bölümü başladı")
@@ -3958,6 +3985,8 @@ def fill_present_occupation_explain(wait, driver, data):
 def fill_employer_or_school_info(wait, driver, data):
     print("🏢 Employer / School bilgileri dolduruluyor")
 
+    from cleaner import translate_school_name
+
     def js_fill(element_id, value):
         if not value:
             return
@@ -3969,13 +3998,16 @@ def fill_employer_or_school_info(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",  data.get("EMP_SCH_NAME", ""))
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", clean_address(data.get("EMP_SCH_ADDR1", "")))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",
+            translate_school_name(data.get("EMP_SCH_NAME", ""))[:75])
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1",
+            clean_address(data.get("EMP_SCH_ADDR1", "")))
 
     if data.get("EMP_SCH_ADDR2"):
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", data["EMP_SCH_ADDR2"])
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",  clean_address(data.get("EMP_SCH_CITY", "")))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",
+            clean_address(data.get("EMP_SCH_CITY", "")))
 
     state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
 
@@ -3998,7 +4030,8 @@ def fill_employer_or_school_info(wait, driver, data):
         print(f"✅ State girildi: {state_val}")
 
     if data.get("EMP_SCH_POSTAL"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD", data["EMP_SCH_POSTAL"])
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD",
+                data["EMP_SCH_POSTAL"])
     else:
         wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_POSTAL_CD_NA")
@@ -4022,7 +4055,8 @@ def fill_employer_or_school_info(wait, driver, data):
     )
 
     if data.get("EMP_MONTHLY_SALARY"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY", data["EMP_MONTHLY_SALARY"])
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY",
+                data["EMP_MONTHLY_SALARY"])
     else:
         wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
@@ -4036,8 +4070,6 @@ def fill_employer_or_school_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
-
-
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
 
@@ -4151,9 +4183,11 @@ def fill_present_occupation_section(wait, driver, data):
 def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
 
+    from cleaner import translate_school_name
+
     prev = data.get("PREV_EMPLOYED", "NO").strip().upper()
     if prev not in ("YES", "NO"):
-        raise Exception("❌ PREV_EMPLOYED YES veya NO olmalı")
+        prev = "NO"
 
     radio_id = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblPreviouslyEmployed_0"
@@ -4164,37 +4198,40 @@ def fill_previous_employment(wait, driver, data):
     print(f"✅ Previously Employed: {prev}")
 
     if prev == "NO":
+        time.sleep(1)
         return
 
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
     time.sleep(1)
 
     def split(key):
-        return [x.strip() for x in data.get(key, "").split(",")]
+        val = data.get(key, "")
+        if isinstance(val, list):
+            return [x.strip() for x in val]
+        return [x.strip() for x in str(val).split(",")]
+
+    def split_by_count(key, n):
+        parts = split(key)
+        while len(parts) < n:
+            parts.append("")
+        return parts
 
     date_from = split("PREV_EMPLOY_FROM")
     date_to   = split("PREV_EMPLOY_TO")
     count     = len(date_from)
 
-    country     = split("PREV_EMPLOYER_COUNTRY")
-    state       = split("PREV_EMPLOYER_STATE")
-    postal      = split("PREV_EMPLOYER_POSTAL")
-    phone       = split("PREV_EMPLOYER_PHONE")
-    title       = split("PREV_JOB_TITLE")
-    sup_surname = split("PREV_SUPERVISOR_SURNAME")
-    sup_given   = split("PREV_SUPERVISOR_GIVEN")
-
-    def split_by_count(key, n):
-        parts = [x.strip() for x in data.get(key, "").split(",")]
-        while len(parts) < n:
-            parts.append("")
-        return parts
-
-    names  = split_by_count("PREV_EMPLOYER_NAMES", count)
-    addr1  = split_by_count("PREV_EMPLOYER_ADDR1", count)
-    addr2  = split_by_count("PREV_EMPLOYER_ADDR2", count)
-    city   = split_by_count("PREV_EMPLOYER_CITY", count)
-    duties = split_by_count("PREV_EMPLOY_DUTIES", count)
+    names       = split_by_count("PREV_EMPLOYER_NAMES", count)
+    addr1       = split_by_count("PREV_EMPLOYER_ADDR1", count)
+    addr2       = split_by_count("PREV_EMPLOYER_ADDR2", count)
+    city        = split_by_count("PREV_EMPLOYER_CITY", count)
+    state       = split_by_count("PREV_EMPLOYER_STATE", count)
+    postal      = split_by_count("PREV_EMPLOYER_POSTAL", count)
+    phone       = split_by_count("PREV_EMPLOYER_PHONE", count)
+    title       = split_by_count("PREV_JOB_TITLE", count)
+    sup_surname = split_by_count("PREV_SUPERVISOR_SURNAME", count)
+    sup_given   = split_by_count("PREV_SUPERVISOR_GIVEN", count)
+    duties      = split_by_count("PREV_EMPLOY_DUTIES", count)
+    country     = split_by_count("PREV_EMPLOYER_COUNTRY", count)
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEmpl_ctl"
 
@@ -4213,60 +4250,130 @@ def fill_previous_employment(wait, driver, data):
         el.send_keys(str(value))
 
     for i in range(count):
-
         print(f"➡️ Employment #{i+1}")
 
-        # satır hazır mı
+        # Satır hazır mı bekle
         wait.until(lambda d: len(d.find_elements(
             By.XPATH, "//input[contains(@id,'tbEmployerName')]"
         )) > i)
 
-        js_fill(fid(i, "tbEmployerName"), names[i])
-        js_fill(fid(i, "tbEmployerStreetAddress1"), addr1[i])
+        # İşveren adı — translate_school_name ile çevir
+        js_fill(fid(i, "tbEmployerName"), translate_school_name(names[i])[:75])
+        js_fill(fid(i, "tbEmployerStreetAddress1"), addr1[i][:40] if addr1[i] else "")
 
         if addr2[i]:
-            js_fill(fid(i, "tbEmployerStreetAddress2"), addr2[i])
+            js_fill(fid(i, "tbEmployerStreetAddress2"), addr2[i][:40])
 
-        js_fill(fid(i, "tbEmployerCity"), city[i])
+        js_fill(fid(i, "tbEmployerCity"), city[i][:20] if city[i] else "")
 
         # STATE
-        if state[i]:
-            js_fill(fid(i, "tbxPREV_EMPL_ADDR_STATE"), state[i])
+        state_val = state[i].strip().upper() if i < len(state) else ""
+        if state_val and state_val not in ("NA", "N/A", "NONE", ""):
+            try:
+                cb = driver.find_element(By.ID, fid(i, "cbxPREV_EMPL_ADDR_STATE_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(fid(i, "tbxPREV_EMPL_ADDR_STATE"), state_val[:20])
+            print(f"✅ State [{i+1}]: {state_val}")
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, fid(i, "cbxPREV_EMPL_ADDR_STATE_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, fid(i, "cbxPREV_EMPL_ADDR_STATE_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+                print(f"ℹ️ State [{i+1}]: Does Not Apply")
+            except Exception as e:
+                print(f"⚠️ State NA checkbox: {e}")
 
         # POSTAL
-        if postal[i]:
-            js_fill(fid(i, "tbxPREV_EMPL_ADDR_POSTAL_CD"), postal[i])
+        postal_val = postal[i].strip() if i < len(postal) else ""
+        if postal_val and postal_val.upper() not in ("NA", "N/A", "NONE", ""):
+            try:
+                cb = driver.find_element(By.ID, fid(i, "cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(fid(i, "tbxPREV_EMPL_ADDR_POSTAL_CD"), postal_val[:10])
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, fid(i, "cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, fid(i, "cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+                print(f"ℹ️ Postal [{i+1}]: Does Not Apply")
+            except Exception as e:
+                print(f"⚠️ Postal NA checkbox: {e}")
 
         # COUNTRY
-        Select(wait.until(EC.element_to_be_clickable(
-            (By.ID, fid(i, "DropDownList2"))
-        ))).select_by_visible_text(country[i])
+        country_val = country[i].strip() if i < len(country) else "TURKEY"
+        if not country_val:
+            country_val = "TURKEY"
+        try:
+            select_country_by_name(wait, fid(i, "DropDownList2"), country_val)
+        except Exception as e:
+            print(f"⚠️ Country [{i+1}]: {e}")
+            try:
+                Select(wait.until(EC.element_to_be_clickable(
+                    (By.ID, fid(i, "DropDownList2"))
+                ))).select_by_value("TRKY")
+            except Exception:
+                pass
 
-        js_fill(fid(i, "tbEmployerPhone"), phone[i])
-        js_fill(fid(i, "tbJobTitle"), title[i])
+        js_fill(fid(i, "tbEmployerPhone"), phone[i][:15] if phone[i] else "")
+        js_fill(fid(i, "tbJobTitle"), translate_school_name(title[i])[:75] if title[i] else "")
 
-        # SUPERVISOR
-        if sup_surname[i]:
-            js_fill(fid(i, "tbSupervisorSurname"), sup_surname[i])
+        # SUPERVISOR SURNAME
+        sup_s = sup_surname[i].strip() if i < len(sup_surname) else ""
+        if sup_s and sup_s.upper() not in ("NA", "N/A", "NONE", "UNKNOWN"):
+            try:
+                cb = driver.find_element(By.ID, fid(i, "cbxSupervisorSurname_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(fid(i, "tbSupervisorSurname"), sup_s[:33])
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, fid(i, "cbxSupervisorSurname_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, fid(i, "cbxSupervisorSurname_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ Supervisor Surname NA: {e}")
 
-        if sup_given[i]:
-            js_fill(fid(i, "tbSupervisorGivenName"), sup_given[i])
+        # SUPERVISOR GIVEN
+        sup_g = sup_given[i].strip() if i < len(sup_given) else ""
+        if sup_g and sup_g.upper() not in ("NA", "N/A", "NONE", "UNKNOWN"):
+            try:
+                cb = driver.find_element(By.ID, fid(i, "cbxSupervisorGivenName_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(fid(i, "tbSupervisorGivenName"), sup_g[:33])
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, fid(i, "cbxSupervisorGivenName_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, fid(i, "cbxSupervisorGivenName_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ Supervisor Given NA: {e}")
 
         # DATES
         fill_date_dd_mmm_yyyy(wait, driver,
@@ -4283,12 +4390,19 @@ def fill_previous_employment(wait, driver, data):
             date_to[i]
         )
 
-        js_fill(fid(i, "tbDescribeDuties"), duties[i] or "General duties")
+        js_fill(fid(i, "tbDescribeDuties"), duties[i][:4000] if duties[i] else "General duties")
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
 
-        # ➕ yeni satır ekleme (AKILLI SKIP)
+        # Yeni satır ekle — sadece gerekiyorsa
         if i < count - 1:
+            # Zaten yeterli satır var mı?
+            mevcut = len(driver.find_elements(
+                By.XPATH, "//input[contains(@id,'tbEmployerName')]"
+            ))
+            if mevcut > i + 1:
+                print(f"ℹ️ Satır zaten var ({mevcut}), Add Another atlanıyor")
+                continue
 
             insert_buttons = driver.find_elements(
                 By.XPATH, "//a[contains(@id,'InsertButtonPrevEmpl')]"
@@ -4300,9 +4414,8 @@ def fill_previous_employment(wait, driver, data):
 
             btn = insert_buttons[-1]
 
-            # disabled mı?
             if btn.get_attribute("disabled"):
-                print("⚠️ Insert button disabled → daha fazla eklenemiyor → devam")
+                print("⚠️ Insert button disabled → daha fazla eklenemiyor")
                 break
 
             try:
@@ -4310,22 +4423,26 @@ def fill_previous_employment(wait, driver, data):
                 time.sleep(0.3)
                 driver.execute_script("arguments[0].click();", btn)
 
-                # yeni satır geldi mi
                 wait.until(lambda d: len(d.find_elements(
                     By.XPATH, "//input[contains(@id,'tbEmployerName')]"
-                )) > i+1)
+                )) > i + 1)
 
-                print("➕ Yeni employment eklendi")
+                time.sleep(0.5)
+                print("➕ Yeni employment satırı eklendi")
 
             except Exception as e:
                 print(f"⚠️ Insert başarısız: {e} → devam ediliyor")
                 break
 
     click_outside(driver)
-    print("🟢 Previous Employment TAMAMLANDI (limit kadar dolduruldu)")
-def fill_other_education(wait, driver, data):
-    print("🎓 Other Education section başlıyor...")
+    print("🟢 Previous Employment TAMAMLANDI")
 
+def fill_other_education(wait, driver, data):
+    print("🎓 Other Education bölümü başladı")
+
+    from cleaner import translate_school_name
+
+    # Eğitim listesini topla
     educations_list = []
     idx = 0
     while True:
@@ -4343,7 +4460,7 @@ def fill_other_education(wait, driver, data):
             "country": data.get(f"{prefix}COUNTRY", "TURKEY"),
             "course":  data.get(f"{prefix}COURSE", ""),
             "from":    data.get(f"{prefix}DATE_FROM", ""),
-            "to":      data.get(f"{prefix}DATE_TO", "")
+            "to":      data.get(f"{prefix}DATE_TO", ""),
         })
         idx += 1
 
@@ -4359,11 +4476,16 @@ def fill_other_education(wait, driver, data):
         print("✅ Other Education: NO")
         return
 
-    time.sleep(1)
+    time.sleep(1.5)
+
+    # En yeniden en eskiye sırala
+    educations_list = list(reversed(educations_list))
     print(f"✅ Other Education: YES ({len(educations_list)} okul)")
 
+    base = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEduc_ctl"
+
     def educ_id(i, field):
-        return f"ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEduc_ctl{i:02d}_{field}"
+        return f"{base}{i:02d}_{field}"
 
     def js_fill(element_id, value):
         if not value:
@@ -4379,41 +4501,88 @@ def fill_other_education(wait, driver, data):
     for i, edu in enumerate(educations_list):
         print(f"➡️ Education #{i+1}: {edu['school_name']}")
 
-        if i > 0:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, educ_id(i - 1, "InsertButtonPrevEduc"))
-            )).click()
-            time.sleep(1.5)
+        # Satır hazır mı bekle
+        wait.until(lambda d: len(d.find_elements(
+            By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
+        )) > i)
 
-        js_fill(educ_id(i, "tbxSchoolName"), edu["school_name"])
-        js_fill(educ_id(i, "tbxSchoolAddr1"), edu["addr1"])
+        # Okul adı — translate_school_name ile çevir
+        js_fill(educ_id(i, "tbxSchoolName"),
+                translate_school_name(edu["school_name"])[:75])
 
-        if edu.get("addr2"):
-            js_fill(educ_id(i, "tbxSchoolAddr2"), edu["addr2"])
+        js_fill(educ_id(i, "tbxSchoolAddr1"), edu["addr1"][:40] if edu["addr1"] else "")
 
-        js_fill(educ_id(i, "tbxSchoolCity"), edu["city"])
+        if edu["addr2"]:
+            js_fill(educ_id(i, "tbxSchoolAddr2"), edu["addr2"][:40])
 
-        if edu.get("state") and edu["state"].strip():
-            js_fill(educ_id(i, "tbxEDUC_INST_ADDR_STATE"), edu["state"])
+        js_fill(educ_id(i, "tbxSchoolCity"), edu["city"][:20] if edu["city"] else "")
+
+        # STATE
+        state_val = edu["state"].strip().upper() if edu["state"] else ""
+        if state_val and state_val not in ("NA", "N/A", "NONE", ""):
+            try:
+                cb = driver.find_element(By.ID, educ_id(i, "cbxEDUC_INST_ADDR_STATE_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(educ_id(i, "tbxEDUC_INST_ADDR_STATE"), state_val[:20])
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, educ_id(i, "cbxEDUC_INST_ADDR_STATE_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, educ_id(i, "cbxEDUC_INST_ADDR_STATE_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+                print(f"ℹ️ Education State [{i+1}]: Does Not Apply")
+            except Exception as e:
+                print(f"⚠️ Education State NA: {e}")
 
-        if edu.get("postal") and edu["postal"].strip():
-            js_fill(educ_id(i, "tbxEDUC_INST_POSTAL_CD"), edu["postal"])
+        # POSTAL
+        postal_val = edu["postal"].strip() if edu["postal"] else ""
+        if postal_val and postal_val.upper() not in ("NA", "N/A", "NONE", ""):
+            try:
+                cb = driver.find_element(By.ID, educ_id(i, "cbxEDUC_INST_POSTAL_CD_NA"))
+                if cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+            js_fill(educ_id(i, "tbxEDUC_INST_POSTAL_CD"), postal_val[:10])
         else:
-            wait.until(EC.element_to_be_clickable(
-                (By.ID, educ_id(i, "cbxEDUC_INST_POSTAL_CD_NA"))
-            )).click()
+            try:
+                cb = wait.until(EC.element_to_be_clickable(
+                    (By.ID, educ_id(i, "cbxEDUC_INST_POSTAL_CD_NA"))
+                ))
+                if not cb.is_selected():
+                    driver.execute_script("arguments[0].click();", cb)
+                    time.sleep(0.5)
+                print(f"ℹ️ Education Postal [{i+1}]: Does Not Apply")
+            except Exception as e:
+                print(f"⚠️ Education Postal NA: {e}")
 
+        # COUNTRY
+        country_val = edu["country"].strip() if edu["country"] else "TURKEY"
+        if not country_val:
+            country_val = "TURKEY"
         try:
-            select_country_by_name(wait, educ_id(i, "ddlSchoolCountry"), edu["country"])
-        except:
-            Select(driver.find_element(By.ID, educ_id(i, "ddlSchoolCountry"))).select_by_visible_text(edu["country"])
+            select_country_by_name(wait, educ_id(i, "ddlSchoolCountry"), country_val)
+        except Exception as e:
+            print(f"⚠️ Education Country [{i+1}]: {e}")
+            try:
+                Select(wait.until(EC.element_to_be_clickable(
+                    (By.ID, educ_id(i, "ddlSchoolCountry"))
+                ))).select_by_value("TRKY")
+            except Exception:
+                pass
 
-        js_fill(educ_id(i, "tbxSchoolCourseOfStudy"), edu["course"])
+        # COURSE
+        js_fill(educ_id(i, "tbxSchoolCourseOfStudy"),
+                edu["course"][:66] if edu["course"] else "ACADEMIC")
 
+        # DATES
         fill_date_dd_mmm_yyyy(wait, driver,
             educ_id(i, "ddlSchoolFromDay"),
             educ_id(i, "ddlSchoolFromMonth"),
@@ -4428,11 +4597,50 @@ def fill_other_education(wait, driver, data):
             edu["to"]
         )
 
-        click_outside(driver)
-        time.sleep(0.5)
+        print(f"✅ Education #{i+1} dolduruldu")
 
-    print("✅ Other Education tamamlandı.")
+        # Yeni satır ekle — sadece gerekiyorsa
+        if i < len(educations_list) - 1:
+            # Zaten yeterli satır var mı?
+            mevcut = len(driver.find_elements(
+                By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
+            ))
+            if mevcut > i + 1:
+                print(f"ℹ️ Eğitim satırı zaten var ({mevcut}), Add Another atlanıyor")
+                continue
 
+            insert_buttons = driver.find_elements(
+                By.XPATH, "//a[contains(@id,'InsertButtonPrevEduc')]"
+            )
+
+            if not insert_buttons:
+                print("⚠️ Insert button yok → devam ediliyor")
+                break
+
+            btn = insert_buttons[-1]
+
+            if btn.get_attribute("disabled"):
+                print("⚠️ Insert button disabled → daha fazla eklenemiyor")
+                break
+
+            try:
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(0.3)
+                driver.execute_script("arguments[0].click();", btn)
+
+                wait.until(lambda d: len(d.find_elements(
+                    By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
+                )) > i + 1)
+
+                time.sleep(0.5)
+                print("➕ Yeni eğitim satırı eklendi")
+
+            except Exception as e:
+                print(f"⚠️ Insert başarısız: {e} → devam ediliyor")
+                break
+
+    click_outside(driver)
+    print("🟢 Other Education TAMAMLANDI")
 
 def fill_clan_tribe(wait, driver, data):
     val = data.get("CLAN_TRIBE", "NO").upper()
@@ -4457,13 +4665,25 @@ def fill_clan_tribe(wait, driver, data):
 
 
 def fill_languages(wait, driver, data):
-    langs = [x.strip() for x in data.get("LANGUAGES", "").split(",") if x.strip()]
+    langs_raw = data.get("LANGUAGES", "TURKISH")
+    if isinstance(langs_raw, list):
+        langs = [x.strip() for x in langs_raw if x.strip()]
+    else:
+        langs = [x.strip() for x in str(langs_raw).split(",") if x.strip()]
+    if not langs:
+        langs = ["TURKISH"]
+
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlLANGUAGES_ctl"
 
     for i, lang in enumerate(langs):
-        idx = f"{i:02d}"
+        idx    = f"{i:02d}"
         tbx_id = f"{base}{idx}_tbxLANGUAGE_NAME"
         add_id = f"{base}{idx}_InsertButtonLANGUAGE"
+
+        # Satır hazır mı bekle
+        wait.until(lambda d: len(d.find_elements(
+            By.XPATH, "//input[contains(@id,'tbxLANGUAGE_NAME')]"
+        )) > i)
 
         el = wait.until(EC.visibility_of_element_located((By.ID, tbx_id)))
         driver.execute_script("""
@@ -4472,12 +4692,33 @@ def fill_languages(wait, driver, data):
             arguments[0].value = '';
         """, el)
         el.send_keys(lang)
+        print(f"✅ Dil [{i+1}]: {lang}")
 
+        # Yeni satır ekle — sadece gerekiyorsa
         if i < len(langs) - 1:
-            wait.until(EC.element_to_be_clickable((By.ID, add_id))).click()
-            time.sleep(0.8)
+            # Zaten yeterli satır var mı?
+            mevcut = len(driver.find_elements(
+                By.XPATH, "//input[contains(@id,'tbxLANGUAGE_NAME')]"
+            ))
+            if mevcut > i + 1:
+                print(f"ℹ️ Dil satırı zaten var ({mevcut}), Add Another atlanıyor")
+                continue
 
+            try:
+                btn = wait.until(EC.element_to_be_clickable((By.ID, add_id)))
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                time.sleep(0.3)
+                driver.execute_script("arguments[0].click();", btn)
 
+                wait.until(lambda d: len(d.find_elements(
+                    By.XPATH, "//input[contains(@id,'tbxLANGUAGE_NAME')]"
+                )) > i + 1)
+
+                time.sleep(0.5)
+                print("➕ Yeni dil satırı eklendi")
+            except Exception as e:
+                print(f"⚠️ Dil Insert hatası: {e}")
+                break
 def fill_countries_visited(wait, driver, data):
     val = data.get("COUNTRIES_VISITED", "").strip()
 
