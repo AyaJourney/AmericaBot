@@ -3576,25 +3576,52 @@ def fill_former_spouse(wait, driver, data):
     js_fill(prefix + "tbxSURNAME", data.get("FORMER_SPOUSE_SURNAME"))
     js_fill(prefix + "tbxGIVEN_NAME", data.get("FORMER_SPOUSE_GIVEN"))
 
+    # ✅ DÜZELTİLMİŞ DATE PARSE
     def parse_ds160_date(date_str):
         if not date_str or "-" not in date_str:
-            return "01", "JAN", "1900"
-        parts = date_str.split("-")
-        return parts[0], parts[1].upper(), parts[2]
+            return "01", "1", "1900"
 
-    month_map = {
-        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4", "MAY": "5", "JUN": "6",
-        "JUL": "7", "AUG": "8", "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
-    }
+        parts = date_str.strip().split("-")
+
+        month_map = {
+            "01": "1", "02": "2", "03": "3", "04": "4",
+            "05": "5", "06": "6", "07": "7", "08": "8",
+            "09": "9", "10": "10", "11": "11", "12": "12",
+            "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
+            "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
+            "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
+        }
+
+        try:
+            # YYYY-MM-DD
+            if len(parts[0]) == 4:
+                year = parts[0]
+                month = parts[1]
+                day = parts[2]
+            else:
+                # DD-MMM-YYYY
+                day = parts[0]
+                month = parts[1]
+                year = parts[2]
+
+            month = month_map.get(month.upper(), "1")
+
+            return day.zfill(2), month, year
+
+        except:
+            return "01", "1", "1900"
 
     # DOB
-    dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB", "01-JAN-1980"))
+    dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB"))
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDOBDay")
-    ))).select_by_value(dob_day.zfill(2))
+    ))).select_by_value(dob_day)
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDOBMonth")
     ))).select_by_value(dob_month)
+
     js_fill(prefix + "tbxDOBYear", dob_year)
 
     # NATIONALITY
@@ -3616,23 +3643,29 @@ def fill_former_spouse(wait, driver, data):
         pass
 
     # MARRIAGE DATE
-    dom_day, dom_month, dom_year = parse_ds160_date(data.get("FORMER_MARRIAGE_DATE", "01-JAN-2000"))
+    dom_day, dom_month, dom_year = parse_ds160_date(data.get("FORMER_MARRIAGE_DATE"))
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomDay")
-    ))).select_by_value(str(int(dom_day)))
+    ))).select_by_value(dom_day)
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomMonth")
-    ))).select_by_value(month_map.get(dom_month, "1"))
+    ))).select_by_value(dom_month)
+
     js_fill(prefix + "txtDomYear", dom_year)
 
     # END DATE
-    end_day, end_month, end_year = parse_ds160_date(data.get("FORMER_MARRIAGE_END_DATE", "01-JAN-2010"))
+    end_day, end_month, end_year = parse_ds160_date(data.get("FORMER_MARRIAGE_END_DATE"))
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomEndDay")
-    ))).select_by_value(str(int(end_day)))
+    ))).select_by_value(end_day)
+
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomEndMonth")
-    ))).select_by_value(month_map.get(end_month, "1"))
+    ))).select_by_value(end_month)
+
     js_fill(prefix + "txtDomEndYear", end_year)
 
     # END REASON & COUNTRY
@@ -3655,8 +3688,6 @@ def fill_former_spouse(wait, driver, data):
         pass
 
     print("✅ Former Spouse tamamlandı.")
-
-
 def fill_spouse_info(wait, driver, data):
     print("💍 Spouse bilgileri kontrol ediliyor...")
 
