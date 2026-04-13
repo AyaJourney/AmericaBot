@@ -3576,20 +3576,17 @@ def fill_former_spouse(wait, driver, data):
     js_fill(prefix + "tbxSURNAME", data.get("FORMER_SPOUSE_SURNAME"))
     js_fill(prefix + "tbxGIVEN_NAME", data.get("FORMER_SPOUSE_GIVEN"))
 
-    # ✅ DÜZELTİLMİŞ DATE PARSE
+    # ✅ FIXED DATE PARSE (DOĞRU FORMAT)
     def parse_ds160_date(date_str):
         if not date_str or "-" not in date_str:
-            return "01", "1", "1900"
+            return "01", "JAN", "1900"
 
         parts = date_str.strip().split("-")
 
         month_map = {
-            "01": "1", "02": "2", "03": "3", "04": "4",
-            "05": "5", "06": "6", "07": "7", "08": "8",
-            "09": "9", "10": "10", "11": "11", "12": "12",
-            "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
-            "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
-            "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
+            "01": "JAN", "02": "FEB", "03": "MAR", "04": "APR",
+            "05": "MAY", "06": "JUN", "07": "JUL", "08": "AUG",
+            "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC"
         }
 
         try:
@@ -3604,12 +3601,12 @@ def fill_former_spouse(wait, driver, data):
                 month = parts[1]
                 year = parts[2]
 
-            month = month_map.get(month.upper(), "1")
+            month = month_map.get(month.upper(), month.upper())
 
             return day.zfill(2), month, year
 
         except:
-            return "01", "1", "1900"
+            return "01", "JAN", "1900"
 
     # DOB
     dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB"))
@@ -3677,8 +3674,11 @@ def fill_former_spouse(wait, driver, data):
         arguments[0].removeAttribute('readonly');
         arguments[0].value = '';
     """, reason_field)
-    driver.execute_script("arguments[0].value = arguments[1];", reason_field,
-                          data.get("FORMER_MARRIAGE_END_REASON", "DIVORCE").upper())
+    driver.execute_script(
+        "arguments[0].value = arguments[1];",
+        reason_field,
+        data.get("FORMER_MARRIAGE_END_REASON", "DIVORCE").upper()
+    )
 
     try:
         Select(wait.until(EC.element_to_be_clickable(
@@ -3688,6 +3688,7 @@ def fill_former_spouse(wait, driver, data):
         pass
 
     print("✅ Former Spouse tamamlandı.")
+
 def fill_spouse_info(wait, driver, data):
     print("💍 Spouse bilgileri kontrol ediliyor...")
 
