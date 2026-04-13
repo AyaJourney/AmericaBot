@@ -3576,7 +3576,7 @@ def fill_former_spouse(wait, driver, data):
     js_fill(prefix + "tbxSURNAME", data.get("FORMER_SPOUSE_SURNAME"))
     js_fill(prefix + "tbxGIVEN_NAME", data.get("FORMER_SPOUSE_GIVEN"))
 
-    # ✅ FIXED DATE PARSE (DOĞRU FORMAT)
+    # ✅ DATE PARSE
     def parse_ds160_date(date_str):
         if not date_str or "-" not in date_str:
             return "01", "JAN", "1900"
@@ -3590,13 +3590,11 @@ def fill_former_spouse(wait, driver, data):
         }
 
         try:
-            # YYYY-MM-DD
             if len(parts[0]) == 4:
                 year = parts[0]
                 month = parts[1]
                 day = parts[2]
             else:
-                # DD-MMM-YYYY
                 day = parts[0]
                 month = parts[1]
                 year = parts[2]
@@ -3608,7 +3606,14 @@ def fill_former_spouse(wait, driver, data):
         except:
             return "01", "JAN", "1900"
 
-    # DOB
+    # 🔁 MONTH TEXT → NUMBER (Marriage için)
+    month_to_number = {
+        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
+        "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
+        "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
+    }
+
+    # DOB (TEXT format)
     dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB"))
 
     Select(wait.until(EC.element_to_be_clickable(
@@ -3639,7 +3644,7 @@ def fill_former_spouse(wait, driver, data):
     except:
         pass
 
-    # MARRIAGE DATE
+    # MARRIAGE DATE (NUMERIC MONTH)
     dom_day, dom_month, dom_year = parse_ds160_date(data.get("FORMER_MARRIAGE_DATE"))
 
     Select(wait.until(EC.element_to_be_clickable(
@@ -3648,11 +3653,11 @@ def fill_former_spouse(wait, driver, data):
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomMonth")
-    ))).select_by_value(dom_month)
+    ))).select_by_value(month_to_number.get(dom_month, "1"))
 
     js_fill(prefix + "txtDomYear", dom_year)
 
-    # END DATE
+    # END DATE (NUMERIC MONTH)
     end_day, end_month, end_year = parse_ds160_date(data.get("FORMER_MARRIAGE_END_DATE"))
 
     Select(wait.until(EC.element_to_be_clickable(
@@ -3661,7 +3666,7 @@ def fill_former_spouse(wait, driver, data):
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDomEndMonth")
-    ))).select_by_value(end_month)
+    ))).select_by_value(month_to_number.get(end_month, "1"))
 
     js_fill(prefix + "txtDomEndYear", end_year)
 
@@ -3688,7 +3693,6 @@ def fill_former_spouse(wait, driver, data):
         pass
 
     print("✅ Former Spouse tamamlandı.")
-
 def fill_spouse_info(wait, driver, data):
     print("💍 Spouse bilgileri kontrol ediliyor...")
 
