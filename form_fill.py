@@ -3503,24 +3503,23 @@ def fill_us_immediate_relatives(wait, driver, data):
 
 
 def fill_us_other_relatives(wait, driver, data):
-    print("👥 Other Relatives başladı")
+    other_rel = str(data.get("US_OTHER_RELATIVE", "NO")).strip().upper()
+    if other_rel not in ("YES", "NO"):
+        other_rel = "NO"
 
-    has_other = data.get("US_OTHER_RELATIVE", "NO").upper()
-    target_id = (
-        "ctl00_SiteContentPlaceHolder_FormView1_rblUS_OTHER_RELATIVE_IND_0"
-        if has_other == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblUS_OTHER_RELATIVE_IND_1"
-    )
+    yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblOtherRelInd_0"
+    no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblOtherRelInd_1"
 
     try:
-        relative_radio = wait.until(EC.presence_of_element_located((By.ID, target_id)))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", relative_radio)
-        wait.until(EC.element_to_be_clickable((By.ID, target_id))).click()
-        print(f"✅ Other Relatives işaretlendi: {has_other}")
-    except Exception as e:
-        print(f"❌ Other Relatives hatası: {str(e)}")
+        target_id = yes_id if other_rel == "YES" else no_id
+        relative_radio = wait.until(
+            EC.element_to_be_clickable((By.ID, target_id))
+        )
         driver.execute_script("arguments[0].click();", relative_radio)
-
+        print(f"✅ US Other Relatives: {other_rel}")
+        time.sleep(0.5)
+    except Exception as e:
+        print(f"⚠️ US Other Relatives radio bulunamadı: {e}")
 
 def auto_fill_family_page(wait, driver, data):
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
