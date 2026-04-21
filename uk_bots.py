@@ -476,6 +476,13 @@ class VisaFormData:
         return self.step5.get("abroad_country", [])
 
     @property
+    def last_travels(self):
+        """CRM'den son seyahat listesi"""
+        travels = self.step5.get("lastTravels", [])
+        # Bos kayitlari filtrele
+        return [t for t in travels if t.get("country", "").strip()]
+
+    @property
     def travels_with_non_family(self):
         return self.step5.get("travel_with_non_family", "").strip().upper() == "EVET"
 
@@ -533,543 +540,255 @@ def create_driver():
 def safe_click(driver, element):
     try:
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        time.sleep(0.5)
+        time.sleep(0.3)
         element.click()
     except Exception:
         driver.execute_script("arguments[0].click();", element)
 
 
-def auto_fill_missing_fields(driver):
-    """
-    Validation hatasi olursa dolmamis alanlari otomatik doldur.
-    - Bos radio: hayir/No sec
-    - Bos text input: icerige gore placeholder yaz
-    - Bos number input: 5555555555 yaz
-    - Bos postcode: SW1A 1AA yaz
-    - Bos select: ilk anlamli optionu sec veya TUR
-    - Bos date: varsayilan tarih
-    - Bos checkbox (gerekli): ilkini isaretle
-    """
+# ============================================================
+# YARDIMCI FONKSIYONLAR (tekrar eden islemleri birlestir)
+# ============================================================
+
+def wait_for_page(driver, keyword, timeout=10):
+    """Form action veya sayfa icerigi keyword icerene kadar bekle."""
+    for _ in range(timeout):
+        try:
+            found = driver.execute_script(f"""
+                var forms = document.querySelectorAll('form');
+                for (var i = 0; i < forms.length; i++) {{
+                    if ((forms[i].getAttribute('action') || '').toLowerCase().includes('{keyword.lower()}')) return true;
+                }}
+                return false;
+            """)
+            if found:
+                return True
+        except:
+            pass
+        time.sleep(1)
+    return False
+
+
+def set_radio(driver, radio_id):
+    """JS ile radio sec - en guvenilir yontem."""
+    driver.execute_script(f"""
+        var r = document.getElementById('{radio_id}');
+        if (r) {{
+            r.scrollIntoView({{block: 'center'}});
+            r.checked = true;
+            r.click();
+            r.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }}
+    """)
+    time.sleep(0.3)
+
+
+def set_input(driver, field_id, value, wait_obj=None):
+    """Text/number input'a deger yaz - send_keys + JS fallback."""
+    if not value:
+        return
+    val = str(value)
     try:
-        filled = driver.execute_script("""
-            var filled = [];
-            
-            // Tum validation hata mesajlarini bul
-            var errorFields = document.querySelectorAll('.validation, .error, [class*="error"], .validation-message');
-            if (errorFields.length === 0) return filled;
-            
-            // 1) BOS RADIO GRUPLARI - No/false/none sec
-            var allRadios = document.querySelectorAll('input[type="radio"]');
-            var radioGroups = {};
-            allRadios.forEach(function(r) {
-                if (!radioGroups[r.name]) radioGroups[r.name] = [];
-                radioGroups[r.name].push(r);
-            });
-            
-            Object.keys(radioGroups).forEach(function(name) {
-                var group = radioGroups[name];
-                var anyChecked = group.some(function(r) { return r.checked; });
-                if (!anyChecked) {
-                    // convictionTypeRef ozel - mutlaka 'none'
-                    var nobtn = null;
-                    if (name === 'convictionTypeRef') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === 'none') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // bandRef (kac kez ziyaret) - 0 sec
-                    if (name === 'bandRef') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === '0') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // countryRef - usa sec (hidden alan acmasin)
-                    if (name === 'countryRef') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === 'usa') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // reasonRef - tourist sec
-                    if (name === 'reasonRef') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === 'tourist') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // reasonForVisit - tourism sec
-                    if (name === 'reasonForVisit') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === 'tourism') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // locationOfTreatment - doctor sec
-                    if (name === 'locationOfTreatment') {
-                        for (var k = 0; k < group.length; k++) {
-                            if (group[k].value === 'doctor') { nobtn = group[k]; break; }
-                        }
-                    }
-                    // Once No/false/none sec
-                    if (!nobtn) {
-                        for (var j = 0; j < group.length; j++) {
-                            if (group[j].value === 'false' || group[j].value === 'no' || group[j].value === 'none') {
-                                nobtn = group[j];
-                                break;
-                            }
-                        }
-                    }
-                    if (!nobtn) nobtn = group[group.length - 1]; // son seceneği sec
-                    if (nobtn) {
-                        nobtn.checked = true;
-                        nobtn.dispatchEvent(new Event('change', {bubbles: true}));
-                        nobtn.dispatchEvent(new Event('click', {bubbles: true}));
-                        filled.push('radio:' + name + '=' + nobtn.value);
-                    }
-                }
-            });
-            
-            // 2) BOS TEXT INPUTLAR
-            var textInputs = document.querySelectorAll('input[type="text"], input[type="tel"]');
-            textInputs.forEach(function(inp) {
-                if (inp.disabled || inp.readOnly) return;
-                if (inp.value && inp.value.trim() !== '') return;
-                // Gorunur mu?
-                var style = window.getComputedStyle(inp);
-                if (style.display === 'none' || style.visibility === 'hidden') return;
-                // UI input (autocomplete) ise atla - select zaten doldurur
-                if (inp.classList.contains('ui-autocomplete-input')) return;
-                
-                var id = (inp.id || '').toLowerCase();
-                var name = (inp.name || '').toLowerCase();
-                var val = 'XXXXXXXX';
-                
-                // ID/name'e gore ipucu
-                if (id.includes('postcode') || id.includes('postalcode') || name.includes('postcode') || name.includes('postalcode')) {
-                    val = 'SW1A 1AA';
-                } else if (id.includes('phone') || id.includes('telephone') || name.includes('phone') || inp.type === 'tel') {
-                    val = '5555555555';
-                } else if (id.includes('email')) {
-                    val = 'noreply@example.com';
-                } else if (id.includes('town') || id.includes('city') || name.includes('city')) {
-                    val = 'Istanbul';
-                } else if (id.includes('province') || id.includes('state')) {
-                    val = 'Istanbul';
-                } else if (id.includes('code')) {
-                    val = '90';
-                } else if (id.includes('name') || id.includes('givenname') || id.includes('familyname')) {
-                    val = 'UNKNOWN';
-                } else if (id.includes('number')) {
-                    val = '5555555555';
-                } else {
-                    val = 'N/A';
-                }
-                
-                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                setter.call(inp, val);
-                inp.dispatchEvent(new Event('input', {bubbles: true}));
-                inp.dispatchEvent(new Event('change', {bubbles: true}));
-                filled.push('text:' + inp.id + '=' + val);
-            });
-            
-            // 3) BOS NUMBER INPUTLAR
-            var numInputs = document.querySelectorAll('input[type="number"]');
-            numInputs.forEach(function(inp) {
-                if (inp.disabled || inp.readOnly) return;
-                if (inp.value && inp.value.trim() !== '') return;
-                var style = window.getComputedStyle(inp);
-                if (style.display === 'none' || style.visibility === 'hidden') return;
-                
-                var id = (inp.id || '').toLowerCase();
-                var val = '5555555555';
-                
-                if (id.includes('day')) val = '15';
-                else if (id.includes('month')) val = '6';
-                else if (id.includes('year')) val = '2020';
-                else if (id.includes('amount')) val = '1000';
-                else if (id.includes('times') || id.includes('count')) val = '1';
-                else if (id.includes('duration')) val = '7';
-                else val = '5555555555';
-                
-                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                setter.call(inp, val);
-                inp.dispatchEvent(new Event('input', {bubbles: true}));
-                inp.dispatchEvent(new Event('change', {bubbles: true}));
-                filled.push('num:' + inp.id + '=' + val);
-            });
-            
-            // 4) BOS SELECTLER
-            var selects = document.querySelectorAll('select');
-            selects.forEach(function(sel) {
-                if (sel.disabled) return;
-                if (sel.value && sel.value !== '') return;
-                
-                var id = (sel.id || '').toLowerCase();
-                var target = '';
-                
-                // Ulke selectleri icin Turkey
-                if (id.includes('country') || id.includes('nationality')) {
-                    var turOpt = sel.querySelector('option[value="TUR"]');
-                    if (turOpt) target = 'TUR';
-                }
-                // Para birimi
-                else if (id.includes('currency')) {
-                    var gbpOpt = sel.querySelector('option[value="GBP"]');
-                    if (gbpOpt) target = 'GBP';
-                }
-                // Zaman birimi
-                else if (id.includes('unit') || id.includes('duration')) {
-                    var daysOpt = sel.querySelector('option[value="days"]');
-                    if (daysOpt) target = 'days';
-                }
-                
-                // Hala bulamadiysa ilk non-empty optionu sec
-                if (!target) {
-                    var opts = sel.querySelectorAll('option');
-                    for (var i = 0; i < opts.length; i++) {
-                        if (opts[i].value && opts[i].value !== '') {
-                            target = opts[i].value;
-                            break;
-                        }
-                    }
-                }
-                
-                if (target) {
-                    sel.value = target;
-                    sel.dispatchEvent(new Event('change', {bubbles: true}));
-                    // UI input varsa onu da doldur
-                    var uiInput = document.getElementById(sel.id + '_ui');
-                    if (uiInput) {
-                        var opt = sel.querySelector('option[value="' + target + '"]');
-                        if (opt) uiInput.value = opt.textContent.trim();
-                    }
-                    filled.push('select:' + sel.id + '=' + target);
-                }
-            });
-            
-            // 5) BOS TEXTAREA
-            var textareas = document.querySelectorAll('textarea');
-            textareas.forEach(function(ta) {
-                if (ta.disabled || ta.readOnly) return;
-                if (ta.value && ta.value.trim() !== '') return;
-                var style = window.getComputedStyle(ta);
-                if (style.display === 'none') return;
-                
-                ta.value = 'N/A';
-                ta.dispatchEvent(new Event('input', {bubbles: true}));
-                ta.dispatchEvent(new Event('change', {bubbles: true}));
-                filled.push('textarea:' + ta.id);
-            });
-            
-            // 6) GEREKLI CHECKBOXLAR (readAllInfo gibi onay kutulari)
-            var checkboxes = document.querySelectorAll('input[type="checkbox"][aria-required="true"], input[type="checkbox"][name*="readAll"], input[type="checkbox"][name*="confirm"]');
-            checkboxes.forEach(function(cb) {
-                if (cb.checked) return;
-                cb.checked = true;
-                cb.dispatchEvent(new Event('change', {bubbles: true}));
-                cb.dispatchEvent(new Event('click', {bubbles: true}));
-                filled.push('checkbox:' + cb.id);
-            });
-            
-            return filled;
+        if wait_obj:
+            el = wait_obj.until(EC.presence_of_element_located((By.ID, field_id)))
+        else:
+            el = driver.find_element(By.ID, field_id)
+        driver.execute_script("arguments[0].value = '';", el)
+        safe_click(driver, el)
+        time.sleep(0.1)
+        el.send_keys(val)
+        time.sleep(0.1)
+    except:
+        driver.execute_script(f"""
+            var e = document.getElementById('{field_id}');
+            if (e) {{
+                e.value = '{val.replace("'", "")}';
+                e.dispatchEvent(new Event('input', {{bubbles: true}}));
+                e.dispatchEvent(new Event('change', {{bubbles: true}}));
+            }}
         """)
-        if filled:
-            print(f"[AUTO-FILL] Otomatik dolduruldu: {filled[:10]}")
-            return True
-        return False
-    except Exception as e:
-        print(f"[AUTO-FILL HATA] {e}")
-        return False
 
 
-def click_submit(driver, wait, max_retries=3):
-    """Submit butonuna bas, validation hatasi varsa otomatik doldur ve tekrar dene."""
-    time.sleep(1)
+def set_select(driver, select_id, value, ui_text=None):
+    """Select/dropdown'a deger ata - hidden select + UI input."""
+    driver.execute_script(f"""
+        var s = document.getElementById('{select_id}');
+        if (s) {{
+            s.value = '{value}';
+            s.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }}
+        var ui = document.getElementById('{select_id}_ui');
+        if (ui) ui.value = '{ui_text or value}';
+    """)
+    time.sleep(0.2)
 
-    # Mevcut URL'yi kaydet (sayfa gecis kontrolu icin)
+
+def set_date(driver, prefix, date_obj):
+    """Tarih alanlarini doldur (prefix_day, prefix_month, prefix_year)."""
+    for suffix, val in [("day", date_obj.day), ("month", date_obj.month), ("year", date_obj.year)]:
+        field_id = f"{prefix}_{suffix}"
+        set_input(driver, field_id, str(val))
+
+
+def unhide_toggled(driver, toggled_by_id):
+    """data-toggled-by ile gizlenen icerigi ac."""
+    driver.execute_script(f"""
+        var el = document.querySelector('[data-toggled-by="{toggled_by_id}"]');
+        if (el) {{
+            el.removeAttribute('hidden');
+            el.removeAttribute('aria-hidden');
+            el.style.display = '';
+        }}
+    """)
+    time.sleep(0.5)
+
+
+# ============================================================
+# PRE-FILL (sadece validation hatasi sonrasi calisir)
+# ============================================================
+
+SAFE_RADIO_DEFAULTS = {
+    'convictionTypeRef': 'none',
+    'bandRef': '0',
+    'countryRef': 'usa',
+    'reasonRef': 'tourist',
+    'reasonForVisit': 'tourism',
+    'locationOfTreatment': 'doctor',
+}
+
+def emergency_fill(driver):
+    """Validation hatasi sonrasi bos zorunlu alanlari doldur. SADECE hata varsa cagrilir."""
+    return driver.execute_script("""
+        var filled = [];
+        
+        // RADIO
+        var allRadios = document.querySelectorAll('input[type="radio"]');
+        var groups = {};
+        allRadios.forEach(function(r) {
+            if (!groups[r.name]) groups[r.name] = [];
+            groups[r.name].push(r);
+        });
+        var safeDefaults = """ + json.dumps(SAFE_RADIO_DEFAULTS) + """;
+        Object.keys(groups).forEach(function(name) {
+            var g = groups[name];
+            if (g.some(function(r){return r.checked;})) return;
+            var target = null;
+            if (safeDefaults[name]) {
+                for (var i=0;i<g.length;i++) { if (g[i].value===safeDefaults[name]) {target=g[i];break;} }
+            }
+            if (!target) {
+                for (var i=0;i<g.length;i++) { if (g[i].value==='false'||g[i].value==='no'||g[i].value==='none'||g[i].value==='0') {target=g[i];break;} }
+            }
+            if (!target) target = g[g.length-1];
+            if (target) { target.checked=true; target.click(); target.dispatchEvent(new Event('change',{bubbles:true})); filled.push('r:'+name+'='+target.value); }
+        });
+        
+        // TEXT/NUMBER INPUTS
+        var inputs = document.querySelectorAll('input[aria-required="true"]:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]):not([type="submit"])');
+        inputs.forEach(function(inp) {
+            if (inp.value && inp.value.trim()) return;
+            if (inp.closest('[hidden],[aria-hidden="true"]')) return;
+            if (inp.classList.contains('ui-autocomplete-input')) return;
+            var id = (inp.id||'').toLowerCase(), val='N/A';
+            if (inp.type==='number') {
+                if (id.includes('day')) val='15'; else if (id.includes('month')) val='6'; else if (id.includes('year')) val='2020';
+                else if (id.includes('amount')) val='1000'; else if (id==='yearslived') val='5'; else if (id==='monthslived') val='0';
+                else if (id.includes('duration')||id.includes('times')) val='1'; else val='1000';
+            } else {
+                if (id.includes('postcode')||id.includes('postalcode')||id.includes('lookuppostcode')) val='SW1A 1AA';
+                else if (id.includes('phone')||id.includes('telephone')||inp.type==='tel') val=id.includes('code')?'90':'5555555555';
+                else if (id.includes('email')) val='noreply@example.com';
+                else if (id.includes('town')||id.includes('city')) val='Istanbul';
+                else if (id.includes('province')||id.includes('state')) val='Istanbul';
+                else if (id.includes('jobtitle')) val='Employee';
+                else if (id.includes('hospital')) val='General Hospital';
+                else if (id.includes('name')||id.includes('employer')) val='UNKNOWN';
+                else if (id.includes('number')||id.includes('passport')||id.includes('licence')) val='5555555555';
+                else if (id.includes('address')||id.includes('line')) val='Unknown Address';
+                else val='N/A';
+            }
+            var setter=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+            setter.call(inp,val); inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true}));
+            filled.push('i:'+inp.id+'='+val);
+        });
+        
+        // SELECTS
+        document.querySelectorAll('select[aria-required="true"]').forEach(function(s) {
+            if (s.value) return;
+            if (s.closest('[hidden],[aria-hidden="true"]')) return;
+            var id=(s.id||'').toLowerCase(), val='';
+            if (id.includes('country')||id.includes('nationality')) { if(s.querySelector('option[value="TUR"]')) val='TUR'; }
+            else if (id.includes('currency')) { val=s.querySelector('option[value="TRY"]')?'TRY':(s.querySelector('option[value="GBP"]')?'GBP':''); }
+            else if (id.includes('unit')||id.includes('duration')) { val='days'; }
+            else if (id.includes('relationship')) { val=s.querySelector('option[value="Fr"]')?'Fr':''; }
+            if (!val) { var opts=s.querySelectorAll('option'); for(var i=0;i<opts.length;i++){if(opts[i].value){val=opts[i].value;break;}} }
+            if (val) { s.value=val; s.dispatchEvent(new Event('change',{bubbles:true}));
+                var ui=document.getElementById(s.id+'_ui'); if(ui&&!ui.value){var o=s.querySelector('option[value="'+val+'"]');if(o)ui.value=o.textContent.trim();}
+                filled.push('s:'+s.id+'='+val); }
+        });
+        
+        // TEXTAREAS
+        document.querySelectorAll('textarea[aria-required="true"]').forEach(function(t) {
+            if (t.value&&t.value.trim()) return;
+            if (t.closest('[hidden],[aria-hidden="true"]')) return;
+            t.value='N/A'; t.dispatchEvent(new Event('change',{bubbles:true})); filled.push('t:'+t.id);
+        });
+        
+        // CHECKBOXES (readAll, confirm, none)
+        document.querySelectorAll('input[type="checkbox"]').forEach(function(c) {
+            if (c.checked) return;
+            if (c.closest('[hidden],[aria-hidden="true"]')) return;
+            var id=(c.id||'').toLowerCase(), nm=(c.name||'').toLowerCase();
+            if (id.includes('readall')||id.includes('confirm')||id.includes('none_none')||nm.includes('readall')||nm.includes('confirm')) {
+                c.checked=true; c.click(); c.dispatchEvent(new Event('change',{bubbles:true})); filled.push('c:'+c.id);
+            }
+        });
+        
+        return filled;
+    """)
+
+
+def click_submit(driver, wait):
+    """Submit butonuna bas. Validation hatasi varsa emergency_fill ile doldur ve tekrar dene."""
+    time.sleep(0.5)
+    
     try:
         url_before = driver.current_url
     except:
         url_before = ""
 
-    for attempt in range(max_retries):
-        # Pre-fill: bos zorunlu alanlari doldur
-        try:
-            prefilled = driver.execute_script("""
-                var filled = [];
-                
-                // 1) BOS ZORUNLU RADIO GRUPLARI
-                var allRadios = document.querySelectorAll('input[type="radio"]');
-                var radioGroups = {};
-                allRadios.forEach(function(r) {
-                    if (!radioGroups[r.name]) radioGroups[r.name] = [];
-                    radioGroups[r.name].push(r);
-                });
-                Object.keys(radioGroups).forEach(function(name) {
-                    var group = radioGroups[name];
-                    var anyChecked = group.some(function(r) { return r.checked; });
-                    if (!anyChecked) {
-                        var nobtn = null;
-                        if (name === 'convictionTypeRef') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === 'none') { nobtn = group[k]; break; }
-                            }
-                        }
-                        // bandRef (kac kez ziyaret) - 0 sec
-                        if (name === 'bandRef') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === '0') { nobtn = group[k]; break; }
-                            }
-                        }
-                        // countryRef - schengen yerine usa sec (hidden alan acmasin)
-                        if (name === 'countryRef') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === 'usa') { nobtn = group[k]; break; }
-                            }
-                        }
-                        // reasonRef - tourist sec
-                        if (name === 'reasonRef') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === 'tourist') { nobtn = group[k]; break; }
-                            }
-                        }
-                        // reasonForVisit - tourism sec
-                        if (name === 'reasonForVisit') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === 'tourism') { nobtn = group[k]; break; }
-                            }
-                        }
-                        // locationOfTreatment - doctor sec
-                        if (name === 'locationOfTreatment') {
-                            for (var k = 0; k < group.length; k++) {
-                                if (group[k].value === 'doctor') { nobtn = group[k]; break; }
-                            }
-                        }
-                        if (!nobtn) {
-                            for (var j = 0; j < group.length; j++) {
-                                if (group[j].value === 'false' || group[j].value === 'no' || group[j].value === 'none') {
-                                    nobtn = group[j]; break;
-                                }
-                            }
-                        }
-                        if (!nobtn) nobtn = group[group.length - 1];
-                        if (nobtn) {
-                            nobtn.checked = true;
-                            nobtn.dispatchEvent(new Event('change', {bubbles: true}));
-                            nobtn.click();
-                            filled.push('radio:' + name + '=' + nobtn.value);
-                        }
-                    }
-                });
-
-                // 2) BOS ZORUNLU TEXT/NUMBER/TEL INPUTLAR
-                var reqInputs = document.querySelectorAll('input[aria-required="true"]:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]):not([type="submit"])');
-                reqInputs.forEach(function(inp) {
-                    if (inp.disabled || inp.readOnly) return;
-                    if (inp.value && inp.value.trim() !== '') return;
-                    var style = window.getComputedStyle(inp);
-                    if (style.display === 'none' || style.visibility === 'hidden') return;
-                    var parent = inp.closest('[hidden], [aria-hidden="true"]');
-                    if (parent) return;
-                    if (inp.classList.contains('ui-autocomplete-input')) return;
-                    
-                    var id = (inp.id || '').toLowerCase();
-                    var name = (inp.name || '').toLowerCase();
-                    var type = inp.type;
-                    var val = '';
-                    
-                    if (type === 'number') {
-                        if (id === 'yearslived') val = '5';
-                        else if (id === 'monthslived') val = '0';
-                        else if (id.includes('day')) val = '15';
-                        else if (id.includes('month')) val = '6';
-                        else if (id.includes('year')) val = '2020';
-                        else if (id.includes('amount')) val = '1000';
-                        else if (id.includes('times') || id.includes('count') || id.includes('numberoftimes')) val = '1';
-                        else if (id.includes('duration')) val = '7';
-                        else {
-                            var max = parseInt(inp.getAttribute('max'));
-                            if (max && max < 100) val = '5';
-                            else val = '1000';
-                        }
-                    } else {
-                        if (id.includes('postcode') || id.includes('postalcode') || name.includes('postcode') || name.includes('postalcode') || id.includes('lookuppostcode')) {
-                            val = 'SW1A 1AA';
-                        } else if (type === 'tel' || id.includes('phone') || id.includes('telephone') || name.includes('phone')) {
-                            if (id.includes('code')) val = '90';
-                            else val = '5555555555';
-                        } else if (id.includes('email')) {
-                            val = 'noreply@example.com';
-                        } else if (id.includes('town') || id.includes('city') || name.includes('city')) {
-                            val = 'Istanbul';
-                        } else if (id.includes('province') || id.includes('state')) {
-                            val = 'Istanbul';
-                        } else if (id.includes('givenname')) {
-                            val = 'UNKNOWN';
-                        } else if (id.includes('familyname') || id.includes('surname')) {
-                            val = 'UNKNOWN';
-                        } else if (id.includes('jobtitle')) {
-                            val = 'Employee';
-                        } else if (id.includes('hospitalname')) {
-                            val = 'General Hospital';
-                        } else if (id.includes('name') || id.includes('employer') || id.includes('company')) {
-                            val = 'UNKNOWN';
-                        } else if (id.includes('number') || id.includes('licence') || id.includes('passport')) {
-                            val = '5555555555';
-                        } else if (id.includes('address') || id.includes('line')) {
-                            val = 'Unknown Address';
-                        } else {
-                            val = 'N/A';
-                        }
-                    }
-                    
-                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(inp, val);
-                    inp.dispatchEvent(new Event('input', {bubbles: true}));
-                    inp.dispatchEvent(new Event('change', {bubbles: true}));
-                    filled.push(inp.id + '=' + val);
-                });
-                
-                // 3) BOS ZORUNLU SELECTLER
-                var reqSelects = document.querySelectorAll('select[aria-required="true"]');
-                reqSelects.forEach(function(sel) {
-                    if (sel.disabled) return;
-                    if (sel.value && sel.value !== '') return;
-                    var parent = sel.closest('[hidden], [aria-hidden="true"]');
-                    if (parent) return;
-                    
-                    var id = (sel.id || '').toLowerCase();
-                    var target = '';
-                    
-                    if (id.includes('country') || id.includes('nationality')) {
-                        var turOpt = sel.querySelector('option[value="TUR"]');
-                        if (turOpt) target = 'TUR';
-                    } else if (id.includes('currency')) {
-                        var tryOpt = sel.querySelector('option[value="TRY"]');
-                        var gbpOpt = sel.querySelector('option[value="GBP"]');
-                        target = tryOpt ? 'TRY' : (gbpOpt ? 'GBP' : '');
-                    } else if (id.includes('unit') || id.includes('duration')) {
-                        var daysOpt = sel.querySelector('option[value="days"]');
-                        if (daysOpt) target = 'days';
-                    } else if (id.includes('relationship')) {
-                        var frOpt = sel.querySelector('option[value="Fr"]');
-                        if (frOpt) target = 'Fr';
-                    }
-                    
-                    if (!target) {
-                        var opts = sel.querySelectorAll('option');
-                        for (var i = 0; i < opts.length; i++) {
-                            if (opts[i].value && opts[i].value !== '') {
-                                target = opts[i].value;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (target) {
-                        sel.value = target;
-                        sel.dispatchEvent(new Event('change', {bubbles: true}));
-                        var uiInput = document.getElementById(sel.id + '_ui');
-                        if (uiInput && !uiInput.value) {
-                            var opt = sel.querySelector('option[value="' + target + '"]');
-                            if (opt) uiInput.value = opt.textContent.trim();
-                        }
-                        filled.push(sel.id + '=' + target);
-                    }
-                });
-                
-                // 4) BOS ZORUNLU TEXTAREALAR
-                var reqTexts = document.querySelectorAll('textarea[aria-required="true"]');
-                reqTexts.forEach(function(ta) {
-                    if (ta.disabled || ta.readOnly) return;
-                    if (ta.value && ta.value.trim() !== '') return;
-                    var parent = ta.closest('[hidden], [aria-hidden="true"]');
-                    if (parent) return;
-                    
-                    var id = (ta.id || '').toLowerCase();
-                    var val = 'N/A';
-                    if (id.includes('description') || id.includes('job')) val = 'Working as an employee';
-                    else if (id.includes('reason') || id.includes('plan')) val = 'Tourism and sightseeing';
-                    else if (id.includes('relationship')) val = 'Family member';
-                    
-                    ta.value = val;
-                    ta.dispatchEvent(new Event('input', {bubbles: true}));
-                    ta.dispatchEvent(new Event('change', {bubbles: true}));
-                    filled.push(ta.id + '=' + val);
-                });
-                
-                // 5) GEREKLI CHECKBOXLAR (onay kutulari)
-                var checkboxes = document.querySelectorAll('input[type="checkbox"]');
-                checkboxes.forEach(function(cb) {
-                    if (cb.checked) return;
-                    var parent = cb.closest('[hidden], [aria-hidden="true"]');
-                    if (parent) return;
-                    var id = (cb.id || '').toLowerCase();
-                    var name = (cb.name || '').toLowerCase();
-                    if (id.includes('readall') || id.includes('confirm') || id.includes('none_none') || name.includes('readall') || name.includes('confirm')) {
-                        cb.checked = true;
-                        cb.dispatchEvent(new Event('change', {bubbles: true}));
-                        cb.click();
-                        filled.push('checkbox:' + cb.id);
-                    }
-                });
-                
-                return filled;
-            """)
-            if prefilled and attempt == 0:
-                print(f"[PRE-FILL] Bos alanlar dolduruldu: {prefilled[:8]}")
-                time.sleep(0.5)
-            elif prefilled:
-                print(f"[RETRY-{attempt}] Ek alanlar dolduruldu: {prefilled[:5]}")
-                time.sleep(0.5)
-        except Exception as e:
-            print(f"[PRE-FILL WARN] {e}")
-        
-        # Submit butonuna bas
+    for attempt in range(3):
         try:
             btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input#submit[type='submit']")))
             safe_click(driver, btn)
-        except Exception as e:
-            print(f"[SUBMIT WARN] Buton bulunamadi: {e}")
+        except:
             return
         time.sleep(2)
         
-        # Sayfa degisti mi kontrol et
+        # Sayfa degisti mi?
         try:
-            url_after = driver.current_url
-            if url_after != url_before:
-                # Sayfa gecti, basarili
+            if driver.current_url != url_before:
                 return
         except:
             pass
         
         # Validation hatasi var mi?
-        try:
-            has_error = driver.execute_script("""
-                var errs = document.querySelectorAll('.validation-message, .error-message, .validation, .field-error');
-                for (var i = 0; i < errs.length; i++) {
-                    var el = errs[i];
-                    if (el.offsetParent !== null && el.textContent.trim() !== '' && el.textContent.trim().length > 3) {
-                        return el.textContent.trim().substring(0, 100);
-                    }
-                }
-                // Error summary kontrolu
-                var summary = document.querySelector('.error-summary, .validation-summary');
-                if (summary && summary.offsetParent !== null) {
-                    return summary.textContent.trim().substring(0, 100);
-                }
-                return '';
-            """)
-            if has_error:
-                print(f"[RETRY-{attempt+1}/{max_retries}] Validation hatasi: {has_error[:80]}")
-                if attempt < max_retries - 1:
-                    time.sleep(1)
-                    continue
-                else:
-                    print("[WARN] Max retry asildi, devam ediliyor...")
-                    return
-        except Exception as e:
-            print(f"[click_submit WARN] {e}")
+        has_error = driver.execute_script("""
+            var errs = document.querySelectorAll('.validation-message, .error-message, .validation, .field-error, .error-summary');
+            for (var i=0;i<errs.length;i++) {
+                if (errs[i].offsetParent !== null && errs[i].textContent.trim().length > 3) return true;
+            }
+            return false;
+        """)
         
-        # Hata yoksa ama URL de degismediyse - belki AJAX form
-        return
+        if has_error and attempt < 2:
+            print(f"[RETRY-{attempt+1}] Validation hatasi, emergency_fill calistiriliyor...")
+            filled = emergency_fill(driver)
+            if filled:
+                print(f"[RETRY-{attempt+1}] Dolduruldu: {filled[:5]}")
+            time.sleep(0.5)
+        else:
+            return
 
 
 # ============================================================
@@ -1444,6 +1163,20 @@ def fix_email(email):
     return fixed
 
 
+def clean_phone(phone_str):
+    """Telefon numarasini temizle - +, bosluk, tire kaldir. Ulke kodu ayri girildigi icin 90 basini kaldir."""
+    if not phone_str:
+        return ""
+    digits = ''.join(c for c in phone_str if c.isdigit())
+    # Basinda 90 varsa ve 12+ hane ise kaldir (ulke kodu formda ayri)
+    if digits.startswith("90") and len(digits) > 10:
+        digits = digits[2:]
+    # Basinda 0 varsa kaldir
+    if digits.startswith("0") and len(digits) > 10:
+        digits = digits[1:]
+    return digits
+
+
 def fill_form(driver, wait, form: VisaFormData, start_from=None):
     """
     Start now'dan sonra acilan formu visa_forms verisi ile doldur.
@@ -1603,8 +1336,9 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
         phone_input = wait.until(EC.presence_of_element_located((By.ID, "telephoneNumber")))
         phone_input.clear()
-        phone_input.send_keys(form.phone)
-        print(f"[FORM-4a] Telefon girildi: {form.phone}")
+        clean = clean_phone(form.phone)
+        phone_input.send_keys(clean)
+        print(f"[FORM-4a] Telefon girildi: {clean}")
         time.sleep(0.5)
 
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "telephoneNumberPurpose_outsideUK"))))
@@ -2028,22 +1762,13 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             months_input.send_keys(str(months))
             time.sleep(0.3)
 
-        owner_val = form.home_owner.upper()
-        if owner_val in ("KENDİSİ", "KENDISI", "SAHİBİ", "SAHIBI", "OWN"):
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "ownershipCategory_own"))))
-            print("[FORM-11c] Ev sahipligi: Own")
-        elif owner_val in ("KİRACI", "KIRACI", "RENT", "KİRA", "KIRA"):
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "ownershipCategory_rent"))))
-            print("[FORM-11c] Ev sahipligi: Rent")
-        else:
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "ownershipCategory_other"))))
-            time.sleep(0.5)
-            other_details = wait.until(EC.presence_of_element_located((By.ID, "otherCategoryDetails")))
-            other_details.clear()
-            detail_text = form.home_owner if form.home_owner else "Living with family"
-            other_details.send_keys(detail_text)
-            print(f"[FORM-11c] Ev sahipligi: Other - {detail_text}")
-        time.sleep(0.5)
+        # Ev sahipligi - daima Other + sabit metin
+        set_radio(driver, "ownershipCategory_other")
+        time.sleep(1)
+        unhide_toggled(driver, "ownershipCategory_other")
+        set_input(driver, "otherCategoryDetails", "THE PROPERTY BELONGS TO MY FAMILY", wait)
+        print("[FORM-11c] Ev sahipligi: Other - THE PROPERTY BELONGS TO MY FAMILY")
+        time.sleep(0.3)
 
         click_submit(driver, wait)
         time.sleep(3)
@@ -2174,9 +1899,8 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
         issuing_country = wait.until(EC.presence_of_element_located((By.ID, "issuingCountry")))
         issuing_country.clear()
-        authority = form.passport_authority if form.passport_authority else "TURKEY"
-        issuing_country.send_keys(authority)
-        print(f"[FORM-12b] Verildigi yer: {authority}")
+        issuing_country.send_keys("MINISTRY OF INTERIOR - DIRECTORATE GENERAL FOR CIVIL REGISTRY AND CITIZENSHIP")
+        print("[FORM-12b] Verildigi yer: MINISTRY OF INTERIOR (sabit)")
         time.sleep(0.3)
 
         issue_date = parse_date_safe(form.passport_start_date, "Pasaport verilis tarihi")
@@ -2632,27 +2356,19 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             """)
             time.sleep(0.5)
 
-            # Telefon - ulke kodu ve numara ayir
-            phone = form.work_phone if form.work_phone else form.phone
-            if phone.startswith("+90"):
-                phone_code = "+90"
-                phone_number = phone[3:].strip()
-            elif phone.startswith("+"):
-                phone_code = phone[:4]
-                phone_number = phone[4:].strip()
-            else:
-                phone_code = "+90"
-                phone_number = phone
+            # Telefon - ulke kodu 90, numara temizlenmis
+            phone_raw = form.work_phone if form.work_phone else form.phone
+            phone_number = clean_phone(phone_raw)
 
             code_input = wait.until(EC.presence_of_element_located((By.ID, "phone_code")))
             code_input.clear()
-            code_input.send_keys(phone_code)
+            code_input.send_keys("90")
             time.sleep(0.3)
 
             number_input = wait.until(EC.presence_of_element_located((By.ID, "phone_number")))
             number_input.clear()
             number_input.send_keys(phone_number)
-            print(f"[FORM-17b] Telefon: {phone_code} {phone_number}")
+            print(f"[FORM-17b] Telefon: 90 {phone_number}")
             time.sleep(0.3)
 
             # Ise baslama tarihi
@@ -2801,72 +2517,35 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
     # ===== SAYFA 17c: Aylik harcama =====
     if should_run("monthly_outgoings"):
         time.sleep(2)
-        # URL veya form action'a bakarak dogru sayfada miyiz?
-        is_outgoings_page = driver.execute_script("""
-            var url = window.location.href.toLowerCase();
-            var forms = document.querySelectorAll('form');
-            var foundForm = false;
-            for (var i = 0; i < forms.length; i++) {
-                var action = (forms[i].getAttribute('action') || '').toLowerCase();
-                if (action.includes('monthlyoutgoings')) {
-                    foundForm = true;
-                    break;
-                }
-            }
-            var container = document.querySelector('.monthlyOutgoings');
-            return url.includes('monthlyoutgoings') || foundForm || container !== null;
-        """)
-
-        if not is_outgoings_page:
-            print("[FORM-17c] Aylik harcama sayfasi degil, atlaniyor...")
-        else:
+        if wait_for_page(driver, "monthlyOutgoings"):
             print("[FORM-17c] Aylik harcama giriliyor...")
 
-            # Para birimi - TRY
-            driver.execute_script("""
-                var s = document.getElementById('value_currencyRef');
-                if (s) {
-                    s.value = 'TRY';
-                    s.dispatchEvent(new Event('change', {bubbles: true}));
-                }
-            """)
-            time.sleep(0.3)
-            print("[FORM-17c.1] Para birimi: TRY")
+            set_select(driver, "value_currencyRef", "TRY")
 
             # Aylik harcama - CRM'den al veya hesapla
             expenditure = form.monthly_expenses
             if expenditure:
                 try:
                     outgoing_val = int(str(expenditure).replace(".", "").replace(",", "").strip())
-                    if outgoing_val < 1:
-                        outgoing_val = 15000
                 except:
                     outgoing_val = 15000
             else:
                 monthly = form.monthly_income if form.monthly_income else form.monthly_salary
                 try:
-                    monthly_val = int(str(monthly).replace(".", "").replace(",", "").strip())
-                    outgoing_val = int(monthly_val * 0.6)
-                    if outgoing_val < 1:
-                        outgoing_val = 15000
+                    outgoing_val = int(int(str(monthly).replace(".", "").replace(",", "").strip()) * 0.6)
                 except:
                     outgoing_val = 15000
+            if outgoing_val < 1:
+                outgoing_val = 15000
 
-            driver.execute_script(f"""
-                var el = document.getElementById('value_amount');
-                if (el) {{
-                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, '{outgoing_val}');
-                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                }}
-            """)
-            print(f"[FORM-17c.2] Aylik harcama: {outgoing_val} TRY")
-            time.sleep(0.5)
+            set_input(driver, "value_amount", str(outgoing_val))
+            print(f"[FORM-17c] Harcama: {outgoing_val} TRY")
 
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-17c] Aylik harcama tamamlandi!")
+            print("[FORM-17c] Tamamlandi!")
+        else:
+            print("[FORM-17c] Aylik harcama sayfasi degil, atlaniyor...")
 
     # ===== SAYFA 18: Ek gelir / Birikim =====
     if should_run("other_income"):
@@ -2992,32 +2671,13 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-19] UK harcama plani giriliyor...")
 
         # Para birimi GBP
-        driver.execute_script("""
-            var s = document.getElementById('value_currencyRef');
-            s.value = 'GBP';
-            s.dispatchEvent(new Event('change', {bubbles: true}));
-        """)
-        time.sleep(0.5)
+        set_select(driver, "value_currencyRef", "GBP")
+        time.sleep(0.3)
 
-        # Harcama miktari - CRM'den spend_pound al
-        spend = form.spend_pounds
-        try:
-            spend_val = int(str(spend).replace(".", "").replace(",", "").replace("£", "").replace("GBP", "").strip())
-        except:
-            spend_val = 2000  # Varsayilan
-
-        if spend_val < 100:
-            spend_val = 2000
-
-        driver.execute_script(f"""
-            var el = document.getElementById('value_amount');
-            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-            setter.call(el, '{spend_val}');
-            el.dispatchEvent(new Event('input', {{bubbles: true}}));
-            el.dispatchEvent(new Event('change', {{bubbles: true}}));
-        """)
-        print(f"[FORM-19] Harcama: {spend_val} GBP")
-        time.sleep(0.5)
+        # Sabit 750 GBP
+        set_input(driver, "value_amount", "750")
+        print("[FORM-19] Harcama: 750 GBP (sabit)")
+        time.sleep(0.3)
 
         click_submit(driver, wait)
         time.sleep(3)
@@ -3441,35 +3101,17 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
     # ===== SAYFA 25: Ziyaret hakkinda detay =====
     if should_run("about_visit"):
         print("[FORM-25] Ziyaret detayi giriliyor...")
-
         try:
             details = wait.until(EC.presence_of_element_located((By.ID, "details")))
             details.clear()
-
-            # Amaca gore otomatik metin olustur
-            travel_reason = form.travel_reason.upper()
-            if travel_reason in ("TURISTIK", "TOURISM", "TURIZM"):
-                detail_text = f"I am planning to visit the UK as a tourist for sightseeing and cultural experiences. I plan to stay from {form.travel_start_date} to {form.travel_end_date}."
-            elif travel_reason in ("IS", "BUSINESS", "FUAR"):
-                detail_text = f"I am visiting the UK for business purposes. I work at {form.work_name} as {form.work_title}. I plan to attend business meetings and explore opportunities."
-            elif travel_reason in ("EVLILIK", "MARRIAGE"):
-                detail_text = f"I am visiting the UK to get married to my partner {form.partner_name}."
-            elif travel_reason in ("EGITIM", "STUDY"):
-                detail_text = "I am visiting the UK for a short-term study course."
-            elif travel_reason == "TRANSIT":
-                detail_text = "I am transiting through the UK to reach my final destination."
-            else:
-                detail_text = f"I am visiting the UK for personal reasons. I plan to stay from {form.travel_start_date} to {form.travel_end_date}."
-
-            details.send_keys(detail_text[:500])
-            print(f"[FORM-25] Detay girildi: {detail_text[:80]}...")
-            time.sleep(0.5)
-
+            details.send_keys("I WANT TO MAKE A TOURISTIC TRIP TO LONDON")
+            print("[FORM-25] Detay: I WANT TO MAKE A TOURISTIC TRIP TO LONDON")
+            time.sleep(0.3)
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-25] Ziyaret detayi tamamlandi!")
+            print("[FORM-25] Tamamlandi!")
         except:
-            print("[FORM-25] Detay sayfasi bulunamadi, atlanıyor...")
+            print("[FORM-25] Detay sayfasi bulunamadi, atlaniyor...")
 
     # ===== SAYFA 26: Bakmakla yukumlu kisi var mi =====
     if should_run("has_dependants"):
@@ -3916,11 +3558,9 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             try:
                 plans = wait.until(EC.presence_of_element_located((By.ID, "plans")))
                 plans.clear()
-                city_name = uk_address if uk_address else "London"
-                plan_text = f"I plan to stay in a hotel in {city_name} during my visit. I will book accommodation closer to my travel date."
-                plans.send_keys(plan_text[:500])
-                print(f"[FORM-32b] Plan: {plan_text[:60]}...")
-                time.sleep(0.5)
+                plans.send_keys("IF MY VISA IS APPROVED, I WILL ARRANGE MY ACCOMMODATION")
+                print("[FORM-32b] Plan: IF MY VISA IS APPROVED, I WILL ARRANGE MY ACCOMMODATION")
+                time.sleep(0.3)
                 click_submit(driver, wait)
                 time.sleep(3)
             except:
@@ -4023,126 +3663,169 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
         print("[FORM-33] UK seyahat gecmisi tamamlandi!")
 
-    # ===== SAYFA 34: Diger ulkelere seyahat =====
+    # ===== SAYFA 34: AU/CA/NZ/USA/CH/EEA ulkelere seyahat =====
     if should_run("other_countries"):
-        print("[FORM-34] Diger ulkelere seyahat...")
+        print("[FORM-34] AU/CA/NZ/USA/CH/EEA seyahat...")
 
-        # CRM'den yurt disi seyahat bilgisi
-        abroad = form.step5.get("abroad_country", [])
-        other_visited = form.step5.get("other_visited_countries", "").strip().upper()
+        # lastTravels'dan EEA/US/CA/AU/NZ/CH ulkelerini ayikla
+        eea_countries = {"austria","belgium","bulgaria","croatia","cyprus","czechia","czech republic",
+            "denmark","estonia","finland","france","germany","greece","hungary","iceland","ireland",
+            "italy","latvia","liechtenstein","lithuania","luxembourg","malta","netherlands","norway",
+            "poland","portugal","romania","slovakia","slovenia","spain","sweden","switzerland",
+            "usa","america","united states","canada","australia","new zealand","newzealand"}
+        
+        country_to_radio = {
+            "usa": "usa", "america": "usa", "united states": "usa",
+            "canada": "canada", "australia": "australia",
+            "new zealand": "newzealand", "newzealand": "newzealand",
+        }
+        # Geri kalan EEA -> schengen
 
-        # Array mi string mi kontrol et
-        if isinstance(abroad, list):
-            country_count = len(abroad)
-        elif isinstance(abroad, str) and abroad.strip():
-            country_count = len(abroad.split(","))
-        else:
-            country_count = 0
+        travels = form.last_travels
+        eea_travels = []
+        other_travels = []
+        
+        for t in travels:
+            c = t.get("country", "").strip().lower()
+            if any(ec in c for ec in eea_countries):
+                eea_travels.append(t)
+            elif c:
+                other_travels.append(t)
 
-        # other_visited_countries HAYIR ise direkt 0
-        if other_visited == "HAYIR":
-            country_count = 0
-
-        if country_count >= 6:
+        # Kac kez EEA ulkelere gitmis
+        eea_count = len(eea_travels)
+        
+        if eea_count >= 6:
             radio_id = "bandRef_6"
-        elif country_count >= 2:
+        elif eea_count >= 2:
             radio_id = "bandRef_2"
-        elif country_count >= 1:
+        elif eea_count >= 1:
             radio_id = "bandRef_1"
         else:
             radio_id = "bandRef_0"
 
-        # JS ile radio sec (pre-fill yanlış seçmesin diye önce temizle)
+        # Radio sec
         driver.execute_script(f"""
             var radios = document.querySelectorAll('input[name="bandRef"]');
             radios.forEach(function(r) {{ r.checked = false; }});
             var target = document.getElementById('{radio_id}');
             if (target) {{ target.checked = true; target.click(); target.dispatchEvent(new Event('change', {{bubbles: true}})); }}
         """)
-        print(f"[FORM-34] Diger ulke ziyaret: {radio_id}")
+        print(f"[FORM-34] EEA ziyaret sayisi: {eea_count} -> {radio_id}")
         time.sleep(0.5)
 
         click_submit(driver, wait)
         time.sleep(3)
 
-        # Eger 0 degilse detay sayfasi acilir - doldur
-        if radio_id != "bandRef_0":
-            try:
-                time.sleep(1)
-                is_detail = driver.execute_script("""
-                    return document.getElementById('countryRef_schengen') !== null ||
-                           document.getElementById('countryRef_usa') !== null;
-                """)
-                if is_detail:
-                    print("[FORM-34b] Ziyaret detay sayfasi, dolduruluyor...")
-
-                    # USA sec (hidden alan acmaz, en basit)
-                    driver.execute_script("""
-                        var radios = document.querySelectorAll('input[name="countryRef"]');
-                        radios.forEach(function(r) { r.checked = false; });
-                        var r = document.getElementById('countryRef_usa');
-                        if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
+        # Detay sayfalari - son 2 seyahati gir (site max 3 istiyor)
+        if eea_count > 0:
+            entries_to_fill = eea_travels[:2]  # Son 2 seyahat
+            for idx, travel in enumerate(entries_to_fill):
+                try:
+                    time.sleep(1)
+                    is_detail = driver.execute_script("""
+                        return document.getElementById('countryRef_usa') !== null ||
+                               document.getElementById('countryRef_schengen') !== null;
                     """)
+                    if not is_detail:
+                        break
+
+                    country = travel.get("country", "").strip().lower()
+                    purpose = travel.get("purpose", "tourist").strip().lower()
+                    month_year = travel.get("monthYear", "").strip()
+                    duration = travel.get("durationDays", "7").strip()
+
+                    # Hangi radio secilecek
+                    matched_radio = None
+                    for key, val in country_to_radio.items():
+                        if key in country:
+                            matched_radio = f"countryRef_{val}"
+                            break
+                    if not matched_radio:
+                        matched_radio = "countryRef_schengen"
+
+                    # Ulke sec
+                    set_radio(driver, matched_radio)
                     time.sleep(0.5)
 
-                    # Sebep - Tourist
-                    driver.execute_script("""
-                        var r = document.getElementById('reasonRef_tourist');
-                        if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-                    time.sleep(0.3)
+                    # Schengen secildiyse ulke dropdown doldur
+                    if matched_radio == "countryRef_schengen":
+                        unhide_toggled(driver, "countryRef_schengen")
+                        # Schengen ulke kodunu bul
+                        schengen_map = {"germany":"DEU","france":"FRA","spain":"ESP","italy":"ITA","netherlands":"NLD",
+                            "greece":"GRC","portugal":"PRT","austria":"AUT","belgium":"BEL","sweden":"SWE",
+                            "norway":"NOR","denmark":"DNK","finland":"FIN","poland":"POL","czech":"CZE",
+                            "hungary":"HUN","romania":"ROU","croatia":"HRV","bulgaria":"BGR","switzerland":"CHE",
+                            "ireland":"IRL","iceland":"ISL","slovakia":"SVK","slovenia":"SVN","estonia":"EST",
+                            "latvia":"LVA","lithuania":"LTU","luxembourg":"LUX","malta":"MLT","cyprus":"CYP"}
+                        code = "DEU"  # varsayilan Germany
+                        for key, val in schengen_map.items():
+                            if key in country:
+                                code = val
+                                break
+                        set_select(driver, "schengenCountry", code)
 
-                    # Tarih - 1 yil once
-                    from datetime import datetime
-                    visit_dt = datetime.now() - relativedelta(years=1)
-                    for fid, val in [("date_month", str(visit_dt.month)), ("date_year", str(visit_dt.year))]:
+                    # Sebep
+                    reason_map = {"tourist":"tourist","turist":"tourist","is":"business","business":"business",
+                                  "work":"business","study":"study","transit":"transit"}
+                    reason_radio = "reasonRef_tourist"
+                    for key, val in reason_map.items():
+                        if key in purpose:
+                            reason_radio = f"reasonRef_{val}"
+                            break
+                    set_radio(driver, reason_radio)
+
+                    # Tarih (MM YYYY)
+                    if month_year:
                         try:
-                            el = driver.find_element(By.ID, fid)
-                            driver.execute_script("arguments[0].value = '';", el)
-                            safe_click(driver, el)
-                            el.send_keys(val)
-                            time.sleep(0.1)
+                            visit_dt = parse_date_safe(month_year, "EEA ziyaret")
                         except:
-                            driver.execute_script(f"var e=document.getElementById('{fid}'); if(e){{e.value='{val}'; e.dispatchEvent(new Event('change',{{bubbles:true}}));}}")
+                            visit_dt = datetime.now() - relativedelta(years=1)
+                    else:
+                        visit_dt = datetime.now() - relativedelta(years=1)
+                    set_input(driver, "date_month", str(visit_dt.month))
+                    set_input(driver, "date_year", str(visit_dt.year))
 
-                    # Sure - 1 hafta
-                    driver.execute_script("""
-                        var s = document.getElementById('durationOfStayUnit');
-                        if (s) { s.value = 'weeks'; s.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-                    time.sleep(0.3)
+                    # Sure
                     try:
-                        dur = driver.find_element(By.ID, "durationOfStay")
-                        driver.execute_script("arguments[0].value = '';", dur)
-                        safe_click(driver, dur)
-                        dur.send_keys("1")
+                        dur_days = int(duration) if duration else 7
                     except:
-                        driver.execute_script("var e=document.getElementById('durationOfStay'); if(e){e.value='1'; e.dispatchEvent(new Event('change',{bubbles:true}));}")
-                    time.sleep(0.3)
+                        dur_days = 7
+                    if dur_days <= 7:
+                        set_select(driver, "durationOfStayUnit", "days")
+                        set_input(driver, "durationOfStay", str(dur_days if dur_days > 0 else 7))
+                    elif dur_days <= 30:
+                        set_select(driver, "durationOfStayUnit", "weeks")
+                        set_input(driver, "durationOfStay", str(max(1, dur_days // 7)))
+                    else:
+                        set_select(driver, "durationOfStayUnit", "months")
+                        set_input(driver, "durationOfStay", str(max(1, dur_days // 30)))
 
+                    print(f"[FORM-34b] Seyahat {idx+1}: {country} / {purpose} / {visit_dt.month}/{visit_dt.year} / {dur_days} gun")
                     click_submit(driver, wait)
                     time.sleep(3)
-                    print("[FORM-34b] Ziyaret detay tamamlandi!")
 
-                    # Baska ziyaret ekle - No
+                    # Baska ekle?
+                    if idx < len(entries_to_fill) - 1:
+                        set_radio(driver, "addAnother_true")
+                        click_submit(driver, wait)
+                        time.sleep(3)
+                    else:
+                        set_radio(driver, "addAnother_false")
+                        click_submit(driver, wait)
+                        time.sleep(3)
+                except Exception as e:
+                    print(f"[FORM-34b] Seyahat {idx+1} hatasi: {e}")
+                    # Hata olursa No sec ve devam et
                     try:
-                        time.sleep(1)
-                        has_add = driver.find_element(By.ID, "addAnother_false")
-                        if has_add:
-                            driver.execute_script("""
-                                var r = document.getElementById('addAnother_false');
-                                if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                            """)
-                            time.sleep(0.5)
-                            click_submit(driver, wait)
-                            time.sleep(3)
-                            print("[FORM-34c] Baska ziyaret: No")
+                        set_radio(driver, "addAnother_false")
+                        click_submit(driver, wait)
+                        time.sleep(3)
                     except:
                         pass
-            except Exception as e:
-                print(f"[FORM-34b] Detay sayfasi hatasi: {e}")
+                    break
 
-        print("[FORM-34] Diger ulkelere seyahat tamamlandi!")
+        print("[FORM-34] EEA seyahat tamamlandi!")
 
     # ===== SAYFA 35: UK'da tibbi tedavi =====
     if should_run("medical_treatment"):
@@ -4424,7 +4107,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         time.sleep(3)
         print("[FORM-45] Tamamlandi!")
 
-    # ===== SAYFA 46: Son 10 yilda baska ulkelere seyahat =====
+    # ===== SAYFA 46: Son 10 yilda baska ulkelere seyahat (UK/US/CA/AU/NZ/CH/EEA HARIC) =====
     if should_run("world_travel"):
         time.sleep(2)
         is_correct_page = driver.execute_script("""
@@ -4438,88 +4121,125 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         if not is_correct_page:
             print("[FORM-46] Dunya seyahat sayfasi degil, atlaniyor...")
         else:
-            print("[FORM-46] Dunya seyahat gecmisi...")
-            # Kesinlikle No sec - once temizle sonra false sec
-            driver.execute_script("""
-                var radios = document.querySelectorAll('input[name="value"]');
-                radios.forEach(function(r) { r.checked = false; });
-                var no = document.getElementById('value_false');
-                if (no) { no.checked = true; no.click(); no.dispatchEvent(new Event('change', {bubbles: true})); }
-            """)
-            print("[FORM-46] Baska ulkelere seyahat: No")
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
+            # lastTravels'dan EEA/US/CA/AU/NZ/CH/UK OLMAYAN ulkeleri bul
+            excluded = {"usa","america","united states","canada","australia","new zealand","newzealand",
+                "uk","united kingdom","england","switzerland",
+                "austria","belgium","bulgaria","croatia","cyprus","czechia","czech republic",
+                "denmark","estonia","finland","france","germany","greece","hungary","iceland","ireland",
+                "italy","latvia","liechtenstein","lithuania","luxembourg","malta","netherlands","norway",
+                "poland","portugal","romania","slovakia","slovenia","spain","sweden"}
 
-            # Eger yanlislikla detay sayfasi actiysa (WorldTravelHistoryDetail)
-            try:
-                is_detail = driver.execute_script("""
-                    var forms = document.querySelectorAll('form');
-                    for (var i = 0; i < forms.length; i++) {
-                        var action = (forms[i].getAttribute('action') || '').toLowerCase();
-                        if (action.includes('worldtravelhistorydetail')) return true;
-                    }
-                    return document.getElementById('standardWorldTravelHistoryDetail') !== null ||
-                           document.getElementById('whichCountry') !== null;
+            travels = form.last_travels
+            other_travels = [t for t in travels if not any(ex in t.get("country","").strip().lower() for ex in excluded)]
+
+            if other_travels:
+                print(f"[FORM-46] {len(other_travels)} diger ulke ziyareti var, Yes seciliyor...")
+                driver.execute_script("""
+                    var radios = document.querySelectorAll('input[name="value"]');
+                    radios.forEach(function(r) { r.checked = false; });
+                    var yes = document.getElementById('value_true');
+                    if (yes) { yes.checked = true; yes.click(); yes.dispatchEvent(new Event('change', {bubbles: true})); }
                 """)
-                if is_detail:
-                    print("[FORM-46b] Dunya seyahat detay sayfasi, dolduruluyor...")
-                    # Ulke sec - CHN (China) varsayilan
-                    driver.execute_script("""
-                        var s = document.getElementById('whichCountry');
-                        if (s) { s.value = 'CHN'; s.dispatchEvent(new Event('change', {bubbles: true})); }
-                        var ui = document.getElementById('whichCountry_ui');
-                        if (ui) ui.value = 'China';
-                    """)
-                    time.sleep(0.3)
+                time.sleep(0.5)
+                click_submit(driver, wait)
+                time.sleep(3)
 
-                    # Sebep - tourism
-                    driver.execute_script("""
-                        var r = document.getElementById('reasonForVisit_tourism');
-                        if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-                    time.sleep(0.3)
-
-                    # Tarihler - send_keys ile
-                    visit_dt = datetime.now() - relativedelta(years=1)
-                    end_dt = visit_dt + relativedelta(days=7)
-                    date_fields = [
-                        ("visitStartDate_day", str(visit_dt.day)),
-                        ("visitStartDate_month", str(visit_dt.month)),
-                        ("visitStartDate_year", str(visit_dt.year)),
-                        ("visitEndDate_day", str(end_dt.day)),
-                        ("visitEndDate_month", str(end_dt.month)),
-                        ("visitEndDate_year", str(end_dt.year)),
-                    ]
-                    for fid, val in date_fields:
-                        try:
-                            el = driver.find_element(By.ID, fid)
-                            driver.execute_script("arguments[0].value = '';", el)
-                            safe_click(driver, el)
-                            el.send_keys(val)
-                            time.sleep(0.1)
-                        except:
-                            driver.execute_script(f"var e=document.getElementById('{fid}'); if(e){{e.value='{val}'; e.dispatchEvent(new Event('change',{{bubbles:true}}));}}")
-
-                    click_submit(driver, wait)
-                    time.sleep(3)
-                    print("[FORM-46b] Detay tamamlandi!")
-
-                    # Baska ulke ekle - No
+                # Son 2 seyahati gir
+                entries = other_travels[:2]
+                for idx, travel in enumerate(entries):
                     try:
                         time.sleep(1)
-                        driver.execute_script("""
-                            var r = document.getElementById('addAnother_false');
-                            if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                        """)
-                        time.sleep(0.5)
+                        is_detail = driver.execute_script("return document.getElementById('whichCountry') !== null;")
+                        if not is_detail:
+                            break
+
+                        country = travel.get("country", "").strip()
+                        purpose = travel.get("purpose", "tourism").strip().lower()
+                        month_year = travel.get("monthYear", "").strip()
+                        duration = travel.get("durationDays", "7").strip()
+
+                        # Ulke sec - ISO kodu bul
+                        country_lower = country.lower()
+                        country_codes = {"china":"CHN","japan":"JPN","korea":"KOR","russia":"RUS",
+                            "brazil":"BRA","mexico":"MEX","india":"IND","thailand":"THA","malaysia":"MYS",
+                            "indonesia":"IDN","singapore":"SGP","egypt":"EGY","morocco":"MAR",
+                            "south africa":"ZAF","turkey":"TUR","pakistan":"PAK","iran":"IRN",
+                            "iraq":"IRQ","saudi":"SAU","qatar":"QAT","uae":"ARE","dubai":"ARE",
+                            "georgia":"GEO","azerbaijan":"AZE","ukraine":"UKR","tunisia":"TUN",
+                            "jordan":"JOR","lebanon":"LBN","israel":"ISR","vietnam":"VNM",
+                            "philippines":"PHL","sri lanka":"LKA","nepal":"NPL","bangladesh":"BGD",
+                            "argentina":"ARG","chile":"CHL","colombia":"COL","peru":"PER",
+                            "cuba":"CUB","dominican":"DOM","jamaica":"JAM","kenya":"KEN",
+                            "tanzania":"TZA","nigeria":"NGA","ghana":"GHA","senegal":"SEN"}
+                        code = "CHN"  # varsayilan
+                        for key, val in country_codes.items():
+                            if key in country_lower:
+                                code = val
+                                break
+                        set_select(driver, "whichCountry", code, country)
+
+                        # Sebep
+                        reason_map = {"tourism":"tourism","tourist":"tourism","turist":"tourism",
+                                      "business":"business","is":"business","work":"business",
+                                      "study":"study","transit":"transit"}
+                        reason_val = "tourism"
+                        for key, val in reason_map.items():
+                            if key in purpose:
+                                reason_val = val
+                                break
+                        set_radio(driver, f"reasonForVisit_{reason_val}")
+
+                        # Tarihler
+                        if month_year:
+                            try:
+                                visit_dt = parse_date_safe(month_year, "Diger ulke ziyaret")
+                            except:
+                                visit_dt = datetime.now() - relativedelta(years=1)
+                        else:
+                            visit_dt = datetime.now() - relativedelta(years=1)
+
+                        try:
+                            dur_days = int(duration) if duration else 7
+                        except:
+                            dur_days = 7
+                        end_dt = visit_dt + relativedelta(days=max(dur_days, 1))
+
+                        set_date(driver, "visitStartDate", visit_dt)
+                        set_date(driver, "visitEndDate", end_dt)
+
+                        print(f"[FORM-46b] Seyahat {idx+1}: {country} / {reason_val} / {visit_dt.day}/{visit_dt.month}/{visit_dt.year}")
                         click_submit(driver, wait)
                         time.sleep(3)
-                        print("[FORM-46c] Baska ulke: No")
-                    except:
-                        pass
-            except:
-                pass
+
+                        # Baska ekle?
+                        if idx < len(entries) - 1:
+                            set_radio(driver, "addAnother_true")
+                            click_submit(driver, wait)
+                            time.sleep(3)
+                        else:
+                            set_radio(driver, "addAnother_false")
+                            click_submit(driver, wait)
+                            time.sleep(3)
+                    except Exception as e:
+                        print(f"[FORM-46b] Seyahat {idx+1} hatasi: {e}")
+                        try:
+                            set_radio(driver, "addAnother_false")
+                            click_submit(driver, wait)
+                            time.sleep(3)
+                        except:
+                            pass
+                        break
+            else:
+                print("[FORM-46] Diger ulke ziyareti yok, No seciliyor...")
+                driver.execute_script("""
+                    var radios = document.querySelectorAll('input[name="value"]');
+                    radios.forEach(function(r) { r.checked = false; });
+                    var no = document.getElementById('value_false');
+                    if (no) { no.checked = true; no.click(); no.dispatchEvent(new Event('change', {bubbles: true})); }
+                """)
+                time.sleep(0.5)
+                click_submit(driver, wait)
+                time.sleep(3)
 
             print("[FORM-46] Tamamlandi!")
 
