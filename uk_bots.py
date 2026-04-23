@@ -14,10 +14,10 @@ from selenium.webdriver.common.keys import Keys
 # ============================================================
 
 # --- PRODUCTION (deploy sonrasi bunu ac) ---
-# CRM_BASE = "https://crm.ayajourney.com/api/internal"
+CRM_BASE = "https://crm.ayajourney.com/api/internal"
 
 # --- LOCAL TEST ---
-CRM_BASE = "http://localhost:3000/api/internal"
+# CRM_BASE = "http://localhost:3000/api/internal"
 
 QUEUE_URL    = f"{CRM_BASE}/queue/uk-visa/start"
 STATUS_URL   = f"{CRM_BASE}/job/uk-visa/status"
@@ -551,13 +551,16 @@ def safe_click(driver, element):
 # ============================================================
 
 def wait_for_page(driver, keyword, timeout=10):
-    """Form action veya sayfa icerigi keyword icerene kadar bekle."""
+    """Form action veya URL keyword icerene kadar bekle."""
+    kw = keyword.lower()
     for _ in range(timeout):
         try:
             found = driver.execute_script(f"""
+                var url = window.location.href.toLowerCase();
+                if (url.includes('{kw}')) return true;
                 var forms = document.querySelectorAll('form');
                 for (var i = 0; i < forms.length; i++) {{
-                    if ((forms[i].getAttribute('action') || '').toLowerCase().includes('{keyword.lower()}')) return true;
+                    if ((forms[i].getAttribute('action') || '').toLowerCase().includes('{kw}')) return true;
                 }}
                 return false;
             """)
@@ -593,16 +596,31 @@ def set_input(driver, field_id, value, wait_obj=None):
             el = wait_obj.until(EC.presence_of_element_located((By.ID, field_id)))
         else:
             el = driver.find_element(By.ID, field_id)
-        driver.execute_script("arguments[0].value = '';", el)
-        safe_click(driver, el)
-        time.sleep(0.1)
-        el.send_keys(val)
+        
+        # Number input ise JS ile yaz (send_keys number'da sorunlu)
+        input_type = el.get_attribute("type") or "text"
+        if input_type == "number":
+            driver.execute_script(f"""
+                var el = document.getElementById('{field_id}');
+                if (el) {{
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, '{val}');
+                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                }}
+            """)
+        else:
+            driver.execute_script("arguments[0].value = '';", el)
+            safe_click(driver, el)
+            time.sleep(0.1)
+            el.send_keys(val)
         time.sleep(0.1)
     except:
         driver.execute_script(f"""
             var e = document.getElementById('{field_id}');
             if (e) {{
-                e.value = '{val.replace("'", "")}';
+                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(e, '{val.replace("'", "")}');
                 e.dispatchEvent(new Event('input', {{bubbles: true}}));
                 e.dispatchEvent(new Event('change', {{bubbles: true}}));
             }}
@@ -614,13 +632,19 @@ def set_select(driver, select_id, value, ui_text=None):
     driver.execute_script(f"""
         var s = document.getElementById('{select_id}');
         if (s) {{
+            // Onceki selected'i kaldir
+            var opts = s.querySelectorAll('option');
+            opts.forEach(function(o) {{ o.removeAttribute('selected'); }});
+            // Yeni degeri sec
             s.value = '{value}';
+            var target = s.querySelector('option[value="{value}"]');
+            if (target) target.setAttribute('selected', 'selected');
             s.dispatchEvent(new Event('change', {{bubbles: true}}));
         }}
         var ui = document.getElementById('{select_id}_ui');
         if (ui) ui.value = '{ui_text or value}';
     """)
-    time.sleep(0.2)
+    time.sleep(0.3)
 
 
 def set_date(driver, prefix, date_obj):
@@ -750,20 +774,47 @@ def emergency_fill(driver):
 
 def click_submit(driver, wait):
     """Submit butonuna bas. Validation hatasi varsa emergency_fill ile doldur ve tekrar dene."""
-    time.sleep(0.5)
+    time.sleep(1)
     
     try:
         url_before = driver.current_url
     except:
         url_before = ""
 
-    for attempt in range(3):
+    for attempt in range(7):
+        # Submit butonuna bas - 3 farkli yontem dene
+        submitted = False
         try:
-            btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input#submit[type='submit']")))
+            btn = wait.until(EC.element_to_be_clickable((By.ID, "submit")))
             safe_click(driver, btn)
+            submitted = True
         except:
-            return
-        time.sleep(2)
+            pass
+        
+        if not submitted:
+            try:
+                driver.execute_script("""
+                    var btn = document.getElementById('submit');
+                    if (btn) { btn.scrollIntoView({block:'center'}); btn.click(); }
+                    else {
+                        var btns = document.querySelectorAll('input[type="submit"]');
+                        if (btns.length > 0) btns[0].click();
+                    }
+                """)
+                submitted = True
+            except:
+                pass
+        
+        if not submitted:
+            try:
+                driver.execute_script("""
+                    var form = document.querySelector('form');
+                    if (form) HTMLFormElement.prototype.submit.call(form);
+                """)
+            except:
+                return
+        
+        time.sleep(3)
         
         # Sayfa degisti mi?
         try:
@@ -786,7 +837,7 @@ def click_submit(driver, wait):
             filled = emergency_fill(driver)
             if filled:
                 print(f"[RETRY-{attempt+1}] Dolduruldu: {filled[:5]}")
-            time.sleep(0.5)
+            time.sleep(1)
         else:
             return
 
@@ -887,6 +938,8 @@ def detect_current_page(driver):
     
     if "monthlyoutgoings" in combined:
         return "monthly_outgoings"
+    if "employmentstatus" in combined:
+        return "employment_status"
     if "plannedspendonvisit" in combined:
         return "planned_spend"
     if "plannedtravelinformation" in combined:
@@ -2256,273 +2309,190 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
     if should_run("employment_status"):
         print("[FORM-16] Is durumu seciliyor...")
 
-        # CRM verisinden is durumunu belirle
-        # boolean_work: CALISIYOR / CALISMIYOR
-        # own_work: EVET (serbest meslek) / HAYIR (calisan)
         work_status = form.step4.get("boolean_work", "").strip().upper()
         is_own = form.step4.get("own_work", "").strip().upper() == "EVET"
         worker_title = form.work_title.upper()
-
-        checkboxes_to_select = []
 
         if work_status == "CALISIYOR":
             if is_own:
-                checkboxes_to_select.append("status_self-employed")
-                print("[FORM-16] Serbest meslek secilecek")
+                cb_id = "status_self-employed"
             else:
-                checkboxes_to_select.append("status_employed")
-                print("[FORM-16] Calisan secilecek")
-        elif work_status in ("CALISMIYOR", "ISSIZ", ""):
-            # Emekli mi issiz mi kontrol et
-            if "EMEKLI" in worker_title or "RETIRED" in worker_title:
-                checkboxes_to_select.append("status_retired")
-                print("[FORM-16] Emekli secilecek")
-            elif "OGRENCI" in worker_title or "STUDENT" in worker_title or "ÖĞRENCİ" in worker_title:
-                checkboxes_to_select.append("status_student")
-                print("[FORM-16] Ogrenci secilecek")
-            else:
-                checkboxes_to_select.append("status_unemployed")
-                print("[FORM-16] Issiz secilecek")
+                cb_id = "status_employed"
+        elif "EMEKLI" in worker_title or "RETIRED" in worker_title:
+            cb_id = "status_retired"
+        elif "OGRENCI" in worker_title or "STUDENT" in worker_title:
+            cb_id = "status_student"
+        else:
+            cb_id = "status_employed"  # varsayilan
 
-        # Eger hicbir sey belirlenemezse varsayilan employed
-        if not checkboxes_to_select:
-            checkboxes_to_select.append("status_employed")
-            print("[FORM-16] Varsayilan: Employed")
-
-        # Checkboxlari isle
-        for cb_id in checkboxes_to_select:
-            try:
-                cb = wait.until(EC.presence_of_element_located((By.ID, cb_id)))
-                if not cb.is_selected():
-                    safe_click(driver, cb)
-                    print(f"[FORM-16] Checkbox secildi: {cb_id}")
-                time.sleep(0.3)
-            except Exception as e:
-                print(f"[FORM-16] Checkbox bulunamadi: {cb_id} - {e}")
-
+        # JS ile checkbox sec
+        driver.execute_script(f"""
+            var cb = document.getElementById('{cb_id}');
+            if (cb && !cb.checked) {{ cb.scrollIntoView({{block:'center'}}); cb.click(); }}
+        """)
+        print(f"[FORM-16] Secildi: {cb_id}")
         time.sleep(0.5)
+
         click_submit(driver, wait)
         time.sleep(3)
-        print("[FORM-16] Is durumu tamamlandi!")
+        print("[FORM-16] Tamamlandi!")
 
-    # ===== SAYFA 17: Isveren / Serbest meslek / Ogrenci / Emekli detaylari =====
+    # ===== SAYFA 17: Isveren / Serbest meslek detaylari =====
     if should_run("employer_details"):
         work_status = form.step4.get("boolean_work", "").strip().upper()
         is_own = form.step4.get("own_work", "").strip().upper() == "EVET"
-        worker_title = form.work_title.upper()
+        time.sleep(3)
 
-        # --- EMPLOYED (calisan) ---
-        if work_status == "CALISIYOR" and not is_own:
+        # Hangi sayfadayiz tespit et - birden fazla deneme
+        page_type = "unknown"
+        for _try in range(5):
+            page_type = driver.execute_script("""
+                var url = window.location.href.toLowerCase();
+                var f = document.querySelector('form[action]');
+                var action = f ? f.getAttribute('action').toLowerCase() : '';
+                var combined = url + ' ' + action;
+                
+                // URL/action'dan tespit
+                if (combined.includes('fundingemploymentemployerdetails')) return 'employed';
+                if (combined.includes('fundingselfemployment')) return 'self_employed';
+                if (combined.includes('fundingretired')) return 'retired';
+                if (combined.includes('fundingstudent')) return 'student';
+                if (combined.includes('fundingunemployed')) return 'unemployed';
+                
+                // Element'lerden tespit
+                if (document.getElementById('employer')) return 'employed';
+                if (document.getElementById('income_currencyRef') || document.getElementById('income_amount')) return 'self_employed';
+                if (document.getElementById('jobTitle') && !document.getElementById('employer')) return 'self_employed';
+                return 'unknown';
+            """)
+            if page_type != "unknown":
+                break
+            time.sleep(2)
+        
+        print(f"[FORM-17] Sayfa tipi: {page_type}")
+
+        if page_type == "employed":
             print("[FORM-17] Isveren bilgileri giriliyor (Employed)...")
 
-            # Isveren adi
-            employer = wait.until(EC.presence_of_element_located((By.ID, "employer")))
-            employer.clear()
-            employer.send_keys(form.work_name if form.work_name else "COMPANY")
-            print(f"[FORM-17a] Isveren adi: {form.work_name}")
-            time.sleep(0.3)
+            set_input(driver, "employer", form.work_name or "COMPANY", wait)
+            set_input(driver, "address_line1", (form.work_address or form.home_address or "Istanbul")[:80], wait)
+            set_input(driver, "address_townCity", form.home_city or "Istanbul", wait)
+            set_input(driver, "address_province", form.home_district or form.home_city or "Istanbul", wait)
+            set_input(driver, "address_postalCode", form.post_code or "34000", wait)
+            set_select(driver, "address_countryRef", "TUR", "Turkey Türkiye")
 
-            # Adres satir 1
-            addr1 = wait.until(EC.presence_of_element_located((By.ID, "address_line1")))
-            addr1.clear()
-            addr1.send_keys(form.work_address[:80] if form.work_address else form.home_address[:80])
-            time.sleep(0.3)
-
-            # Sehir
-            town = wait.until(EC.presence_of_element_located((By.ID, "address_townCity")))
-            town.clear()
-            town.send_keys(form.home_city)
-            time.sleep(0.3)
-
-            # Il
-            province = wait.until(EC.presence_of_element_located((By.ID, "address_province")))
-            province.clear()
-            province.send_keys(form.home_district if form.home_district else form.home_city)
-            time.sleep(0.3)
-
-            # Posta kodu
-            postal = wait.until(EC.presence_of_element_located((By.ID, "address_postalCode")))
-            postal.clear()
-            postal.send_keys(form.post_code)
-            time.sleep(0.3)
-
-            # Ulke - JS ile Turkey
-            driver.execute_script("""
-                var s = document.getElementById('address_countryRef');
-                s.value = 'TUR';
-                s.dispatchEvent(new Event('change', {bubbles: true}));
-                var ui = document.getElementById('address_countryRef_ui');
-                if (ui) ui.value = 'Turkey Türkiye';
-            """)
-            time.sleep(0.5)
-
-            # Telefon - ulke kodu 90, numara temizlenmis
-            phone_raw = form.work_phone if form.work_phone else form.phone
-            phone_number = clean_phone(phone_raw)
-
-            code_input = wait.until(EC.presence_of_element_located((By.ID, "phone_code")))
-            code_input.clear()
-            code_input.send_keys("90")
-            time.sleep(0.3)
-
-            number_input = wait.until(EC.presence_of_element_located((By.ID, "phone_number")))
-            number_input.clear()
-            number_input.send_keys(phone_number)
-            print(f"[FORM-17b] Telefon: 90 {phone_number}")
-            time.sleep(0.3)
+            # Telefon
+            phone_number = clean_phone(form.work_phone or form.phone)
+            set_input(driver, "phone_code", "90", wait)
+            set_input(driver, "phone_number", phone_number, wait)
+            print(f"[FORM-17] Telefon: 90 {phone_number}")
 
             # Ise baslama tarihi
-            start_date = parse_date_safe(form.work_start_date, "Ise baslama tarihi")
-            driver.execute_script(f"""
-                function setVal(id, val) {{
-                    var el = document.getElementById(id);
-                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, val);
-                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                }}
-                setVal('jobStartDate_month', '{start_date.month}');
-                setVal('jobStartDate_year', '{start_date.year}');
-            """)
-            print(f"[FORM-17c] Ise baslama: {start_date.month}/{start_date.year}")
-            time.sleep(0.5)
+            start_date = parse_date_safe(form.work_start_date, "Ise baslama")
+            if start_date > datetime.now():
+                start_date = datetime.now() - relativedelta(years=2)
+            set_input(driver, "jobStartDate_month", str(start_date.month))
+            set_input(driver, "jobStartDate_year", str(start_date.year))
+            print(f"[FORM-17] Ise baslama: {start_date.month}/{start_date.year}")
 
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-17] Isveren bilgileri tamamlandi!")
+            print("[FORM-17] Isveren tamamlandi!")
 
-        # --- SELF-EMPLOYED (serbest meslek) ---
-        elif work_status == "CALISIYOR" and is_own:
+        elif page_type == "self_employed":
             print("[FORM-17] Serbest meslek bilgileri giriliyor...")
 
-            job_title = wait.until(EC.presence_of_element_located((By.ID, "jobTitle")))
-            job_title.clear()
-            title_text = form.work_title if form.work_title else form.work_name
-            job_title.send_keys(title_text[:255])
-            print(f"[FORM-17a] Is tanimi: {title_text}")
-            time.sleep(0.3)
+            set_input(driver, "jobTitle", form.work_title or form.work_name or "Business Owner", wait)
 
-            # Yillik gelir - TRY
-            driver.execute_script("""
-                var s = document.getElementById('income_currencyRef');
-                s.value = 'TRY';
-                s.dispatchEvent(new Event('change', {bubbles: true}));
-            """)
-            time.sleep(0.3)
-
-            # Aylik geliri yilliga cevir
+            # Gelir - TRY
+            set_select(driver, "income_currencyRef", "TRY")
             monthly = form.monthly_income if form.monthly_income else form.monthly_salary
             try:
-                yearly = int(monthly.replace(".", "").replace(",", "").strip()) * 12
+                yearly = int(str(monthly).replace(".", "").replace(",", "").strip()) * 12
             except:
                 yearly = 300000
-
-            driver.execute_script(f"""
-                var el = document.getElementById('income_amount');
-                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                setter.call(el, '{yearly}');
-                el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                el.dispatchEvent(new Event('change', {{bubbles: true}}));
-            """)
-            print(f"[FORM-17b] Yillik gelir: {yearly} TRY")
-            time.sleep(0.5)
+            if yearly < 1:
+                yearly = 300000
+            set_input(driver, "income_amount", str(yearly))
+            print(f"[FORM-17] Yillik gelir: {yearly} TRY")
 
             click_submit(driver, wait)
             time.sleep(3)
             print("[FORM-17] Serbest meslek tamamlandi!")
 
-        # --- RETIRED / STUDENT / UNEMPLOYED ---
+        elif page_type in ("retired", "student", "unemployed"):
+            print(f"[FORM-17] {page_type} sayfasi, doldurup geciliyor...")
+            # Bu sayfalarda genellikle sadece submit yeterli veya minimal alan var
+            click_submit(driver, wait)
+            time.sleep(3)
+
         else:
-            print(f"[FORM-17] Is durumu: {work_status}, isveren detayi yok, atlanabilir.")
-            # Bu durumda site bu sayfayi gostermeyebilir, devam et
+            print("[FORM-17] Bilinmeyen sayfa, tum alanlari doldurup gecmeye calisiliyor...")
+            # Sayfadaki tum alanlari doldur
+            all_inputs = driver.execute_script("""
+                var inputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="tel"]');
+                var ids = [];
+                inputs.forEach(function(i) { if (i.id && !i.value) ids.push(i.id); });
+                return ids;
+            """)
+            print(f"[FORM-17] Bos alanlar: {all_inputs}")
+            click_submit(driver, wait)
+            time.sleep(3)
 
     # ===== SAYFA 17b: Is tanimi ve aylik kazanc =====
     if should_run("job_details"):
-        # Sayfa JobDetails mi? jobTitle + earnings_amount ikisi birden varsa
-        time.sleep(1)
-        has_earnings = driver.execute_script("return document.getElementById('earnings_amount') !== null;")
-        has_job_desc = driver.execute_script("return document.getElementById('jobDescription') !== null;")
+        time.sleep(2)
+        if wait_for_page(driver, "fundingEmploymentJobDetails", timeout=5):
+            print("[FORM-17b] Is tanimi ve kazanc giriliyor...")
 
-        if not (has_earnings or has_job_desc):
-            print("[FORM-17b] JobDetails sayfasi degil, atlaniyor...")
-        else:
-            print("[FORM-17b] Is tanimi ve aylik kazanc giriliyor...")
+            set_input(driver, "jobTitle", form.work_title or "Employee", wait)
+            set_select(driver, "earnings_currencyRef", "TRY")
 
-            # Is unvani
-            try:
-                job_title_input = wait.until(EC.presence_of_element_located((By.ID, "jobTitle")))
-                job_title_input.clear()
-                title_text = form.work_title if form.work_title else "Employee"
-                job_title_input.send_keys(title_text[:255])
-                print(f"[FORM-17b.1] Is unvani: {title_text}")
-                time.sleep(0.3)
-            except Exception as e:
-                print(f"[FORM-17b.1] jobTitle hatasi: {e}")
-
-            # Para birimi - TRY
-            driver.execute_script("""
-                var s = document.getElementById('earnings_currencyRef');
-                if (s) {
-                    s.value = 'TRY';
-                    s.dispatchEvent(new Event('change', {bubbles: true}));
-                }
-            """)
-            time.sleep(0.3)
-            print("[FORM-17b.2] Para birimi: TRY")
-
-            # Aylik kazanc (vergiden sonra)
             monthly = form.monthly_income if form.monthly_income else form.monthly_salary
             try:
                 monthly_val = int(str(monthly).replace(".", "").replace(",", "").strip())
-                if monthly_val < 1:
-                    monthly_val = 25000
+                if monthly_val < 1: monthly_val = 25000
             except:
                 monthly_val = 25000
+            set_input(driver, "earnings_amount", str(monthly_val))
 
-            driver.execute_script(f"""
-                var el = document.getElementById('earnings_amount');
-                if (el) {{
-                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, '{monthly_val}');
-                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                }}
-            """)
-            print(f"[FORM-17b.3] Aylik kazanc: {monthly_val} TRY")
-            time.sleep(0.3)
-
-            # Is tanimi (jobDescription)
-            try:
-                job_desc = wait.until(EC.presence_of_element_located((By.ID, "jobDescription")))
-                job_desc.clear()
-                desc_text = ""
-                if form.work_title and form.work_name:
-                    desc_text = f"{form.work_title} at {form.work_name}"
-                elif form.work_title:
-                    desc_text = f"{form.work_title}"
-                elif form.work_name:
-                    desc_text = f"Employee at {form.work_name}"
-                else:
-                    desc_text = "Working as an employee in a company"
-                job_desc.send_keys(desc_text[:250])
-                print(f"[FORM-17b.4] Is tanimi: {desc_text[:80]}")
-                time.sleep(0.3)
-            except Exception as e:
-                print(f"[FORM-17b.4] jobDescription hatasi: {e}")
+            # Is tanimi
+            desc = form.work_title or "Employee"
+            if form.work_name:
+                desc = f"{desc} at {form.work_name}"
+            set_input(driver, "jobDescription", desc[:250], wait)
+            print(f"[FORM-17b] Kazanc: {monthly_val} TRY, Tanim: {desc[:50]}")
 
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-17b] Is tanimi ve kazanc tamamlandi!")
+            print("[FORM-17b] Tamamlandi!")
+        else:
+            print("[FORM-17b] Job details sayfasi degil, atlaniyor...")
 
     # ===== SAYFA 17c: Aylik harcama =====
     if should_run("monthly_outgoings"):
-        time.sleep(2)
-        if wait_for_page(driver, "monthlyOutgoings"):
+        time.sleep(3)
+
+        # Sayfayi kontrol et
+        current_action = driver.execute_script("""
+            var f = document.querySelector('form[action]');
+            return f ? f.getAttribute('action').toLowerCase() : '';
+        """) or ""
+
+        if "monthlyoutgoings" in current_action:
             print("[FORM-17c] Aylik harcama giriliyor...")
 
-            set_select(driver, "value_currencyRef", "TRY")
+            driver.execute_script("""
+                var s = document.getElementById('value_currencyRef');
+                if (s) {
+                    s.value = 'TRY';
+                    var opt = s.querySelector('option[value="TRY"]');
+                    if (opt) opt.selected = true;
+                    s.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            """)
+            time.sleep(0.5)
 
-            # Aylik harcama - CRM'den al veya hesapla
             expenditure = form.monthly_expenses
             if expenditure:
                 try:
@@ -2538,14 +2508,34 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             if outgoing_val < 1:
                 outgoing_val = 15000
 
-            set_input(driver, "value_amount", str(outgoing_val))
+            driver.execute_script(f"""
+                var el = document.getElementById('value_amount');
+                if (el) {{
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, '{outgoing_val}');
+                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                }}
+            """)
+            time.sleep(0.5)
             print(f"[FORM-17c] Harcama: {outgoing_val} TRY")
 
-            click_submit(driver, wait)
+            url_before = driver.current_url
+            driver.execute_script("""
+                var form = document.querySelector('form');
+                if (form) HTMLFormElement.prototype.submit.call(form);
+            """)
             time.sleep(3)
+            try:
+                if driver.current_url == url_before:
+                    click_submit(driver, wait)
+                    time.sleep(3)
+            except:
+                pass
             print("[FORM-17c] Tamamlandi!")
         else:
-            print("[FORM-17c] Aylik harcama sayfasi degil, atlaniyor...")
+            # Site bu sayfalari atladi, FORM-18 (otherIncome) sayfasindayiz
+            print(f"[FORM-17c] Site monthlyOutgoings atlamis (mevcut: {current_action[-40:]}), devam ediliyor...")
 
     # ===== SAYFA 18: Ek gelir / Birikim =====
     if should_run("other_income"):
@@ -2668,33 +2658,70 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
     # ===== SAYFA 19: UK'da harcama plani =====
     if should_run("planned_spend"):
-        print("[FORM-19] UK harcama plani giriliyor...")
+        time.sleep(2)
+        
+        # Dogru sayfada miyiz?
+        current_action = driver.execute_script("""
+            var f = document.querySelector('form[action]');
+            return f ? f.getAttribute('action').toLowerCase() : '';
+        """) or ""
+        
+        if "plannedspendonvisit" in current_action or "plannedspend" in current_action:
+            print("[FORM-19] UK harcama plani giriliyor...")
 
-        # Para birimi GBP
-        set_select(driver, "value_currencyRef", "GBP")
-        time.sleep(0.3)
+            # Para birimi GBP - JS ile
+            driver.execute_script("""
+                var s = document.getElementById('value_currencyRef');
+                if (s) {
+                    s.value = 'GBP';
+                    var opt = s.querySelector('option[value="GBP"]');
+                    if (opt) opt.selected = true;
+                    s.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            """)
+            time.sleep(0.5)
 
-        # Sabit 750 GBP
-        set_input(driver, "value_amount", "750")
-        print("[FORM-19] Harcama: 750 GBP (sabit)")
-        time.sleep(0.3)
+            # Sabit 750 GBP - JS nativeInputValueSetter ile
+            driver.execute_script("""
+                var el = document.getElementById('value_amount');
+                if (el) {
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, '750');
+                    el.dispatchEvent(new Event('input', {bubbles: true}));
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            """)
+            time.sleep(0.5)
+            print("[FORM-19] Harcama: 750 GBP (sabit)")
 
-        click_submit(driver, wait)
-        time.sleep(3)
-        print("[FORM-19] Harcama plani tamamlandi!")
+            # Submit - HTMLFormElement.prototype.submit
+            url_before = driver.current_url
+            driver.execute_script("""
+                var form = document.querySelector('form');
+                if (form) HTMLFormElement.prototype.submit.call(form);
+            """)
+            time.sleep(3)
+            
+            try:
+                if driver.current_url == url_before:
+                    click_submit(driver, wait)
+                    time.sleep(3)
+            except:
+                pass
+            print("[FORM-19] Harcama plani tamamlandi!")
+        else:
+            print(f"[FORM-19] plannedSpend sayfasi degil (mevcut: {current_action[-40:]}), atlaniyor...")
 
     # ===== SAYFA 20: Seyahat tarihleri =====
     if should_run("travel_dates"):
-        time.sleep(2)
-        is_correct_page = driver.execute_script("""
-            var hasArrival = document.getElementById('dateOfArrival_day') !== null;
-            var hasLeave = document.getElementById('dateOfLeave_day') !== null;
-            return hasArrival && hasLeave;
-        """)
-
-        if not is_correct_page:
-            print("[FORM-20] Seyahat tarihleri sayfasi degil, atlaniyor...")
-        else:
+        time.sleep(3)
+        
+        # Sayfa kontrolu
+        found_page = wait_for_page(driver, "plannedTravelInformation", timeout=5)
+        if not found_page:
+            found_page = driver.execute_script("return document.getElementById('dateOfArrival_day') !== null;")
+        
+        if found_page:
             print("[FORM-20] Seyahat tarihleri giriliyor...")
 
             now = datetime.now()
@@ -2784,6 +2811,9 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             click_submit(driver, wait)
             time.sleep(3)
             print("[FORM-20] Seyahat tarihleri tamamlandi!")
+        else:
+            cur = driver.execute_script("var f=document.querySelector('form[action]'); return f?f.getAttribute('action'):'';") or ""
+            print(f"[FORM-20] Seyahat tarihleri sayfasi degil (mevcut: {cur[-50:]}), atlaniyor...")
 
     # ===== SAYFA 21: Masraflari baskasi odeyecek mi =====
     if should_run("paying_visit"):
@@ -2937,166 +2967,106 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
     # ===== SAYFA 22: Dil tercihi =====
     if should_run("language_pref"):
-        print("[FORM-22] Dil tercihi seciliyor...")
-
-        # English sec - details alanı gerekmiyor, hatasiz
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "preferredLanguage_english"))))
-        print("[FORM-22] Dil: English")
-        time.sleep(0.5)
-
-        click_submit(driver, wait)
-        time.sleep(3)
-        print("[FORM-22] Dil tercihi tamamlandi!")
+        try:
+            print("[FORM-22] Dil tercihi seciliyor...")
+            set_radio(driver, "preferredLanguage_english")
+            print("[FORM-22] Dil: English")
+            click_submit(driver, wait)
+            time.sleep(3)
+            print("[FORM-22] Dil tercihi tamamlandi!")
+        except Exception as e:
+            print(f"[FORM-22] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 23: Ziyaret amaci =====
     if should_run("visit_purpose"):
-        print("[FORM-23] Ziyaret amaci seciliyor...")
+        try:
+            print("[FORM-23] Ziyaret amaci seciliyor...")
 
-        travel_reason = form.travel_reason.upper()
+            travel_reason = form.travel_reason.upper()
 
-        # CRM verisine gore ziyaret amacini sec
-        purpose_map = {
-            "TURISTIK": "purposeRef_tourism",
-            "TOURISM": "purposeRef_tourism",
-            "TURIZM": "purposeRef_tourism",
-            "IS": "purposeRef_business",
-            "BUSINESS": "purposeRef_business",
-            "ISAYAHAT": "purposeRef_business",
-            "FUAR": "purposeRef_business",
-            "TRANSIT": "purposeRef_transit",
-            "AKADEMIK": "purposeRef_academic",
-            "ACADEMIC": "purposeRef_academic",
-            "EVLILIK": "purposeRef_marriage",
-            "MARRIAGE": "purposeRef_marriage",
-            "TEDAVI": "purposeRef_medicalTreatment",
-            "MEDICAL": "purposeRef_medicalTreatment",
-            "EGITIM": "purposeRef_study",
-            "STUDY": "purposeRef_study",
-            "DIGER": "purposeRef_other",
-            "OTHER": "purposeRef_other",
-        }
+            purpose_map = {
+                "TURISTIK": "purposeRef_tourism",
+                "TOURISM": "purposeRef_tourism",
+                "TURIZM": "purposeRef_tourism",
+                "IS": "purposeRef_business",
+                "BUSINESS": "purposeRef_business",
+                "ISAYAHAT": "purposeRef_business",
+                "FUAR": "purposeRef_business",
+                "TRANSIT": "purposeRef_transit",
+                "AKADEMIK": "purposeRef_academic",
+                "ACADEMIC": "purposeRef_academic",
+                "EVLILIK": "purposeRef_marriage",
+                "MARRIAGE": "purposeRef_marriage",
+                "TEDAVI": "purposeRef_medicalTreatment",
+                "MEDICAL": "purposeRef_medicalTreatment",
+                "EGITIM": "purposeRef_study",
+                "STUDY": "purposeRef_study",
+                "DIGER": "purposeRef_other",
+                "OTHER": "purposeRef_other",
+            }
 
-        radio_id = purpose_map.get(travel_reason, "purposeRef_tourism")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, radio_id))))
-        print(f"[FORM-23] Amac secildi: {travel_reason} -> {radio_id}")
-        time.sleep(0.5)
+            radio_id = purpose_map.get(travel_reason, "purposeRef_tourism")
+            set_radio(driver, radio_id)
+            print(f"[FORM-23] Amac secildi: {travel_reason} -> {radio_id}")
 
-        click_submit(driver, wait)
-        time.sleep(3)
-        print("[FORM-23] Ziyaret amaci tamamlandi!")
+            click_submit(driver, wait)
+            time.sleep(3)
+            print("[FORM-23] Ziyaret amaci tamamlandi!")
+        except Exception as e:
+            print(f"[FORM-23] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 24: Ziyaret alt amaci (amaca gore degisir) =====
     if should_run("visit_sub_purpose"):
-        travel_reason = form.travel_reason.upper()
-        print(f"[FORM-24] Ziyaret alt amaci seciliyor (ana amac: {travel_reason})...")
+        try:
+            travel_reason = form.travel_reason.upper()
+            print(f"[FORM-24] Ziyaret alt amaci seciliyor (ana amac: {travel_reason})...")
 
-        # --- TOURISM ---
-        if travel_reason in ("TURISTIK", "TOURISM", "TURIZM"):
-            # Tourist / Visiting family / Visiting friends
-            has_family_uk = form.has_family_in_uk
-            has_invitation = form.has_invitation
+            if travel_reason in ("TURISTIK", "TOURISM", "TURIZM"):
+                if form.has_family_in_uk:
+                    set_radio(driver, "purposeRef_visitingFamily")
+                    print("[FORM-24] Visiting family secildi")
+                elif form.has_invitation:
+                    set_radio(driver, "purposeRef_visitingFriends")
+                    print("[FORM-24] Visiting friends secildi")
+                else:
+                    set_radio(driver, "purposeRef_tourist")
+                    print("[FORM-24] Tourist secildi")
 
-            if has_family_uk:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_visitingFamily"))))
-                print("[FORM-24] Visiting family secildi")
-            elif has_invitation:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_visitingFriends"))))
-                print("[FORM-24] Visiting friends secildi")
+            elif travel_reason in ("IS", "BUSINESS", "FUAR", "ISAYAHAT"):
+                set_radio(driver, "purposeRef_meeting")
+                print("[FORM-24] Business meeting secildi")
+
+            elif travel_reason == "TRANSIT":
+                set_radio(driver, "purposeRef_visitorInTransit")
+                print("[FORM-24] Transit secildi")
+
+            elif travel_reason in ("AKADEMIK", "ACADEMIC"):
+                set_radio(driver, "purposeRef_research")
+                print("[FORM-24] Research secildi")
+
+            elif travel_reason in ("EGITIM", "STUDY"):
+                set_radio(driver, "enrolledInUKCourse_false")
+                time.sleep(1)
+                set_radio(driver, "courseNotLongerThan30Days_true")
+                print("[FORM-24] Study <= 30 days secildi")
+
+            elif travel_reason in ("EVLILIK", "MARRIAGE"):
+                print("[FORM-24] Evlilik bilgileri giriliyor...")
+                partner_parts = form.partner_name.split() if form.partner_name else ["PARTNER"]
+                set_input(driver, "givenName", partner_parts[0], wait)
+                set_input(driver, "familyName", " ".join(partner_parts[1:]) if len(partner_parts) > 1 else "UNKNOWN", wait)
+                set_input(driver, "passportNumber", form.partner_passport or "UNKNOWN", wait)
+                set_select(driver, "nationalityRef", "TUR", "Turkey Türkiye")
+
             else:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_tourist"))))
-                print("[FORM-24] Tourist secildi")
-            time.sleep(0.5)
+                set_radio(driver, "purposeRef_tourist")
+                print("[FORM-24] Varsayilan: Tourist")
+
             click_submit(driver, wait)
             time.sleep(3)
-
-        # --- BUSINESS ---
-        elif travel_reason in ("IS", "BUSINESS", "FUAR", "ISAYAHAT"):
-            travel_detail = form.step5.get("travel_reason_other", "").upper()
-            if "FUAR" in travel_detail or "FUAR" in travel_reason:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_lectures"))))
-                print("[FORM-24] Attend lectures/fairs secildi")
-            elif "TOPLANTI" in travel_detail or "MEETING" in travel_detail:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_meeting"))))
-                print("[FORM-24] Attend business meetings secildi")
-            else:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_meeting"))))
-                print("[FORM-24] Varsayilan: Attend business meetings secildi")
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
-
-        # --- TRANSIT ---
-        elif travel_reason == "TRANSIT":
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_visitorInTransit"))))
-            print("[FORM-24] Visitor in transit secildi")
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
-
-        # --- ACADEMIC ---
-        elif travel_reason in ("AKADEMIK", "ACADEMIC"):
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "purposeRef_research"))))
-            print("[FORM-24] Research secildi")
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
-
-        # --- STUDY ---
-        elif travel_reason in ("EGITIM", "STUDY"):
-            # UK kursa kayitli mi?
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "enrolledInUKCourse_false"))))
-            time.sleep(1)
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "courseNotLongerThan30Days_true"))))
-            print("[FORM-24] Study - recreational course <= 30 days secildi")
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
-
-        # --- MARRIAGE ---
-        elif travel_reason in ("EVLILIK", "MARRIAGE"):
-            # Es bilgileri
-            print("[FORM-24] Evlilik - es bilgileri giriliyor...")
-            given = wait.until(EC.presence_of_element_located((By.ID, "givenName")))
-            given.clear()
-            partner_parts = form.partner_name.split() if form.partner_name else ["PARTNER"]
-            given.send_keys(partner_parts[0])
-            time.sleep(0.3)
-
-            family = wait.until(EC.presence_of_element_located((By.ID, "familyName")))
-            family.clear()
-            family.send_keys(" ".join(partner_parts[1:]) if len(partner_parts) > 1 else "")
-            time.sleep(0.3)
-
-            passport_num = wait.until(EC.presence_of_element_located((By.ID, "passportNumber")))
-            passport_num.clear()
-            if form.partner_passport:
-                passport_num.send_keys(form.partner_passport)
-            time.sleep(0.3)
-
-            # Uyruk - Turkey JS
-            driver.execute_script("""
-                var s = document.getElementById('nationalityRef');
-                s.value = 'TUR';
-                s.dispatchEvent(new Event('change', {bubbles: true}));
-                var ui = document.getElementById('nationalityRef_ui');
-                if (ui) ui.value = 'Turkey Türkiye';
-            """)
-            time.sleep(0.5)
-            click_submit(driver, wait)
-            time.sleep(3)
-            print("[FORM-24] Evlilik bilgileri tamamlandi!")
-
-        # --- OTHER / MEDICAL ---
-        else:
-            # Sayfada ne varsa kaydet
-            print(f"[FORM-24] Diger amac, sayfadaki submit'e tiklaniyor...")
-            try:
-                click_submit(driver, wait)
-                time.sleep(3)
-            except:
-                print("[FORM-24] Submit bulunamadi, devam ediliyor...")
-
-        print("[FORM-24] Alt amac tamamlandi!")
+            print("[FORM-24] Alt amac tamamlandi!")
+        except Exception as e:
+            print(f"[FORM-24] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 25: Ziyaret hakkinda detay =====
     if should_run("about_visit"):
