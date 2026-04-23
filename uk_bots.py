@@ -100,17 +100,49 @@ class VisaFormData:
     """visa_forms tablosundan gelen veriyi parse eder"""
 
     def __init__(self, raw_data):
-        """
-        raw_data: visa_forms.data alani
-        Yapi: { "1": {...kisisel}, "2": {...aile}, "3": {...pasaport}, "4": {...is}, "5": {...seyahat}, "6": {...dosyalar} }
-        """
         self.raw = raw_data or {}
-        self.step1 = self.raw.get("1", {})  # Kisisel bilgiler
-        self.step2 = self.raw.get("2", {})  # Aile bilgileri
-        self.step3 = self.raw.get("3", {})  # Pasaport bilgileri
-        self.step4 = self.raw.get("4", {})  # Is/Finans bilgileri
-        self.step5 = self.raw.get("5", {})  # Seyahat bilgileri
-        self.step6 = self.raw.get("6", {})  # Dosyalar
+        
+        # Raw data'yi dosyaya kaydet (debug)
+        try:
+            import json as _j
+            with open("crm_raw_data.json", "w", encoding="utf-8") as f:
+                _j.dump(self.raw, f, ensure_ascii=False, indent=2)
+            print(f"[DATA] Raw data crm_raw_data.json dosyasina kaydedildi")
+        except:
+            pass
+        
+        # Key'ler string veya int olabilir
+        def get_step(key):
+            return self.raw.get(str(key), self.raw.get(int(key) if str(key).isdigit() else key, {}))
+        
+        self.step1 = get_step("1")
+        self.step2 = get_step("2")
+        self.step3 = get_step("3")
+        self.step4 = get_step("4")
+        self.step5 = get_step("5")
+        self.step6 = get_step("6")
+        
+        # Eger step'ler bos geliyorsa, raw data flat olabilir
+        if not self.step1 and not self.step3:
+            # Flat yapi: tum alanlar direkt raw icinde
+            print(f"[DATA] Step'ler bos! Raw flat yapi olabilir.")
+            print(f"[DATA] Raw keys: {list(self.raw.keys())[:20]}")
+            # fullName, tcId gibi alanlari direkt raw'dan ara
+            if self.raw.get("fullName") or self.raw.get("email"):
+                print(f"[DATA] Flat yapi tespit edildi! Tum step'ler = raw")
+                self.step1 = self.raw
+                self.step2 = self.raw
+                self.step3 = self.raw
+                self.step4 = self.raw
+                self.step5 = self.raw
+                self.step6 = self.raw
+        
+        # Debug
+        print(f"[DATA] Step1 keys: {list(self.step1.keys())[:8] if self.step1 else 'BOS'}")
+        print(f"[DATA] Step3 keys: {list(self.step3.keys())[:8] if self.step3 else 'BOS'}")
+        tc = self.step3.get("tcId", "")
+        pp = self.step3.get("passport_number", "")
+        print(f"[DATA] tcId='{tc}' | passport='{pp}'")
 
     # --- Step 1: Kisisel Bilgiler ---
     @property
@@ -540,7 +572,7 @@ def create_driver():
 def safe_click(driver, element):
     try:
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-        time.sleep(0.3)
+        time.sleep(0.5)
         element.click()
     except Exception:
         driver.execute_script("arguments[0].click();", element)
@@ -581,6 +613,21 @@ def set_radio(driver, radio_id):
             r.checked = true;
             r.click();
             r.dispatchEvent(new Event('change', {{bubbles: true}}));
+        }}
+    """)
+    time.sleep(0.3)
+
+
+def set_checkbox(driver, checkbox_id, checked=True):
+    """JS ile checkbox sec/kaldir. Radio'dan farki: click toggle yapmaz."""
+    driver.execute_script(f"""
+        var cb = document.getElementById('{checkbox_id}');
+        if (cb) {{
+            cb.scrollIntoView({{block: 'center'}});
+            if (cb.checked !== {str(checked).lower()}) {{
+                cb.click();
+            }}
+            cb.dispatchEvent(new Event('change', {{bubbles: true}}));
         }}
     """)
     time.sleep(0.3)
@@ -772,49 +819,227 @@ def emergency_fill(driver):
     """)
 
 
-def click_submit(driver, wait):
-    """Submit butonuna bas. Validation hatasi varsa emergency_fill ile doldur ve tekrar dene."""
+def click_submit(driver, wait, max_retries=3):
+    """Submit butonuna bas, validation hatasi varsa otomatik doldur ve tekrar dene."""
     time.sleep(1)
-    
+
     try:
         url_before = driver.current_url
     except:
         url_before = ""
 
-    for attempt in range(3):
-        # Submit butonuna bas - 3 farkli yontem dene
-        submitted = False
+    for attempt in range(max_retries):
+        # Pre-fill: bos zorunlu alanlari doldur
         try:
-            btn = wait.until(EC.element_to_be_clickable((By.ID, "submit")))
-            safe_click(driver, btn)
-            submitted = True
-        except:
-            pass
+            prefilled = driver.execute_script("""
+                var filled = [];
+                
+                // 1) BOS ZORUNLU RADIO GRUPLARI
+                var allRadios = document.querySelectorAll('input[type="radio"]');
+                var radioGroups = {};
+                allRadios.forEach(function(r) {
+                    if (!radioGroups[r.name]) radioGroups[r.name] = [];
+                    radioGroups[r.name].push(r);
+                });
+                Object.keys(radioGroups).forEach(function(name) {
+                    var group = radioGroups[name];
+                    var anyChecked = group.some(function(r) { return r.checked; });
+                    if (!anyChecked) {
+                        var nobtn = null;
+                        if (name === 'convictionTypeRef') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === 'none') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (name === 'bandRef') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === '0') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (name === 'countryRef') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === 'usa') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (name === 'reasonRef') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === 'tourist') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (name === 'reasonForVisit') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === 'tourism') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (name === 'locationOfTreatment') {
+                            for (var k = 0; k < group.length; k++) {
+                                if (group[k].value === 'doctor') { nobtn = group[k]; break; }
+                            }
+                        }
+                        if (!nobtn) {
+                            for (var j = 0; j < group.length; j++) {
+                                if (group[j].value === 'false' || group[j].value === 'no' || group[j].value === 'none') {
+                                    nobtn = group[j]; break;
+                                }
+                            }
+                        }
+                        if (!nobtn) nobtn = group[group.length - 1];
+                        if (nobtn) {
+                            nobtn.checked = true;
+                            nobtn.dispatchEvent(new Event('change', {bubbles: true}));
+                            nobtn.click();
+                            filled.push('r:' + name + '=' + nobtn.value);
+                        }
+                    }
+                });
+
+                // 2) BOS ZORUNLU TEXT/NUMBER/TEL INPUTLAR
+                var reqInputs = document.querySelectorAll('input[aria-required="true"]:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]):not([type="submit"])');
+                reqInputs.forEach(function(inp) {
+                    if (inp.disabled || inp.readOnly) return;
+                    if (inp.value && inp.value.trim() !== '') return;
+                    var style = window.getComputedStyle(inp);
+                    if (style.display === 'none' || style.visibility === 'hidden') return;
+                    var parent = inp.closest('[hidden], [aria-hidden="true"]');
+                    if (parent) return;
+                    if (inp.classList.contains('ui-autocomplete-input')) return;
+                    
+                    var id = (inp.id || '').toLowerCase();
+                    var type = inp.type;
+                    var val = '';
+                    
+                    if (type === 'number') {
+                        if (id === 'yearslived') val = '5';
+                        else if (id === 'monthslived') val = '0';
+                        else if (id.includes('day')) val = '15';
+                        else if (id.includes('month')) val = '6';
+                        else if (id.includes('year')) val = '2020';
+                        else if (id.includes('amount')) val = '1000';
+                        else if (id.includes('times') || id.includes('count') || id.includes('numberoftimes')) val = '1';
+                        else if (id.includes('duration')) val = '7';
+                        else val = '1000';
+                    } else {
+                        if (id.includes('postcode') || id.includes('postalcode') || id.includes('lookuppostcode')) val = 'SW1A 1AA';
+                        else if (type === 'tel' || id.includes('phone') || id.includes('telephone')) {
+                            if (id.includes('code')) val = '90';
+                            else val = '5555555555';
+                        }
+                        else if (id.includes('email')) val = 'noreply@example.com';
+                        else if (id.includes('town') || id.includes('city')) val = 'Istanbul';
+                        else if (id.includes('province') || id.includes('state')) val = 'Istanbul';
+                        else if (id.includes('jobtitle')) val = 'Employee';
+                        else if (id.includes('hospitalname')) val = 'General Hospital';
+                        else if (id.includes('name') || id.includes('employer') || id.includes('company')) val = 'UNKNOWN';
+                        else if (id.includes('number') || id.includes('licence') || id.includes('passport')) val = '5555555555';
+                        else if (id.includes('address') || id.includes('line')) val = 'Unknown Address';
+                        else val = 'N/A';
+                    }
+                    
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(inp, val);
+                    inp.dispatchEvent(new Event('input', {bubbles: true}));
+                    inp.dispatchEvent(new Event('change', {bubbles: true}));
+                    filled.push(inp.id + '=' + val);
+                });
+                
+                // 3) BOS ZORUNLU SELECTLER
+                var reqSelects = document.querySelectorAll('select[aria-required="true"]');
+                reqSelects.forEach(function(sel) {
+                    if (sel.disabled) return;
+                    if (sel.value && sel.value !== '') return;
+                    var parent = sel.closest('[hidden], [aria-hidden="true"]');
+                    if (parent) return;
+                    var id = (sel.id || '').toLowerCase();
+                    var target = '';
+                    if (id.includes('country') || id.includes('nationality')) {
+                        var turOpt = sel.querySelector('option[value="TUR"]');
+                        if (turOpt) target = 'TUR';
+                    } else if (id.includes('currency')) {
+                        var tryOpt = sel.querySelector('option[value="TRY"]');
+                        var gbpOpt = sel.querySelector('option[value="GBP"]');
+                        target = tryOpt ? 'TRY' : (gbpOpt ? 'GBP' : '');
+                    } else if (id.includes('unit') || id.includes('duration')) {
+                        target = 'days';
+                    } else if (id.includes('relationship')) {
+                        var frOpt = sel.querySelector('option[value="Fr"]');
+                        if (frOpt) target = 'Fr';
+                    }
+                    if (!target) {
+                        var opts = sel.querySelectorAll('option');
+                        for (var i = 0; i < opts.length; i++) {
+                            if (opts[i].value && opts[i].value !== '') { target = opts[i].value; break; }
+                        }
+                    }
+                    if (target) {
+                        sel.value = target;
+                        sel.dispatchEvent(new Event('change', {bubbles: true}));
+                        var uiInput = document.getElementById(sel.id + '_ui');
+                        if (uiInput && !uiInput.value) {
+                            var opt = sel.querySelector('option[value="' + target + '"]');
+                            if (opt) uiInput.value = opt.textContent.trim();
+                        }
+                        filled.push(sel.id + '=' + target);
+                    }
+                });
+                
+                // 4) BOS ZORUNLU TEXTAREALAR
+                var reqTexts = document.querySelectorAll('textarea[aria-required="true"]');
+                reqTexts.forEach(function(ta) {
+                    if (ta.disabled || ta.readOnly) return;
+                    if (ta.value && ta.value.trim() !== '') return;
+                    var parent = ta.closest('[hidden], [aria-hidden="true"]');
+                    if (parent) return;
+                    ta.value = 'N/A';
+                    ta.dispatchEvent(new Event('input', {bubbles: true}));
+                    ta.dispatchEvent(new Event('change', {bubbles: true}));
+                    filled.push(ta.id + '=N/A');
+                });
+                
+                // 5) GEREKLI CHECKBOXLAR
+                var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(function(cb) {
+                    if (cb.checked) return;
+                    var parent = cb.closest('[hidden], [aria-hidden="true"]');
+                    if (parent) return;
+                    var id = (cb.id || '').toLowerCase();
+                    var nm = (cb.name || '').toLowerCase();
+                    if (id.includes('readall') || id.includes('confirm') || id.includes('none_none') || nm.includes('readall') || nm.includes('confirm')) {
+                        cb.checked = true;
+                        cb.dispatchEvent(new Event('change', {bubbles: true}));
+                        cb.click();
+                        filled.push('cb:' + cb.id);
+                    }
+                });
+                
+                return filled;
+            """)
+            if prefilled and attempt == 0:
+                print(f"[PRE-FILL] Bos alanlar dolduruldu: {prefilled[:8]}")
+                time.sleep(0.5)
+            elif prefilled:
+                print(f"[RETRY-{attempt}] Ek alanlar dolduruldu: {prefilled[:5]}")
+                time.sleep(0.5)
+        except Exception as e:
+            print(f"[PRE-FILL WARN] {e}")
         
-        if not submitted:
+        # Submit butonuna bas
+        try:
+            btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "input#submit[type='submit']")))
+            safe_click(driver, btn)
+        except:
+            # Fallback: JS ile submit
             try:
                 driver.execute_script("""
                     var btn = document.getElementById('submit');
-                    if (btn) { btn.scrollIntoView({block:'center'}); btn.click(); }
+                    if (btn) btn.click();
                     else {
-                        var btns = document.querySelectorAll('input[type="submit"]');
-                        if (btns.length > 0) btns[0].click();
+                        var form = document.querySelector('form');
+                        if (form) HTMLFormElement.prototype.submit.call(form);
                     }
-                """)
-                submitted = True
-            except:
-                pass
-        
-        if not submitted:
-            try:
-                driver.execute_script("""
-                    var form = document.querySelector('form');
-                    if (form) HTMLFormElement.prototype.submit.call(form);
                 """)
             except:
                 return
-        
-        time.sleep(3)
+        time.sleep(2)
         
         # Sayfa degisti mi?
         try:
@@ -824,22 +1049,28 @@ def click_submit(driver, wait):
             pass
         
         # Validation hatasi var mi?
-        has_error = driver.execute_script("""
-            var errs = document.querySelectorAll('.validation-message, .error-message, .validation, .field-error, .error-summary');
-            for (var i=0;i<errs.length;i++) {
-                if (errs[i].offsetParent !== null && errs[i].textContent.trim().length > 3) return true;
-            }
-            return false;
-        """)
-        
-        if has_error and attempt < 2:
-            print(f"[RETRY-{attempt+1}] Validation hatasi, emergency_fill calistiriliyor...")
-            filled = emergency_fill(driver)
-            if filled:
-                print(f"[RETRY-{attempt+1}] Dolduruldu: {filled[:5]}")
-            time.sleep(1)
-        else:
-            return
+        try:
+            has_error = driver.execute_script("""
+                var errs = document.querySelectorAll('.validation-message, .error-message, .validation, .field-error');
+                for (var i = 0; i < errs.length; i++) {
+                    if (errs[i].offsetParent !== null && errs[i].textContent.trim().length > 3)
+                        return errs[i].textContent.trim().substring(0, 100);
+                }
+                var summary = document.querySelector('.error-summary, .validation-summary');
+                if (summary && summary.offsetParent !== null) return summary.textContent.trim().substring(0, 100);
+                return '';
+            """)
+            if has_error:
+                print(f"[RETRY-{attempt+1}/{max_retries}] Validation hatasi: {has_error[:80]}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                else:
+                    print("[WARN] Max retry asildi, devam ediliyor...")
+                    return
+        except:
+            pass
+        return
 
 
 # ============================================================
@@ -864,13 +1095,13 @@ def navigate_to_form(driver, wait):
     time.sleep(4)
 
     print("[5] Turkce seciliyor...")
-    safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "languageCode_tr"))))
+    set_radio(driver, "languageCode_tr")
     time.sleep(1)
     click_submit(driver, wait)
     time.sleep(3)
 
     print("[6] Yes - Turkce ve Ingilizce seciliyor...")
-    safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "translationConfirmed_true"))))
+    set_radio(driver, "translationConfirmed_true")
     time.sleep(1)
     click_submit(driver, wait)
     time.sleep(3)
@@ -904,7 +1135,7 @@ def navigate_to_form(driver, wait):
     time.sleep(3)
 
     print("[8] VAC onayi seciliyor...")
-    safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "vacAvailabilityConfirmed_true"))))
+    set_radio(driver, "vacAvailabilityConfirmed_true")
     time.sleep(1)
     click_submit(driver, wait)
     time.sleep(3)
@@ -936,19 +1167,28 @@ def detect_current_page(driver):
     
     combined = url + " " + form_action
     
+    # addAnother sayfalarini ONCE tespit et (her yerde farkli context)
+    if "addanother" in form_action.lower():
+        return "add_another"
+    
     # Form action eşleşmeleri (en güvenilir)
     ACTION_MAP = {
+        "contactemail": "email_register",
         "loginemail": "email_register",
-        "emailowner": "email_owner",
+        "applicantsemail": "email_owner",
+        "hasadditionalemailev": "no_other_person",
         "anotherperson": "no_other_person",
+        "standardtelephonedetailslist": "phone",
         "addtelephonenumber": "phone",
-        "addanother": "phone_add_another",   # genel addAnother - context'e gore degisir
         "contactpreference": "contact_preference",
         "applicantname": "name",
         "othernames": "other_names",
+        "othername": "other_names",
         "genderandrelationship": "gender_marital",
         "partner": "partner",
+        "standardaddressooc": "address",
         "outofcountryaddress": "address",
+        "addressooc": "address",
         "correspondenceaddress": "correspondence",
         "homeliving": "home_duration",
         "previousaddress": "previous_address",
@@ -974,6 +1214,7 @@ def detect_current_page(driver):
         "purposeofvisit": "visit_purpose",
         "subpurposeofvisit": "visit_sub_purpose",
         "touristandshortstaydetails": "visit_sub_purpose",
+        "businessdetails": "visit_sub_purpose",
         "aboutvisit": "about_visit",
         "hasdependants": "has_dependants",
         "dependantslist": "dependant_detail",
@@ -1014,111 +1255,6 @@ def detect_current_page(driver):
         if key in combined:
             return val
     
-    # ELEMENT ID'lere bak
-    page_checks = [
-        # (element_id, sayfa_adı)
-        ("email", "email_register"),
-        ("emailOwner_you", "email_owner"),
-        ("telephoneNumber", "phone"),
-        ("contactByTelephone_callAndText", "contact_preference"),
-        ("givenName", "name"),
-        ("addAnother_true", "other_names"),
-        ("gender_1", "gender_marital"),
-        ("relationshipStatus", "gender_marital"),
-        ("givenName", "partner"),
-        ("liveWithYou_true", "partner"),
-        ("outOfCountryAddress_line1", "address"),
-        ("overseasAddress_line1", "previous_address"),
-        ("isCorrespondenceAddress_true", "correspondence"),
-        ("yearsLived", "home_duration"),
-        ("travelDocumentNumber", "passport"),
-        ("hasValidIdCard_true", "id_card"),
-        ("nationalIdCardNo", "id_card_details"),
-        ("nationality_ui", "nationality_dob"),
-        ("placeOfBirth", "nationality_dob"),
-        ("dob_day", "nationality_dob"),
-        ("hasOtherNationality_true", "other_nationality"),
-        ("otherNationality_ui", "other_nationality"),
-        ("status_employed", "employment_status"),
-        ("employer", "employer_details"),
-        ("earnings_amount", "job_details"),
-        ("jobDescription", "job_details"),
-        ("jobTitle", "employer_details"),
-        ("typeOfIncomeRefs_regularIncome", "other_income"),
-        ("hasNoOtherIncome", "other_income"),
-        ("value_currencyRef", "planned_spend"),
-        ("value_amount", "planned_spend"),
-        ("dateOfArrival_day", "travel_dates"),
-        ("dateOfLeave_day", "travel_dates"),
-        ("whoIsPayingRef_someoneIKnow", "paying_visit"),
-        ("payeeName", "paying_visit"),
-        ("preferredLanguage_english", "language_pref"),
-        ("purposeRef_tourism", "visit_purpose"),
-        ("purposeRef_tourist", "visit_sub_purpose"),
-        ("purposeRef_meeting", "visit_sub_purpose"),
-        ("purposeRef_research", "visit_sub_purpose"),
-        ("enrolledInUKCourse_true", "visit_sub_purpose"),
-        ("purposeRef_visitorInTransit", "visit_sub_purpose"),
-        ("hasDependants", "has_dependants"),
-        ("parent_relationshipRef_mother", "parent_one"),
-        ("parent_relationshipRef_father", "parent_one"),
-        ("parent_givenName", "parent_one"),
-        ("familyInUk_described", "family_in_uk"),
-        ("isTravellingWithOtherPeople_true", "travelling_group"),
-        ("isTravellingWithSomeOneNotPartnerOrSpouse_true", "travelling_companion"),
-        ("accommodationArrangements", "accommodation"),
-        ("accommodationDetails_address_line1", "accommodation"),
-        ("haveBeenToTheUK_true", "uk_travel_history"),
-        ("reasonRef_tourist", "uk_travel_history"),
-        ("bandRef_0", "other_countries"),
-        ("haveYouHadTreatment_true", "medical_treatment"),
-        ("haveYouHadTreatment_false", "medical_treatment"),
-        ("standardNationalInsuranceNumber", "national_insurance"),
-        ("doYouHaveADrivingLicence_true", "driving_licence"),
-        ("standardPublicFunds", "public_funds"),
-        ("previousUkVisaGranted", "previous_uk_visa"),
-        ("previouslyApplied_true", "leave_to_remain"),
-        ("convictionTypeRef_none", "criminal_convictions"),
-        ("warCrimesInvolvement_false", "war_crimes"),
-        ("terroristActivitiesInvolvement_false", "terrorist_activities"),
-        ("extremistOrganisationsInvolvement_false", "extremist_activities"),
-        ("personOfGoodCharacter_false", "good_character"),
-        ("standardWorldTravelHistory", "world_travel"),
-        ("standardImmigrationProblems", "immigration_problems"),
-        ("standardImmigrationBreach", "immigration_breach"),
-        ("armedForcesCareer_armedForcesCareer", "employment_history"),
-        ("none_none", "employment_history"),
-        ("otherInformation", "other_information"),
-    ]
-
-    for elem_id, page_name in page_checks:
-        try:
-            driver.find_element(By.ID, elem_id)
-            return page_name
-        except:
-            continue
-
-    # URL'den de anlamaya calis
-    url = driver.current_url.lower()
-    if "monthlyoutgoings" in url:
-        return "monthly_outgoings"
-    if "plannedspend" in url or "plannedspendonvisit" in url:
-        return "planned_spend"
-    if "plannedtravelinformation" in url:
-        return "travel_dates"
-    if "payingforyourvisit" in url:
-        return "paying_visit"
-    if "telephone" in url:
-        return "phone"
-    if "name" in url:
-        return "name"
-    if "address" in url:
-        return "address"
-    if "passport" in url or "traveldocument" in url:
-        return "passport"
-    if "identity" in url:
-        return "id_card"
-
     return "unknown"
 
 
@@ -1241,7 +1377,7 @@ def clean_phone(phone_str):
 
 def fill_form(driver, wait, form: VisaFormData, start_from=None):
     """
-    Sayfa tespit et -> doldur -> submit -> tekrarla dongusu.
+    Sayfa tespit et -> handler cagir -> submit -> tekrarla.
     Site ne gosterirse onu doldurur, sira onemli degil.
     """
     print(f"[FORM] Kullanici: {form.full_name}")
@@ -1249,7 +1385,6 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
 
     PASSWORD = "!!Adana508919"
 
-    # Tarih parse yardimcisi
     def parse_date_safe(date_str, field_name):
         if not date_str:
             print(f"[UYARI] {field_name} bos, varsayilan tarih kullanilacak")
@@ -1268,43 +1403,31 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print(f"[UYARI] {field_name} parse edilemedi: {date_str}")
         return datetime.now()
 
-    # Tamamlanan sayfalar (ayni sayfayi tekrar doldurmasin)
     completed = set()
-    max_iterations = 80
+    max_loops = 80
     stuck_count = 0
     last_page = ""
 
-    for iteration in range(max_iterations):
+    for loop in range(max_loops):
         time.sleep(2)
 
-        # Mevcut sayfayi tespit et
+        # Sayfayi tespit et
         page = detect_current_page(driver)
-        
-        # Sayfa tespiti icin ek kontrol - form action'dan
+        fa = driver.execute_script("var f=document.querySelector('form[action]'); return f?f.getAttribute('action'):'';") or ""
+
+        # Bilinmeyen sayfa
         if page == "unknown":
-            form_action = driver.execute_script("""
-                var f = document.querySelector('form[action]');
-                return f ? f.getAttribute('action') : '';
-            """) or ""
-            print(f"[LOOP-{iteration}] Bilinmeyen sayfa: {form_action[-60:]}")
-            
-            # Declaration sayfasi mi? (form bitti)
-            if "declaration" in form_action.lower() or "payment" in driver.current_url.lower():
-                print("[FORM] FORM TAMAMLANDI! Declaration/Payment sayfasina ulasti.")
+            print(f"[LOOP-{loop}] Bilinmeyen sayfa: {fa[-60:]}")
+            if "declaration" in fa.lower() or "payment" in driver.current_url.lower():
+                print("[FORM] TAMAMLANDI! Declaration sayfasina ulasti.")
                 return
-            
-            # emailResumeLink sayfasi
-            if "emailresumelink" in driver.current_url.lower() or "resume" in form_action.lower():
-                print("[FORM] Resume/email sayfasinda, form bitmis olabilir.")
+            if "emailresumelink" in driver.current_url.lower():
+                print("[FORM] Resume sayfasinda, form bitmis.")
                 return
-            
-            # Stuck kontrolu
             stuck_count += 1
             if stuck_count > 5:
-                print("[FORM] 5 kez ust uste bilinmeyen sayfa, durduruluyor...")
+                print("[FORM] Cok fazla bilinmeyen sayfa, durduruluyor...")
                 return
-            
-            # Sayfadaki submit'e tikla belki gecebilir
             try:
                 click_submit(driver, wait)
                 time.sleep(3)
@@ -1312,27 +1435,19 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
                 pass
             continue
 
-        # Ayni sayfada takilma kontrolu
+        # Takilma kontrolu
         if page == last_page:
             stuck_count += 1
-            if stuck_count > 3:
-                print(f"[LOOP-{iteration}] {page} sayfasinda 3 kez takildi, submit deneniyor...")
-                try:
-                    click_submit(driver, wait)
-                    time.sleep(3)
-                except:
-                    pass
-                if stuck_count > 5:
-                    print(f"[FORM] {page} sayfasinda takildi, durduruluyor...")
-                    return
-                continue
+            if stuck_count > 4:
+                print(f"[FORM] {page} sayfasinda takildi, durduruluyor...")
+                return
         else:
             stuck_count = 0
         last_page = page
 
         # Zaten tamamlandi mi?
         if page in completed:
-            print(f"[LOOP-{iteration}] {page} zaten tamamlandi, submit deneniyor...")
+            print(f"[LOOP-{loop}] {page} zaten tamamlandi (action: {fa[-50:]}), submit...")
             try:
                 click_submit(driver, wait)
                 time.sleep(3)
@@ -1340,15 +1455,14 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
                 pass
             continue
 
-        print(f"\n[LOOP-{iteration}] === SAYFA: {page} ===")
+        print(f"\n[LOOP-{loop}] === {page} === (action: {fa[-50:]})")
 
-        # Sayfa handler'ini calistir
+        # Handler calistir
         try:
-            handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed)
+            _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD)
             completed.add(page)
         except Exception as e:
-            print(f"[LOOP-{iteration}] HATA: {e}")
-            # Hata olursa submit dene ve devam et
+            print(f"[LOOP-{loop}] HATA: {e}")
             try:
                 click_submit(driver, wait)
                 time.sleep(3)
@@ -1359,7 +1473,16 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
     print("[FORM] Max iterasyon asildi!")
 
 
-def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
+def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
+    """Sayfa adina gore handler calistir."""
+
+    # ===== GENEL: addAnother sayfalari =====
+    if page == "add_another":
+        print("[FORM] addAnother sayfasi, No seciliyor...")
+        set_radio(driver, "addAnother_false")
+        click_submit(driver, wait)
+        time.sleep(3)
+        return
 
     # ===== SAYFA 1: Email ve Parola =====
     if page == "email_register":
@@ -1387,25 +1510,25 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-1] Email/Parola tamamlandi!")
 
     # ===== SAYFA 2: Email sahibi - You =====
-    if page == "email_owner":
+    elif page == "email_owner":
         print("[FORM-2] Email sahibi seciliyor (You)...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "emailOwner_you"))))
+        set_radio(driver, "emailOwner_you")
         time.sleep(0.5)
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-2] Email sahibi tamamlandi!")
 
     # ===== SAYFA 3: Baska birisi var mi - No =====
-    if page == "no_other_person":
+    elif page == "no_other_person":
         print("[FORM-3] 'No' seciliyor...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+        set_radio(driver, "value_false")
         time.sleep(0.5)
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-3] Tamamlandi!")
 
     # ===== SAYFA 4: Telefon numarasi =====
-    if page == "phone":
+    elif page == "phone":
         print("[FORM-4] Telefon numarasi giriliyor...")
 
         phone_input = wait.until(EC.presence_of_element_located((By.ID, "telephoneNumber")))
@@ -1415,10 +1538,11 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print(f"[FORM-4a] Telefon girildi: {clean}")
         time.sleep(0.5)
 
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "telephoneNumberPurpose_outsideUK"))))
+        # Checkbox'lar - set_checkbox kullan (set_radio degil!)
+        set_checkbox(driver, "telephoneNumberPurpose_outsideUK")
         time.sleep(0.3)
 
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "telephoneNumberType_mobile"))))
+        set_checkbox(driver, "telephoneNumberType_mobile")
         time.sleep(0.3)
 
         click_submit(driver, wait)
@@ -1426,25 +1550,25 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-4] Telefon sayfasi tamamlandi!")
 
     # ===== SAYFA 4b: Baska numara ekle - No =====
-    if page == "phone_add_another":
+    elif page == "phone_add_another":
         print("[FORM-4b] Baska numara ekleme - No seciliyor...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
+        set_radio(driver, "addAnother_false")
         time.sleep(0.5)
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-4b] Tamamlandi!")
 
     # ===== SAYFA 5: Iletisim tercihi - Call and Text =====
-    if page == "contact_preference":
+    elif page == "contact_preference":
         print("[FORM-5] Iletisim tercihi seciliyor (Call and Text)...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "contactByTelephone_callAndText"))))
+        set_radio(driver, "contactByTelephone_callAndText")
         time.sleep(0.5)
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-5] Iletisim tercihi tamamlandi!")
 
     # ===== SAYFA 6: Isim ve Soyisim =====
-    if page == "name":
+    elif page == "name":
         print("[FORM-6] Isim ve soyisim giriliyor...")
 
         given_name = wait.until(EC.presence_of_element_located((By.ID, "givenName")))
@@ -1464,10 +1588,10 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-6] Isim/Soyisim tamamlandi!")
 
     # ===== SAYFA 7: Baska isim var mi (Maiden name) =====
-    if page == "other_names":
+    elif page == "other_names":
         if form.maiden_name:
             print(f"[FORM-7] Kizlik soyadi var: {form.maiden_name}, Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_true"))))
+            set_radio(driver, "addAnother_true")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -1488,13 +1612,13 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             time.sleep(3)
 
             print("[FORM-7c] Baska isim yok, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
+            set_radio(driver, "addAnother_false")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
         else:
             print("[FORM-7] Kizlik soyadi yok, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
+            set_radio(driver, "addAnother_false")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -1502,18 +1626,18 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-7] Baska isim sayfasi tamamlandi!")
 
     # ===== SAYFA 8: Cinsiyet ve Medeni Durum =====
-    if page == "gender_marital":
+    elif page == "gender_marital":
         print("[FORM-8] Cinsiyet seciliyor...")
 
         gender_val = form.gender.upper()
         if gender_val == "ERKEK":
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "gender_1"))))
+            set_radio(driver, "gender_1")
             print("[FORM-8a] Erkek secildi")
         elif gender_val in ("KADIN", "KADIM"):
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "gender_2"))))
+            set_radio(driver, "gender_2")
             print("[FORM-8a] Kadin secildi")
         else:
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "gender_9"))))
+            set_radio(driver, "gender_9")
             print("[FORM-8a] Unspecified secildi")
         time.sleep(0.5)
 
@@ -1542,7 +1666,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-8] Cinsiyet/Medeni durum tamamlandi!")
 
     # ===== SAYFA 8b: Partner/Es bilgileri =====
-    if page == "partner":
+    elif page == "partner":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -1630,10 +1754,10 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
             # Sizinle yasiyor mu?
             if form.partner_lives_with:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "liveWithYou_true"))))
+                set_radio(driver, "liveWithYou_true")
                 print("[FORM-8b.5] Birlikte yasiyor: Yes")
             else:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "liveWithYou_false"))))
+                set_radio(driver, "liveWithYou_false")
                 print("[FORM-8b.5] Birlikte yasiyor: No")
                 time.sleep(2)
 
@@ -1681,7 +1805,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
             # Sizinle seyahat edecek mi?
             if form.partner_travels_with:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "travellingWithYou_true"))))
+                set_radio(driver, "travellingWithYou_true")
                 print("[FORM-8b.7] Birlikte seyahat: Yes")
                 time.sleep(2)
                 # Hidden icerigi ac
@@ -1705,7 +1829,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
                 """)
                 print(f"[FORM-8b.8] Pasaport: {pp_num}")
             else:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "travellingWithYou_false"))))
+                set_radio(driver, "travellingWithYou_false")
                 print("[FORM-8b.7] Birlikte seyahat: No")
 
             time.sleep(0.5)
@@ -1714,7 +1838,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-8b] Partner bilgileri tamamlandi!")
 
     # ===== SAYFA 9: Adres bilgileri =====
-    if page == "address":
+    elif page == "address":
         print("[FORM-9] Adres bilgileri giriliyor...")
 
         addr1 = wait.until(EC.presence_of_element_located((By.ID, "outOfCountryAddress_line1")))
@@ -1774,21 +1898,30 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             """)
         time.sleep(0.5)
 
+        # Correspondence address - ayni sayfada (Yes sec)
+        try:
+            corr_radio = driver.find_element(By.ID, "isCorrespondenceAddress_true")
+            set_radio(driver, "isCorrespondenceAddress_true")
+            print("[FORM-9f] Yazisma adresi ayni: Yes")
+            time.sleep(0.3)
+        except:
+            print("[FORM-9f] Correspondence radio bulunamadi, ayri sayfada olabilir")
+
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-9] Adres bilgileri tamamlandi!")
 
     # ===== SAYFA 10: Correspondence address - Yes =====
-    if page == "correspondence":
+    elif page == "correspondence":
         print("[FORM-10] Yazisma adresi ayni mi - Yes seciliyor...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "isCorrespondenceAddress_true"))))
+        set_radio(driver, "isCorrespondenceAddress_true")
         time.sleep(0.5)
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-10] Yazisma adresi tamamlandi!")
 
     # ===== SAYFA 11: Evde oturma suresi ve ev sahipligi =====
-    if page == "home_duration":
+    elif page == "home_duration":
         print("[FORM-11] Oturma suresi ve ev sahipligi giriliyor...")
 
         years = form.residence_years
@@ -1849,7 +1982,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-11] Oturma suresi tamamlandi!")
 
     # ===== SAYFA 11b: Onceki adres (2 yildan az oturma) =====
-    if page == "previous_address":
+    elif page == "previous_address":
         time.sleep(1)
         # Bu sayfa sadece 2 yildan az oturmada gosterilebilir
         # URL kontrolu yap
@@ -1874,7 +2007,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         else:
             print("[FORM-11b] Onceki adres giriliyor...")
 
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "isUkAddress_false"))))
+            set_radio(driver, "isUkAddress_false")
             time.sleep(2)
 
             prev_address = form.past_addresses if form.past_addresses else form.home_address
@@ -1950,7 +2083,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
                 return document.getElementById('addAnother_false') !== null;
             """)
             if is_add_another:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
+                set_radio(driver, "addAnother_false")
                 print("[FORM-11c] Baska adres ekle: No")
                 time.sleep(0.5)
                 click_submit(driver, wait)
@@ -1962,7 +2095,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-11c] addAnother hatasi: {e}")
 
     # ===== SAYFA 12: Pasaport bilgileri =====
-    if page == "passport":
+    elif page == "passport":
         print("[FORM-12] Pasaport bilgileri giriliyor...")
 
         passport_input = wait.until(EC.presence_of_element_located((By.ID, "travelDocumentNumber")))
@@ -2047,74 +2180,48 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-12] Pasaport bilgileri tamamlandi!")
 
     # ===== SAYFA 13: Kimlik karti var mi =====
-    if page == "id_card":
-        print("[FORM-13] Kimlik karti sorgusu...")
+    elif page == "id_card":
+        print(f"[FORM-13] Kimlik karti sorgusu... tc_id='{form.tc_id}' (len={len(form.tc_id)})")
         if form.tc_id:
             print(f"[FORM-13] TC kimlik var ({form.tc_id}), Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "hasValidIdCard_true"))))
+            set_radio(driver, "hasValidIdCard_true")
         else:
             print("[FORM-13] TC kimlik yok, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "hasValidIdCard_false"))))
-        time.sleep(0.5)
+            set_radio(driver, "hasValidIdCard_false")
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-13] Kimlik karti tamamlandi!")
 
-    # ===== SAYFA 13b: Kimlik karti detaylari (sadece tc_id varsa) =====
-    if page == "id_card_details" and form.tc_id:
+    elif page == "id_card_details":
+        if not form.tc_id:
+            print("[FORM-13b] TC kimlik yok, submit ile geciliyor...")
+            click_submit(driver, wait)
+            time.sleep(3)
+            return
         print("[FORM-13b] Kimlik karti detaylari giriliyor...")
 
-        id_number = wait.until(EC.presence_of_element_located((By.ID, "nationalIdCardNo")))
-        id_number.clear()
-        id_number.send_keys(form.tc_id)
+        set_input(driver, "nationalIdCardNo", form.tc_id, wait)
         print(f"[FORM-13b] Kimlik no: {form.tc_id}")
-        time.sleep(0.3)
 
-        issuing_auth = wait.until(EC.presence_of_element_located((By.ID, "issuingAuthority")))
-        issuing_auth.clear()
-        auth_text = form.passport_authority if form.passport_authority else "NUFUS MUDURLUGU"
-        issuing_auth.send_keys(auth_text)
-        print(f"[FORM-13b] Veren makam: {auth_text}")
-        time.sleep(0.3)
+        set_input(driver, "issuingAuthority", form.home_district or "NUFUS MUDURLUGU", wait)
+        print(f"[FORM-13b] Veren makam: {form.home_district or 'NUFUS MUDURLUGU'}")
 
+        # Verilis tarihi = dogum tarihi
         if form.birth_date:
-            id_issue = parse_date_safe(form.birth_date, "Kimlik verilis (dogum tarihi)")
+            id_issue = parse_date_safe(form.birth_date, "Kimlik verilis")
         else:
             id_issue = datetime.now() - relativedelta(years=18)
-
-        id_issue_day = wait.until(EC.presence_of_element_located((By.ID, "issueDate_day")))
-        id_issue_day.clear()
-        id_issue_day.send_keys(str(id_issue.day))
-        time.sleep(0.2)
-        id_issue_month = wait.until(EC.presence_of_element_located((By.ID, "issueDate_month")))
-        id_issue_month.clear()
-        id_issue_month.send_keys(str(id_issue.month))
-        time.sleep(0.2)
-        id_issue_year = wait.until(EC.presence_of_element_located((By.ID, "issueDate_year")))
-        id_issue_year.clear()
-        id_issue_year.send_keys(str(id_issue.year))
-        time.sleep(0.3)
+        set_date(driver, "issueDate", id_issue)
         print(f"[FORM-13b] Verilis tarihi: {id_issue.day}/{id_issue.month}/{id_issue.year}")
 
+        # Bitis tarihi
         if form.tc_card_end_date:
-            id_expiry = parse_date_safe(form.tc_card_end_date, "Kimlik bitis tarihi")
+            id_expiry = parse_date_safe(form.tc_card_end_date, "Kimlik bitis")
             if id_expiry < datetime.now():
                 id_expiry = datetime.now() + relativedelta(years=1)
         else:
-            id_expiry = datetime.now() + relativedelta(years=1)
-
-        id_expiry_day = wait.until(EC.presence_of_element_located((By.ID, "expiryDate_day")))
-        id_expiry_day.clear()
-        id_expiry_day.send_keys(str(id_expiry.day))
-        time.sleep(0.2)
-        id_expiry_month = wait.until(EC.presence_of_element_located((By.ID, "expiryDate_month")))
-        id_expiry_month.clear()
-        id_expiry_month.send_keys(str(id_expiry.month))
-        time.sleep(0.2)
-        id_expiry_year = wait.until(EC.presence_of_element_located((By.ID, "expiryDate_year")))
-        id_expiry_year.clear()
-        id_expiry_year.send_keys(str(id_expiry.year))
-        time.sleep(0.3)
+            id_expiry = datetime.now() + relativedelta(years=5)
+        set_date(driver, "expiryDate", id_expiry)
         print(f"[FORM-13b] Bitis tarihi: {id_expiry.day}/{id_expiry.month}/{id_expiry.year}")
 
         click_submit(driver, wait)
@@ -2122,7 +2229,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-13b] Kimlik karti detaylari tamamlandi!")
 
     # ===== SAYFA 14: Uyruk, Dogum Yeri, Dogum Tarihi =====
-    if page == "nationality_dob":
+    elif page == "nationality_dob":
         print("[FORM-14] Uyruk, dogum yeri ve tarihi giriliyor...")
 
         # --- Uyruk - JS ile direkt set (autocomplete cakismasi onlenir) ---
@@ -2223,12 +2330,12 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-14] Uyruk/Dogum bilgileri tamamlandi!")
 
     # ===== SAYFA 15: Baska uyruk var mi =====
-    if page == "other_nationality":
+    elif page == "other_nationality":
         if form.has_other_nationality and form.other_nationality_country:
             print(f"[FORM-15] Baska uyruk VAR: {form.other_nationality_country}")
 
             # Yes sec
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "hasOtherNationality_true"))))
+            set_radio(driver, "hasOtherNationality_true")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -2320,14 +2427,14 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
         else:
             print("[FORM-15] Baska uyruk YOK, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "hasOtherNationality_false"))))
+            set_radio(driver, "hasOtherNationality_false")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
             print("[FORM-15] Tamamlandi!")
 
     # ===== SAYFA 16: Is durumu =====
-    if page == "employment_status":
+    elif page == "employment_status":
         print("[FORM-16] Is durumu seciliyor...")
 
         work_status = form.step4.get("boolean_work", "").strip().upper()
@@ -2359,7 +2466,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-16] Tamamlandi!")
 
     # ===== SAYFA 17: Isveren / Serbest meslek detaylari =====
-    if page == "employer_details":
+    elif page == "employer_details":
         work_status = form.step4.get("boolean_work", "").strip().upper()
         is_own = form.step4.get("own_work", "").strip().upper() == "EVET"
         time.sleep(3)
@@ -2461,7 +2568,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             time.sleep(3)
 
     # ===== SAYFA 17b: Is tanimi ve aylik kazanc =====
-    if page == "job_details":
+    elif page == "job_details":
         time.sleep(2)
         if wait_for_page(driver, "fundingEmploymentJobDetails", timeout=5):
             print("[FORM-17b] Is tanimi ve kazanc giriliyor...")
@@ -2491,7 +2598,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-17b] Job details sayfasi degil, atlaniyor...")
 
     # ===== SAYFA 17c: Aylik harcama =====
-    if page == "monthly_outgoings":
+    elif page == "monthly_outgoings":
         time.sleep(3)
 
         # Sayfayi kontrol et
@@ -2559,7 +2666,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-17c] Site monthlyOutgoings atlamis (mevcut: {current_action[-40:]}), devam ediliyor...")
 
     # ===== SAYFA 18: Ek gelir / Birikim =====
-    if page == "other_income":
+    elif page == "other_income":
         print("[FORM-18] Ek gelir ve birikim bilgileri giriliyor...")
 
         has_savings = form.has_savings
@@ -2678,7 +2785,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-18] Ek gelir/birikim tamamlandi!")
 
     # ===== SAYFA 19: UK'da harcama plani =====
-    if page == "planned_spend":
+    elif page == "planned_spend":
         time.sleep(2)
         
         # Dogru sayfada miyiz?
@@ -2734,7 +2841,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-19] plannedSpend sayfasi degil (mevcut: {current_action[-40:]}), atlaniyor...")
 
     # ===== SAYFA 20: Seyahat tarihleri =====
-    if page == "travel_dates":
+    elif page == "travel_dates":
         time.sleep(3)
         
         # Sayfa kontrolu
@@ -2837,7 +2944,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-20] Seyahat tarihleri sayfasi degil (mevcut: {cur[-50:]}), atlaniyor...")
 
     # ===== SAYFA 21: Masraflari baskasi odeyecek mi =====
-    if page == "paying_visit":
+    elif page == "paying_visit":
         time.sleep(2)
 
         # Dogru sayfada miyiz kontrol et - yoksa bekle
@@ -2876,14 +2983,14 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             if not someone_else_pays:
                 # VARSAYILAN: Kendisi oduyor - No (guvenli)
                 print("[FORM-21] Kendisi oduyor (varsayilan), 'No' seciliyor...")
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+                set_radio(driver, "value_false")
                 time.sleep(0.5)
                 click_submit(driver, wait)
                 time.sleep(3)
             else:
                 # Baskasi oduyor - Yes + detaylar
                 print("[FORM-21] Baskasi oduyor, 'Yes' seciliyor...")
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_true"))))
+                set_radio(driver, "value_true")
                 time.sleep(0.5)
                 click_submit(driver, wait)
                 time.sleep(3)
@@ -2894,10 +3001,10 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
                 # Kim oduyor
                 who_upper = who_covers.upper()
                 if who_upper in ("ISVEREN", "EMPLOYER", "SIRKET", "COMPANY"):
-                    safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "whoIsPayingRef_myEmployerOrCompany"))))
+                    set_radio(driver, "whoIsPayingRef_myEmployerOrCompany")
                     print("[FORM-21a] Isveren/Sirket secildi")
                 else:
-                    safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "whoIsPayingRef_someoneIKnow"))))
+                    set_radio(driver, "whoIsPayingRef_someoneIKnow")
                     print("[FORM-21a] Tanidik biri secildi")
                     time.sleep(1)
 
@@ -2987,7 +3094,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-21] Masraf odeme tamamlandi!")
 
     # ===== SAYFA 22: Dil tercihi =====
-    if page == "language_pref":
+    elif page == "language_pref":
         try:
             print("[FORM-22] Dil tercihi seciliyor...")
             set_radio(driver, "preferredLanguage_english")
@@ -2999,7 +3106,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-22] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 23: Ziyaret amaci =====
-    if page == "visit_purpose":
+    elif page == "visit_purpose":
         try:
             print("[FORM-23] Ziyaret amaci seciliyor...")
 
@@ -3037,7 +3144,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-23] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 24: Ziyaret alt amaci (amaca gore degisir) =====
-    if page == "visit_sub_purpose":
+    elif page == "visit_sub_purpose":
         try:
             travel_reason = form.travel_reason.upper()
             print(f"[FORM-24] Ziyaret alt amaci seciliyor (ana amac: {travel_reason})...")
@@ -3090,7 +3197,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print(f"[FORM-24] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 25: Ziyaret hakkinda detay =====
-    if page == "about_visit":
+    elif page == "about_visit":
         print("[FORM-25] Ziyaret detayi giriliyor...")
         try:
             details = wait.until(EC.presence_of_element_located((By.ID, "details")))
@@ -3105,7 +3212,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-25] Detay sayfasi bulunamadi, atlaniyor...")
 
     # ===== SAYFA 26: Bakmakla yukumlu kisi var mi =====
-    if page == "has_dependants":
+    elif page == "has_dependants":
         time.sleep(2)
 
         # Sayfa bekleme dongusu
@@ -3154,8 +3261,8 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             # Dogrulama
             is_selected = driver.execute_script(f"return document.getElementById('{radio_id}').checked;")
             if not is_selected:
-                print(f"[FORM-26] JS ile secilemedi, safe_click deneniyor...")
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, radio_id))))
+                print(f"[FORM-26] JS ile secilemedi, tekrar deneniyor...")
+                set_radio(driver, radio_id)
                 time.sleep(0.5)
 
             click_submit(driver, wait)
@@ -3244,7 +3351,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
                 pass
 
     # ===== SAYFA 27: Ebeveyn 1 (Baba) =====
-    if page == "parent_one":
+    elif page == "parent_one":
         print("[FORM-27] Ebeveyn 1 (Baba) bilgileri giriliyor...")
 
         # Iliski - Father (JS ile)
@@ -3319,7 +3426,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-27] Ebeveyn 1 (Baba) tamamlandi!")
 
     # ===== SAYFA 28: Ebeveyn 2 (Anne) =====
-    if page == "parent_two":
+    elif page == "parent_two":
         print("[FORM-28] Ebeveyn 2 (Anne) bilgileri giriliyor...")
 
         # Iliski - Mother (JS ile)
@@ -3394,17 +3501,17 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-28] Ebeveyn 2 (Anne) tamamlandi!")
 
     # ===== SAYFA 29: UK'da aile var mi =====
-    if page == "family_in_uk":
+    elif page == "family_in_uk":
         print("[FORM-29] UK'da aile var mi...")
 
         has_family = form.has_family_in_uk
 
         if has_family:
             print("[FORM-29] UK'da aile VAR, Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_true"))))
+            set_radio(driver, "value_true")
         else:
             print("[FORM-29] UK'da aile YOK, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+            set_radio(driver, "value_false")
         time.sleep(0.5)
 
         click_submit(driver, wait)
@@ -3412,11 +3519,11 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-29] UK'da aile tamamlandi!")
 
     # ===== SAYFA 30: Grup seyahati =====
-    if page == "travelling_group":
+    elif page == "travelling_group":
         print("[FORM-30] Grup seyahati sorusu...")
 
         # Hayir sec
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "isTravellingWithOtherPeople_false"))))
+        set_radio(driver, "isTravellingWithOtherPeople_false")
         print("[FORM-30] Grup seyahati: No")
         time.sleep(0.5)
 
@@ -3425,11 +3532,11 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-30] Grup seyahati tamamlandi!")
 
     # ===== SAYFA 31: Baska biriyle seyahat =====
-    if page == "travelling_companion":
+    elif page == "travelling_companion":
         print("[FORM-31] Baska biriyle seyahat sorusu...")
 
         # No sec
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "isTravellingWithSomeOneNotPartnerOrSpouse_false"))))
+        set_radio(driver, "isTravellingWithSomeOneNotPartnerOrSpouse_false")
         print("[FORM-31] Baska biriyle seyahat: No")
         time.sleep(0.5)
 
@@ -3438,7 +3545,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-31] Baska biriyle seyahat tamamlandi!")
 
     # ===== SAYFA 32: Konaklama =====
-    if page == "accommodation":
+    elif page == "accommodation":
         print("[FORM-32] Konaklama bilgileri...")
 
         # UK'da konaklama adresi var mi?
@@ -3458,7 +3565,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         if is_real_address:
             # Evet - adres var
             print("[FORM-32a] Konaklama adresi VAR, Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_true"))))
+            set_radio(driver, "value_true")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -3539,7 +3646,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         else:
             # Hayir - adres yok, plan yaz
             print("[FORM-32a] Konaklama adresi YOK, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+            set_radio(driver, "value_false")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -3560,7 +3667,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-32] Konaklama tamamlandi!")
 
     # ===== SAYFA 33: Son 10 yilda UK'ya gittin mi =====
-    if page == "uk_travel_history":
+    elif page == "uk_travel_history":
         print("[FORM-33] UK seyahat gecmisi...")
 
         # CRM'den UK ziyaret bilgisi
@@ -3569,7 +3676,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
         if has_uk_visit:
             print("[FORM-33] UK'ya gitmis, Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "haveBeenToTheUK_true"))))
+            set_radio(driver, "haveBeenToTheUK_true")
             time.sleep(1)
 
             # Kac kez
@@ -3592,7 +3699,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-33b] Son UK ziyaret detaylari...")
 
             # Sebep - Tourist varsayilan
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "reasonRef_tourist"))))
+            set_radio(driver, "reasonRef_tourist")
             time.sleep(0.5)
 
             # Tarih (ay/yil)
@@ -3647,7 +3754,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
         else:
             print("[FORM-33] UK'ya gitmemis, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "haveBeenToTheUK_false"))))
+            set_radio(driver, "haveBeenToTheUK_false")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -3655,7 +3762,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-33] UK seyahat gecmisi tamamlandi!")
 
     # ===== SAYFA 34: AU/CA/NZ/USA/CH/EEA ulkelere seyahat =====
-    if page == "other_countries":
+    elif page == "other_countries":
         print("[FORM-34] AU/CA/NZ/USA/CH/EEA seyahat...")
 
         # lastTravels'dan EEA/US/CA/AU/NZ/CH ulkelerini ayikla
@@ -3819,7 +3926,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-34] EEA seyahat tamamlandi!")
 
     # ===== SAYFA 35: UK'da tibbi tedavi =====
-    if page == "medical_treatment":
+    elif page == "medical_treatment":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3831,7 +3938,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         else:
             print("[FORM-35] UK'da tibbi tedavi sorusu...")
             # Varsayilan: Hayir (cogu basvuruda tedavi yok)
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "haveYouHadTreatment_false"))))
+            set_radio(driver, "haveYouHadTreatment_false")
             print("[FORM-35] Tibbi tedavi: No")
             time.sleep(0.5)
             click_submit(driver, wait)
@@ -3839,7 +3946,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-35] Tibbi tedavi tamamlandi!")
 
     # ===== SAYFA 36: UK National Insurance numarasi =====
-    if page == "national_insurance":
+    elif page == "national_insurance":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3855,7 +3962,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
             if has_ni and ni_number:
                 print(f"[FORM-36] NI numara VAR: {ni_number}")
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_true"))))
+                set_radio(driver, "value_true")
                 time.sleep(1)
                 # NI numarasini gir
                 try:
@@ -3866,7 +3973,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
                 except Exception as e:
                     print(f"[FORM-36a] NI input bulunamadi: {e}")
             else:
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+                set_radio(driver, "value_false")
                 print("[FORM-36] National Insurance: No")
 
             time.sleep(0.5)
@@ -3875,7 +3982,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-36] National Insurance tamamlandi!")
 
     # ===== SAYFA 37: UK ehliyet =====
-    if page == "driving_licence":
+    elif page == "driving_licence":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3886,7 +3993,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-37] Ehliyet sayfasi degil, atlaniyor...")
         else:
             print("[FORM-37] UK ehliyet sorusu...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "doYouHaveADrivingLicence_false"))))
+            set_radio(driver, "doYouHaveADrivingLicence_false")
             print("[FORM-37] UK ehliyet: No")
             time.sleep(0.5)
             click_submit(driver, wait)
@@ -3894,7 +4001,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-37] UK ehliyet tamamlandi!")
 
     # ===== SAYFA 38: UK kamu fonlari =====
-    if page == "public_funds":
+    elif page == "public_funds":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3905,7 +4012,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-38] Kamu fonlari sayfasi degil, atlaniyor...")
         else:
             print("[FORM-38] UK kamu fonlari sorusu...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+            set_radio(driver, "value_false")
             print("[FORM-38] Kamu fonlari: No")
             time.sleep(0.5)
             click_submit(driver, wait)
@@ -3913,14 +4020,14 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-38] Kamu fonlari tamamlandi!")
 
     # ===== SAYFA 39: Son 10 yilda UK vizesi aldin mi =====
-    if page == "previous_uk_visa":
+    elif page == "previous_uk_visa":
         print("[FORM-39] Onceki UK vizesi sorusu...")
 
         has_uk_visa = form.step5.get("uk_visa_last10", "").strip().upper() == "EVET"
 
         if has_uk_visa:
             print("[FORM-39] UK vizesi VAR, Yes seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "yesNo_true"))))
+            set_radio(driver, "yesNo_true")
             time.sleep(1)
 
             # Vize verilis tarihi
@@ -3946,7 +4053,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             time.sleep(0.5)
         else:
             print("[FORM-39] UK vizesi YOK, No seciliyor...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "yesNo_false"))))
+            set_radio(driver, "yesNo_false")
             time.sleep(0.5)
 
         click_submit(driver, wait)
@@ -3954,9 +4061,9 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-39] Onceki UK vizesi tamamlandi!")
 
     # ===== SAYFA 40: UK'da kalma izni basvurusu =====
-    if page == "leave_to_remain":
+    elif page == "leave_to_remain":
         print("[FORM-40] UK kalma izni basvurusu...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "previouslyApplied_false"))))
+        set_radio(driver, "previouslyApplied_false")
         print("[FORM-40] Kalma izni: No")
         time.sleep(0.5)
         click_submit(driver, wait)
@@ -3964,7 +4071,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-40] Tamamlandi!")
 
     # ===== SAYFA 41: Sabika kaydi =====
-    if page == "criminal_convictions":
+    elif page == "criminal_convictions":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4016,7 +4123,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             """)
             if not is_none_selected:
                 print("[FORM-41] JS ile secilemedi, safe_click deneniyor...")
-                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "convictionTypeRef_none"))))
+                set_radio(driver, "convictionTypeRef_none")
 
             print("[FORM-41] Sabika: None secildi")
             time.sleep(0.5)
@@ -4025,9 +4132,9 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-41] Tamamlandi!")
 
     # ===== SAYFA 42: Savas suclari =====
-    if page == "war_crimes":
+    elif page == "war_crimes":
         print("[FORM-42] Savas suclari...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "warCrimesInvolvement_false"))))
+        set_radio(driver, "warCrimesInvolvement_false")
         time.sleep(0.5)
         # Onay checkbox'i
         try:
@@ -4043,13 +4150,13 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-42] Tamamlandi!")
 
     # ===== SAYFA 43: Teror faaliyetleri =====
-    if page == "terrorist_activities":
+    elif page == "terrorist_activities":
         print("[FORM-43] Teror faaliyetleri...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "terroristActivitiesInvolvement_false"))))
+        set_radio(driver, "terroristActivitiesInvolvement_false")
         time.sleep(0.5)
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "terroristOrganisationsInvolvement_false"))))
+        set_radio(driver, "terroristOrganisationsInvolvement_false")
         time.sleep(0.5)
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "terroristViewsExpressed_false"))))
+        set_radio(driver, "terroristViewsExpressed_false")
         time.sleep(0.5)
         # Onay checkbox'i
         try:
@@ -4065,11 +4172,11 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-43] Tamamlandi!")
 
     # ===== SAYFA 44: Asiri gorusler =====
-    if page == "extremist_activities":
+    elif page == "extremist_activities":
         print("[FORM-44] Asiri gorusler...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "extremistOrganisationsInvolvement_false"))))
+        set_radio(driver, "extremistOrganisationsInvolvement_false")
         time.sleep(0.5)
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "extremistViewsExpressed_false"))))
+        set_radio(driver, "extremistViewsExpressed_false")
         time.sleep(0.5)
         # Onay checkbox'i
         try:
@@ -4085,13 +4192,13 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-44] Tamamlandi!")
 
     # ===== SAYFA 45: Iyi karakter =====
-    if page == "good_character":
+    elif page == "good_character":
         print("[FORM-45] Iyi karakter...")
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "personOfGoodCharacter_false"))))
+        set_radio(driver, "personOfGoodCharacter_false")
         time.sleep(0.5)
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "otherActivities_false"))))
+        set_radio(driver, "otherActivities_false")
         time.sleep(0.5)
-        safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "anyOtherInfo_false"))))
+        set_radio(driver, "anyOtherInfo_false")
         time.sleep(0.5)
         print("[FORM-45] Karakter: No x3")
         click_submit(driver, wait)
@@ -4099,7 +4206,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-45] Tamamlandi!")
 
     # ===== SAYFA 46: Son 10 yilda baska ulkelere seyahat (UK/US/CA/AU/NZ/CH/EEA HARIC) =====
-    if page == "world_travel":
+    elif page == "world_travel":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var forms = document.querySelectorAll('form');
@@ -4235,7 +4342,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-46] Tamamlandi!")
 
     # ===== SAYFA 47: Gocmenlik problemleri =====
-    if page == "immigration_problems":
+    elif page == "immigration_problems":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4255,7 +4362,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-47] Gocmenlik problemleri sayfasi degil, atlaniyor...")
         else:
             print("[FORM-47] Gocmenlik problemleri...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+            set_radio(driver, "value_false")
             print("[FORM-47] Gocmenlik sorunlari: No")
             time.sleep(0.5)
             click_submit(driver, wait)
@@ -4263,7 +4370,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-47] Tamamlandi!")
 
     # ===== SAYFA 48: Gocmenlik ihlali =====
-    if page == "immigration_breach":
+    elif page == "immigration_breach":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4283,7 +4390,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-48] Gocmenlik ihlali sayfasi degil, atlaniyor...")
         else:
             print("[FORM-48] Gocmenlik ihlali...")
-            safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
+            set_radio(driver, "value_false")
             print("[FORM-48] Gocmenlik ihlali: No")
             time.sleep(0.5)
             click_submit(driver, wait)
@@ -4291,7 +4398,7 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
             print("[FORM-48] Tamamlandi!")
 
     # ===== SAYFA 49: Istihdam gecmisi (silahli kuvvetler vb) =====
-    if page == "employment_history":
+    elif page == "employment_history":
         print("[FORM-49] Istihdam gecmisi (guvenlik kuruluslari)...")
         # Hicbirinde calismadim
         none_cb = wait.until(EC.presence_of_element_located((By.ID, "none_none")))
@@ -4304,17 +4411,32 @@ def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
         print("[FORM-49] Tamamlandi!")
 
     # ===== SAYFA 50: Ek bilgi =====
-    if page == "other_information":
+    elif page == "other_information":
         print("[FORM-50] Ek bilgi...")
-        # Bos birak, direkt kaydet
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-50] Ek bilgi tamamlandi!")
 
-    # ===== FORM TAMAMLANDI =====
-    print("=" * 60)
-    print("  FORM DOLDURMA TAMAMLANDI!")
-    print("=" * 60)
+    # ===== Alt sayfalar - submit ile gec =====
+    elif page in ("dependant_detail", "accommodation_plans", "accommodation_details",
+                   "paying_visit_details", "uk_travel_detail", "other_countries_detail",
+                   "world_travel_detail", "family_in_uk_details", "declaration"):
+        print(f"[FORM] Alt sayfa: {page}, submit ile geciliyor...")
+        click_submit(driver, wait)
+        time.sleep(3)
+
+    # ===== addAnother sayfalari (genel) =====
+    elif page == "add_another":
+        print("[FORM] addAnother sayfasi, No seciliyor...")
+        set_radio(driver, "addAnother_false")
+        click_submit(driver, wait)
+        time.sleep(3)
+        print("[FORM] addAnother: No")
+
+    else:
+        print(f"[FORM] Bilinmeyen handler: {page}, submit deneniyor...")
+        click_submit(driver, wait)
+        time.sleep(3)
 
 
 # ============================================================
@@ -4337,6 +4459,27 @@ def main():
         job_id = job.get("job_id")
         raw_form_data = job.get("data", {})
         resume_link = job.get("resume_link")
+
+        # DEBUG: CRM'den gelen veriyi logla
+        print(f"[DEBUG] job keys: {list(job.keys())}")
+        print(f"[DEBUG] raw_form_data type: {type(raw_form_data)}")
+        if isinstance(raw_form_data, dict):
+            print(f"[DEBUG] raw_form_data keys: {list(raw_form_data.keys())[:10]}")
+            # tcId'yi tum veri icinde ara
+            import json as _json
+            raw_str = _json.dumps(raw_form_data, ensure_ascii=False)
+            if "tcId" in raw_str:
+                # tcId'nin bulundugu yeri goster
+                idx = raw_str.find("tcId")
+                print(f"[DEBUG] tcId bulundu! Context: ...{raw_str[max(0,idx-30):idx+50]}...")
+            else:
+                print(f"[DEBUG] tcId RAW DATA ICINDE YOK!")
+                # Belki farkli key ile var
+                for search_key in ["tc_id", "TC", "tckimlik", "identity", "nationalId"]:
+                    if search_key in raw_str.lower():
+                        print(f"[DEBUG] Alternatif key bulundu: {search_key}")
+            # Ilk 500 char goster
+            print(f"[DEBUG] Raw data (ilk 500): {raw_str[:500]}")
 
         # visa_forms verisini parse et
         form = VisaFormData(raw_form_data)
