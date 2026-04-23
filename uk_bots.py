@@ -781,7 +781,7 @@ def click_submit(driver, wait):
     except:
         url_before = ""
 
-    for attempt in range(7):
+    for attempt in range(3):
         # Submit butonuna bas - 3 farkli yontem dene
         submitted = False
         try:
@@ -936,74 +936,83 @@ def detect_current_page(driver):
     
     combined = url + " " + form_action
     
-    if "monthlyoutgoings" in combined:
-        return "monthly_outgoings"
-    if "employmentstatus" in combined:
-        return "employment_status"
-    if "plannedspendonvisit" in combined:
-        return "planned_spend"
-    if "plannedtravelinformation" in combined:
-        return "travel_dates"
-    if "payingforyourvisit" in combined and "details" not in combined:
-        return "paying_visit"
-    if "fundingemploymentjobdetails" in combined:
-        return "job_details"
-    if "fundingemploymentemployerdetails" in combined:
-        return "employer_details"
-    if "fundingselfemployment" in combined:
-        return "employer_details"  # self-employed de employer_details altinda
-    if "fundingotherincome" in combined:
-        return "other_income"
-    if "standardworldtravelhistory" in combined:
-        return "world_travel"
-    if "standardimmigrationproblems" in combined:
-        return "immigration_problems"
-    if "standardimmigrationbreach" in combined:
-        return "immigration_breach"
-    if "standardnationalinsurance" in combined:
-        return "national_insurance"
-    if "standardpublicfunds" in combined:
-        return "public_funds"
-    if "accommodationarrangements" in combined:
-        return "accommodation"
-    if "accommodationplans" in combined:
-        return "accommodation"
-    if "otheraccommodationdetails" in combined:
-        return "accommodation"
-    if "previousukvisagranted" in combined:
-        return "previous_uk_visa"
-    if "previousleavetoremain" in combined:
-        return "leave_to_remain"
-    if "standardcriminalconvictions" in combined:
-        return "criminal_convictions"
-    if "standardwarcrimes" in combined:
-        return "war_crimes"
-    if "standardterroristactivities" in combined:
-        return "terrorist_activities"
-    if "standardextremistactivities" in combined:
-        return "extremist_activities"
-    if "standardpersonofgoodcharacter" in combined:
-        return "good_character"
-    if "standardemploymenthistory" in combined:
-        return "employment_history"
-    if "otherinformation" in combined:
-        return "other_information"
-    if "spokenlanguagepreference" in combined:
-        return "language_pref"
-    if combined.endswith("/partner") or "application.0.partner" in combined:
-        return "partner"
-    if "standardmedicaltreatment" in combined:
-        return "medical_treatment"
-    if "standarddrivinglicence" in combined:
-        return "driving_licence"
-    if "standardtimestravelledtouk" in combined or "previoustraveltouk" in combined:
-        return "uk_travel_history"
-    if "timestravelledtoothercountries" in combined:
-        return "other_countries"
-    if "travellingwithotherpeople" in combined:
-        return "travelling_companion"
-    if "hasdependants" in combined:
-        return "has_dependants"
+    # Form action eşleşmeleri (en güvenilir)
+    ACTION_MAP = {
+        "loginemail": "email_register",
+        "emailowner": "email_owner",
+        "anotherperson": "no_other_person",
+        "addtelephonenumber": "phone",
+        "addanother": "phone_add_another",   # genel addAnother - context'e gore degisir
+        "contactpreference": "contact_preference",
+        "applicantname": "name",
+        "othernames": "other_names",
+        "genderandrelationship": "gender_marital",
+        "partner": "partner",
+        "outofcountryaddress": "address",
+        "correspondenceaddress": "correspondence",
+        "homeliving": "home_duration",
+        "previousaddress": "previous_address",
+        "traveldocument": "passport",
+        "hasvalidid": "id_card",
+        "identificationdocument": "id_card_details",
+        "nationality": "nationality_dob",
+        "othernationality": "other_nationality",
+        "employmentstatus": "employment_status",
+        "fundingemploymentemployerdetails": "employer_details",
+        "fundingselfemployment": "employer_details",
+        "fundingretired": "employer_details",
+        "fundingstudent": "employer_details",
+        "fundingunemployed": "employer_details",
+        "fundingemploymentjobdetails": "job_details",
+        "monthlyoutgoings": "monthly_outgoings",
+        "fundingotherincome": "other_income",
+        "plannedspendonvisit": "planned_spend",
+        "plannedtravelinformation": "travel_dates",
+        "payingforyourvisit": "paying_visit",
+        "payingforyourvisitdetails": "paying_visit_details",
+        "spokenlanguagepreference": "language_pref",
+        "purposeofvisit": "visit_purpose",
+        "subpurposeofvisit": "visit_sub_purpose",
+        "touristandshortstaydetails": "visit_sub_purpose",
+        "aboutvisit": "about_visit",
+        "hasdependants": "has_dependants",
+        "dependantslist": "dependant_detail",
+        "parentonedetails": "parent_one",
+        "parenttwodetails": "parent_two",
+        "familyinuk": "family_in_uk",
+        "familyinukdetails": "family_in_uk_details",
+        "travellinggroup": "travelling_group",
+        "travellingwithotherpeople": "travelling_companion",
+        "accommodationarrangements": "accommodation",
+        "accommodationplans": "accommodation_plans",
+        "otheraccommodationdetails": "accommodation_details",
+        "standardtimestravelledtouk": "uk_travel_history",
+        "previoustraveltouk": "uk_travel_detail",
+        "timestravelledtoothercountries": "other_countries",
+        "previoustraveltoothercountries": "other_countries_detail",
+        "standardmedicaltreatment": "medical_treatment",
+        "standardnationalinsurance": "national_insurance",
+        "standarddrivinglicence": "driving_licence",
+        "standardpublicfunds": "public_funds",
+        "previousukvisagranted": "previous_uk_visa",
+        "previousleavetoremain": "leave_to_remain",
+        "standardcriminalconvictions": "criminal_convictions",
+        "standardwarcrimes": "war_crimes",
+        "standardterroristactivities": "terrorist_activities",
+        "standardextremistactivities": "extremist_activities",
+        "standardpersonofgoodcharacter": "good_character",
+        "standardworldtravelhistory": "world_travel",
+        "standardworldtravelhistorydetail": "world_travel_detail",
+        "standardimmigrationproblems": "immigration_problems",
+        "standardimmigrationbreach": "immigration_breach",
+        "standardemploymenthistory": "employment_history",
+        "otherinformation": "other_information",
+        "declaration": "declaration",
+    }
+    
+    for key, val in ACTION_MAP.items():
+        if key in combined:
+            return val
     
     # ELEMENT ID'lere bak
     page_checks = [
@@ -1232,14 +1241,11 @@ def clean_phone(phone_str):
 
 def fill_form(driver, wait, form: VisaFormData, start_from=None):
     """
-    Start now'dan sonra acilan formu visa_forms verisi ile doldur.
-    start_from: resume'dan devam ederken hangi sayfadan baslanacagi.
-    None ise en bastan baslar.
+    Sayfa tespit et -> doldur -> submit -> tekrarla dongusu.
+    Site ne gosterirse onu doldurur, sira onemli degil.
     """
     print(f"[FORM] Kullanici: {form.full_name}")
     print(f"[FORM] {form.summary()}")
-    if start_from:
-        print(f"[FORM] Kaldigi yerden devam ediliyor: {start_from}")
 
     PASSWORD = "!!Adana508919"
 
@@ -1262,86 +1268,101 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print(f"[UYARI] {field_name} parse edilemedi: {date_str}")
         return datetime.now()
 
-    # Adim sirasi - resume'dan devam ederken atlama icin
-    STEP_ORDER = [
-        "email_register",      # 1
-        "email_owner",         # 2
-        "no_other_person",     # 3
-        "phone",               # 4
-        "phone_add_another",   # 4b
-        "contact_preference",  # 5
-        "name",                # 6
-        "other_names",         # 7
-        "gender_marital",      # 8
-        "partner",             # 8b
-        "address",             # 9
-        "correspondence",      # 10
-        "home_duration",       # 11
-        "previous_address",    # 11b
-        "passport",            # 12
-        "id_card",             # 13
-        "id_card_details",     # 13b
-        "nationality_dob",     # 14
-        "other_nationality",   # 15
-        "employment_status",   # 16
-        "employer_details",    # 17
-        "job_details",         # 17b
-        "monthly_outgoings",   # 17c
-        "other_income",        # 18
-        "planned_spend",       # 19
-        "travel_dates",        # 20
-        "paying_visit",        # 21
-        "language_pref",       # 22
-        "visit_purpose",       # 23
-        "visit_sub_purpose",   # 24
-        "about_visit",         # 25
-        "has_dependants",      # 26
-        "parent_one",          # 27
-        "parent_two",          # 28
-        "family_in_uk",        # 29
-        "travelling_group",    # 30
-        "travelling_companion",# 31
-        "accommodation",       # 32
-        "uk_travel_history",   # 33
-        "other_countries",     # 34
-        "medical_treatment",   # 35
-        "national_insurance",  # 36
-        "driving_licence",     # 37
-        "public_funds",        # 38
-        "previous_uk_visa",    # 39
-        "leave_to_remain",     # 40
-        "criminal_convictions",# 41
-        "war_crimes",          # 42
-        "terrorist_activities",# 43
-        "extremist_activities",# 44
-        "good_character",      # 45
-        "world_travel",        # 46
-        "immigration_problems",# 47
-        "immigration_breach",  # 48
-        "employment_history",  # 49
-        "other_information",   # 50
-    ]
+    # Tamamlanan sayfalar (ayni sayfayi tekrar doldurmasin)
+    completed = set()
+    max_iterations = 80
+    stuck_count = 0
+    last_page = ""
 
-    # Baslangic adimini bul
-    if start_from and start_from in STEP_ORDER:
-        start_index = STEP_ORDER.index(start_from)
-        print(f"[FORM] Adim {start_index + 1}'den ({start_from}) devam ediliyor, onceki adimlar atlaniyor.")
-    elif start_from == "unknown":
-        # Bilinmeyen sayfa - tarayici acik tut
-        print("[FORM] Sayfa tespit edilemedi, tarayici acik tutuluyor.")
-        input("[BEKLE] Sayfayi kontrol edip Enter'a bas...")
-        start_index = 0
-    else:
-        start_index = 0
+    for iteration in range(max_iterations):
+        time.sleep(2)
 
-    def should_run(step_name):
-        """Bu adim calistirilmali mi?"""
-        if step_name not in STEP_ORDER:
-            return True
-        return STEP_ORDER.index(step_name) >= start_index
+        # Mevcut sayfayi tespit et
+        page = detect_current_page(driver)
+        
+        # Sayfa tespiti icin ek kontrol - form action'dan
+        if page == "unknown":
+            form_action = driver.execute_script("""
+                var f = document.querySelector('form[action]');
+                return f ? f.getAttribute('action') : '';
+            """) or ""
+            print(f"[LOOP-{iteration}] Bilinmeyen sayfa: {form_action[-60:]}")
+            
+            # Declaration sayfasi mi? (form bitti)
+            if "declaration" in form_action.lower() or "payment" in driver.current_url.lower():
+                print("[FORM] FORM TAMAMLANDI! Declaration/Payment sayfasina ulasti.")
+                return
+            
+            # emailResumeLink sayfasi
+            if "emailresumelink" in driver.current_url.lower() or "resume" in form_action.lower():
+                print("[FORM] Resume/email sayfasinda, form bitmis olabilir.")
+                return
+            
+            # Stuck kontrolu
+            stuck_count += 1
+            if stuck_count > 5:
+                print("[FORM] 5 kez ust uste bilinmeyen sayfa, durduruluyor...")
+                return
+            
+            # Sayfadaki submit'e tikla belki gecebilir
+            try:
+                click_submit(driver, wait)
+                time.sleep(3)
+            except:
+                pass
+            continue
+
+        # Ayni sayfada takilma kontrolu
+        if page == last_page:
+            stuck_count += 1
+            if stuck_count > 3:
+                print(f"[LOOP-{iteration}] {page} sayfasinda 3 kez takildi, submit deneniyor...")
+                try:
+                    click_submit(driver, wait)
+                    time.sleep(3)
+                except:
+                    pass
+                if stuck_count > 5:
+                    print(f"[FORM] {page} sayfasinda takildi, durduruluyor...")
+                    return
+                continue
+        else:
+            stuck_count = 0
+        last_page = page
+
+        # Zaten tamamlandi mi?
+        if page in completed:
+            print(f"[LOOP-{iteration}] {page} zaten tamamlandi, submit deneniyor...")
+            try:
+                click_submit(driver, wait)
+                time.sleep(3)
+            except:
+                pass
+            continue
+
+        print(f"\n[LOOP-{iteration}] === SAYFA: {page} ===")
+
+        # Sayfa handler'ini calistir
+        try:
+            handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed)
+            completed.add(page)
+        except Exception as e:
+            print(f"[LOOP-{iteration}] HATA: {e}")
+            # Hata olursa submit dene ve devam et
+            try:
+                click_submit(driver, wait)
+                time.sleep(3)
+            except:
+                pass
+            completed.add(page)
+
+    print("[FORM] Max iterasyon asildi!")
+
+
+def handle_page(driver, wait, form, page, parse_date_safe, PASSWORD, completed):
 
     # ===== SAYFA 1: Email ve Parola =====
-    if should_run("email_register"):
+    if page == "email_register":
         print("[FORM-1] Email ve parola giriliyor...")
         clean_email = fix_email(form.email)
         print(f"[FORM-1] Orijinal email: {form.email} -> Duzeltilmis: {clean_email}")
@@ -1366,7 +1387,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-1] Email/Parola tamamlandi!")
 
     # ===== SAYFA 2: Email sahibi - You =====
-    if should_run("email_owner"):
+    if page == "email_owner":
         print("[FORM-2] Email sahibi seciliyor (You)...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "emailOwner_you"))))
         time.sleep(0.5)
@@ -1375,7 +1396,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-2] Email sahibi tamamlandi!")
 
     # ===== SAYFA 3: Baska birisi var mi - No =====
-    if should_run("no_other_person"):
+    if page == "no_other_person":
         print("[FORM-3] 'No' seciliyor...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "value_false"))))
         time.sleep(0.5)
@@ -1384,7 +1405,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-3] Tamamlandi!")
 
     # ===== SAYFA 4: Telefon numarasi =====
-    if should_run("phone"):
+    if page == "phone":
         print("[FORM-4] Telefon numarasi giriliyor...")
 
         phone_input = wait.until(EC.presence_of_element_located((By.ID, "telephoneNumber")))
@@ -1405,7 +1426,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-4] Telefon sayfasi tamamlandi!")
 
     # ===== SAYFA 4b: Baska numara ekle - No =====
-    if should_run("phone_add_another"):
+    if page == "phone_add_another":
         print("[FORM-4b] Baska numara ekleme - No seciliyor...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
         time.sleep(0.5)
@@ -1414,7 +1435,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-4b] Tamamlandi!")
 
     # ===== SAYFA 5: Iletisim tercihi - Call and Text =====
-    if should_run("contact_preference"):
+    if page == "contact_preference":
         print("[FORM-5] Iletisim tercihi seciliyor (Call and Text)...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "contactByTelephone_callAndText"))))
         time.sleep(0.5)
@@ -1423,7 +1444,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-5] Iletisim tercihi tamamlandi!")
 
     # ===== SAYFA 6: Isim ve Soyisim =====
-    if should_run("name"):
+    if page == "name":
         print("[FORM-6] Isim ve soyisim giriliyor...")
 
         given_name = wait.until(EC.presence_of_element_located((By.ID, "givenName")))
@@ -1443,7 +1464,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-6] Isim/Soyisim tamamlandi!")
 
     # ===== SAYFA 7: Baska isim var mi (Maiden name) =====
-    if should_run("other_names"):
+    if page == "other_names":
         if form.maiden_name:
             print(f"[FORM-7] Kizlik soyadi var: {form.maiden_name}, Yes seciliyor...")
             safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_true"))))
@@ -1481,7 +1502,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-7] Baska isim sayfasi tamamlandi!")
 
     # ===== SAYFA 8: Cinsiyet ve Medeni Durum =====
-    if should_run("gender_marital"):
+    if page == "gender_marital":
         print("[FORM-8] Cinsiyet seciliyor...")
 
         gender_val = form.gender.upper()
@@ -1521,7 +1542,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-8] Cinsiyet/Medeni durum tamamlandi!")
 
     # ===== SAYFA 8b: Partner/Es bilgileri =====
-    if should_run("partner"):
+    if page == "partner":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -1693,7 +1714,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-8b] Partner bilgileri tamamlandi!")
 
     # ===== SAYFA 9: Adres bilgileri =====
-    if should_run("address"):
+    if page == "address":
         print("[FORM-9] Adres bilgileri giriliyor...")
 
         addr1 = wait.until(EC.presence_of_element_located((By.ID, "outOfCountryAddress_line1")))
@@ -1758,7 +1779,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-9] Adres bilgileri tamamlandi!")
 
     # ===== SAYFA 10: Correspondence address - Yes =====
-    if should_run("correspondence"):
+    if page == "correspondence":
         print("[FORM-10] Yazisma adresi ayni mi - Yes seciliyor...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "isCorrespondenceAddress_true"))))
         time.sleep(0.5)
@@ -1767,7 +1788,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-10] Yazisma adresi tamamlandi!")
 
     # ===== SAYFA 11: Evde oturma suresi ve ev sahipligi =====
-    if should_run("home_duration"):
+    if page == "home_duration":
         print("[FORM-11] Oturma suresi ve ev sahipligi giriliyor...")
 
         years = form.residence_years
@@ -1828,7 +1849,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-11] Oturma suresi tamamlandi!")
 
     # ===== SAYFA 11b: Onceki adres (2 yildan az oturma) =====
-    if should_run("previous_address"):
+    if page == "previous_address":
         time.sleep(1)
         # Bu sayfa sadece 2 yildan az oturmada gosterilebilir
         # URL kontrolu yap
@@ -1941,7 +1962,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-11c] addAnother hatasi: {e}")
 
     # ===== SAYFA 12: Pasaport bilgileri =====
-    if should_run("passport"):
+    if page == "passport":
         print("[FORM-12] Pasaport bilgileri giriliyor...")
 
         passport_input = wait.until(EC.presence_of_element_located((By.ID, "travelDocumentNumber")))
@@ -2026,7 +2047,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-12] Pasaport bilgileri tamamlandi!")
 
     # ===== SAYFA 13: Kimlik karti var mi =====
-    if should_run("id_card"):
+    if page == "id_card":
         print("[FORM-13] Kimlik karti sorgusu...")
         if form.tc_id:
             print(f"[FORM-13] TC kimlik var ({form.tc_id}), Yes seciliyor...")
@@ -2040,7 +2061,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-13] Kimlik karti tamamlandi!")
 
     # ===== SAYFA 13b: Kimlik karti detaylari (sadece tc_id varsa) =====
-    if should_run("id_card_details") and form.tc_id:
+    if page == "id_card_details" and form.tc_id:
         print("[FORM-13b] Kimlik karti detaylari giriliyor...")
 
         id_number = wait.until(EC.presence_of_element_located((By.ID, "nationalIdCardNo")))
@@ -2101,7 +2122,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-13b] Kimlik karti detaylari tamamlandi!")
 
     # ===== SAYFA 14: Uyruk, Dogum Yeri, Dogum Tarihi =====
-    if should_run("nationality_dob"):
+    if page == "nationality_dob":
         print("[FORM-14] Uyruk, dogum yeri ve tarihi giriliyor...")
 
         # --- Uyruk - JS ile direkt set (autocomplete cakismasi onlenir) ---
@@ -2202,7 +2223,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-14] Uyruk/Dogum bilgileri tamamlandi!")
 
     # ===== SAYFA 15: Baska uyruk var mi =====
-    if should_run("other_nationality"):
+    if page == "other_nationality":
         if form.has_other_nationality and form.other_nationality_country:
             print(f"[FORM-15] Baska uyruk VAR: {form.other_nationality_country}")
 
@@ -2306,7 +2327,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-15] Tamamlandi!")
 
     # ===== SAYFA 16: Is durumu =====
-    if should_run("employment_status"):
+    if page == "employment_status":
         print("[FORM-16] Is durumu seciliyor...")
 
         work_status = form.step4.get("boolean_work", "").strip().upper()
@@ -2338,7 +2359,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-16] Tamamlandi!")
 
     # ===== SAYFA 17: Isveren / Serbest meslek detaylari =====
-    if should_run("employer_details"):
+    if page == "employer_details":
         work_status = form.step4.get("boolean_work", "").strip().upper()
         is_own = form.step4.get("own_work", "").strip().upper() == "EVET"
         time.sleep(3)
@@ -2440,7 +2461,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             time.sleep(3)
 
     # ===== SAYFA 17b: Is tanimi ve aylik kazanc =====
-    if should_run("job_details"):
+    if page == "job_details":
         time.sleep(2)
         if wait_for_page(driver, "fundingEmploymentJobDetails", timeout=5):
             print("[FORM-17b] Is tanimi ve kazanc giriliyor...")
@@ -2470,7 +2491,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-17b] Job details sayfasi degil, atlaniyor...")
 
     # ===== SAYFA 17c: Aylik harcama =====
-    if should_run("monthly_outgoings"):
+    if page == "monthly_outgoings":
         time.sleep(3)
 
         # Sayfayi kontrol et
@@ -2538,7 +2559,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-17c] Site monthlyOutgoings atlamis (mevcut: {current_action[-40:]}), devam ediliyor...")
 
     # ===== SAYFA 18: Ek gelir / Birikim =====
-    if should_run("other_income"):
+    if page == "other_income":
         print("[FORM-18] Ek gelir ve birikim bilgileri giriliyor...")
 
         has_savings = form.has_savings
@@ -2657,7 +2678,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-18] Ek gelir/birikim tamamlandi!")
 
     # ===== SAYFA 19: UK'da harcama plani =====
-    if should_run("planned_spend"):
+    if page == "planned_spend":
         time.sleep(2)
         
         # Dogru sayfada miyiz?
@@ -2713,7 +2734,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-19] plannedSpend sayfasi degil (mevcut: {current_action[-40:]}), atlaniyor...")
 
     # ===== SAYFA 20: Seyahat tarihleri =====
-    if should_run("travel_dates"):
+    if page == "travel_dates":
         time.sleep(3)
         
         # Sayfa kontrolu
@@ -2816,7 +2837,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-20] Seyahat tarihleri sayfasi degil (mevcut: {cur[-50:]}), atlaniyor...")
 
     # ===== SAYFA 21: Masraflari baskasi odeyecek mi =====
-    if should_run("paying_visit"):
+    if page == "paying_visit":
         time.sleep(2)
 
         # Dogru sayfada miyiz kontrol et - yoksa bekle
@@ -2966,7 +2987,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-21] Masraf odeme tamamlandi!")
 
     # ===== SAYFA 22: Dil tercihi =====
-    if should_run("language_pref"):
+    if page == "language_pref":
         try:
             print("[FORM-22] Dil tercihi seciliyor...")
             set_radio(driver, "preferredLanguage_english")
@@ -2978,7 +2999,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-22] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 23: Ziyaret amaci =====
-    if should_run("visit_purpose"):
+    if page == "visit_purpose":
         try:
             print("[FORM-23] Ziyaret amaci seciliyor...")
 
@@ -3016,7 +3037,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-23] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 24: Ziyaret alt amaci (amaca gore degisir) =====
-    if should_run("visit_sub_purpose"):
+    if page == "visit_sub_purpose":
         try:
             travel_reason = form.travel_reason.upper()
             print(f"[FORM-24] Ziyaret alt amaci seciliyor (ana amac: {travel_reason})...")
@@ -3069,7 +3090,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print(f"[FORM-24] Hata: {e} - devam ediliyor...")
 
     # ===== SAYFA 25: Ziyaret hakkinda detay =====
-    if should_run("about_visit"):
+    if page == "about_visit":
         print("[FORM-25] Ziyaret detayi giriliyor...")
         try:
             details = wait.until(EC.presence_of_element_located((By.ID, "details")))
@@ -3084,7 +3105,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-25] Detay sayfasi bulunamadi, atlaniyor...")
 
     # ===== SAYFA 26: Bakmakla yukumlu kisi var mi =====
-    if should_run("has_dependants"):
+    if page == "has_dependants":
         time.sleep(2)
 
         # Sayfa bekleme dongusu
@@ -3223,7 +3244,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
                 pass
 
     # ===== SAYFA 27: Ebeveyn 1 (Baba) =====
-    if should_run("parent_one"):
+    if page == "parent_one":
         print("[FORM-27] Ebeveyn 1 (Baba) bilgileri giriliyor...")
 
         # Iliski - Father (JS ile)
@@ -3298,7 +3319,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-27] Ebeveyn 1 (Baba) tamamlandi!")
 
     # ===== SAYFA 28: Ebeveyn 2 (Anne) =====
-    if should_run("parent_two"):
+    if page == "parent_two":
         print("[FORM-28] Ebeveyn 2 (Anne) bilgileri giriliyor...")
 
         # Iliski - Mother (JS ile)
@@ -3373,7 +3394,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-28] Ebeveyn 2 (Anne) tamamlandi!")
 
     # ===== SAYFA 29: UK'da aile var mi =====
-    if should_run("family_in_uk"):
+    if page == "family_in_uk":
         print("[FORM-29] UK'da aile var mi...")
 
         has_family = form.has_family_in_uk
@@ -3391,7 +3412,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-29] UK'da aile tamamlandi!")
 
     # ===== SAYFA 30: Grup seyahati =====
-    if should_run("travelling_group"):
+    if page == "travelling_group":
         print("[FORM-30] Grup seyahati sorusu...")
 
         # Hayir sec
@@ -3404,7 +3425,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-30] Grup seyahati tamamlandi!")
 
     # ===== SAYFA 31: Baska biriyle seyahat =====
-    if should_run("travelling_companion"):
+    if page == "travelling_companion":
         print("[FORM-31] Baska biriyle seyahat sorusu...")
 
         # No sec
@@ -3417,7 +3438,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-31] Baska biriyle seyahat tamamlandi!")
 
     # ===== SAYFA 32: Konaklama =====
-    if should_run("accommodation"):
+    if page == "accommodation":
         print("[FORM-32] Konaklama bilgileri...")
 
         # UK'da konaklama adresi var mi?
@@ -3539,7 +3560,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-32] Konaklama tamamlandi!")
 
     # ===== SAYFA 33: Son 10 yilda UK'ya gittin mi =====
-    if should_run("uk_travel_history"):
+    if page == "uk_travel_history":
         print("[FORM-33] UK seyahat gecmisi...")
 
         # CRM'den UK ziyaret bilgisi
@@ -3634,7 +3655,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-33] UK seyahat gecmisi tamamlandi!")
 
     # ===== SAYFA 34: AU/CA/NZ/USA/CH/EEA ulkelere seyahat =====
-    if should_run("other_countries"):
+    if page == "other_countries":
         print("[FORM-34] AU/CA/NZ/USA/CH/EEA seyahat...")
 
         # lastTravels'dan EEA/US/CA/AU/NZ/CH ulkelerini ayikla
@@ -3798,7 +3819,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-34] EEA seyahat tamamlandi!")
 
     # ===== SAYFA 35: UK'da tibbi tedavi =====
-    if should_run("medical_treatment"):
+    if page == "medical_treatment":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3818,7 +3839,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-35] Tibbi tedavi tamamlandi!")
 
     # ===== SAYFA 36: UK National Insurance numarasi =====
-    if should_run("national_insurance"):
+    if page == "national_insurance":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3854,7 +3875,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-36] National Insurance tamamlandi!")
 
     # ===== SAYFA 37: UK ehliyet =====
-    if should_run("driving_licence"):
+    if page == "driving_licence":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3873,7 +3894,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-37] UK ehliyet tamamlandi!")
 
     # ===== SAYFA 38: UK kamu fonlari =====
-    if should_run("public_funds"):
+    if page == "public_funds":
         time.sleep(1)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -3892,7 +3913,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-38] Kamu fonlari tamamlandi!")
 
     # ===== SAYFA 39: Son 10 yilda UK vizesi aldin mi =====
-    if should_run("previous_uk_visa"):
+    if page == "previous_uk_visa":
         print("[FORM-39] Onceki UK vizesi sorusu...")
 
         has_uk_visa = form.step5.get("uk_visa_last10", "").strip().upper() == "EVET"
@@ -3933,7 +3954,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-39] Onceki UK vizesi tamamlandi!")
 
     # ===== SAYFA 40: UK'da kalma izni basvurusu =====
-    if should_run("leave_to_remain"):
+    if page == "leave_to_remain":
         print("[FORM-40] UK kalma izni basvurusu...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "previouslyApplied_false"))))
         print("[FORM-40] Kalma izni: No")
@@ -3943,7 +3964,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-40] Tamamlandi!")
 
     # ===== SAYFA 41: Sabika kaydi =====
-    if should_run("criminal_convictions"):
+    if page == "criminal_convictions":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4004,7 +4025,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-41] Tamamlandi!")
 
     # ===== SAYFA 42: Savas suclari =====
-    if should_run("war_crimes"):
+    if page == "war_crimes":
         print("[FORM-42] Savas suclari...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "warCrimesInvolvement_false"))))
         time.sleep(0.5)
@@ -4022,7 +4043,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-42] Tamamlandi!")
 
     # ===== SAYFA 43: Teror faaliyetleri =====
-    if should_run("terrorist_activities"):
+    if page == "terrorist_activities":
         print("[FORM-43] Teror faaliyetleri...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "terroristActivitiesInvolvement_false"))))
         time.sleep(0.5)
@@ -4044,7 +4065,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-43] Tamamlandi!")
 
     # ===== SAYFA 44: Asiri gorusler =====
-    if should_run("extremist_activities"):
+    if page == "extremist_activities":
         print("[FORM-44] Asiri gorusler...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "extremistOrganisationsInvolvement_false"))))
         time.sleep(0.5)
@@ -4064,7 +4085,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-44] Tamamlandi!")
 
     # ===== SAYFA 45: Iyi karakter =====
-    if should_run("good_character"):
+    if page == "good_character":
         print("[FORM-45] Iyi karakter...")
         safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "personOfGoodCharacter_false"))))
         time.sleep(0.5)
@@ -4078,7 +4099,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-45] Tamamlandi!")
 
     # ===== SAYFA 46: Son 10 yilda baska ulkelere seyahat (UK/US/CA/AU/NZ/CH/EEA HARIC) =====
-    if should_run("world_travel"):
+    if page == "world_travel":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var forms = document.querySelectorAll('form');
@@ -4214,7 +4235,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-46] Tamamlandi!")
 
     # ===== SAYFA 47: Gocmenlik problemleri =====
-    if should_run("immigration_problems"):
+    if page == "immigration_problems":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4242,7 +4263,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-47] Tamamlandi!")
 
     # ===== SAYFA 48: Gocmenlik ihlali =====
-    if should_run("immigration_breach"):
+    if page == "immigration_breach":
         time.sleep(2)
         is_correct_page = driver.execute_script("""
             var url = window.location.href.toLowerCase();
@@ -4270,7 +4291,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
             print("[FORM-48] Tamamlandi!")
 
     # ===== SAYFA 49: Istihdam gecmisi (silahli kuvvetler vb) =====
-    if should_run("employment_history"):
+    if page == "employment_history":
         print("[FORM-49] Istihdam gecmisi (guvenlik kuruluslari)...")
         # Hicbirinde calismadim
         none_cb = wait.until(EC.presence_of_element_located((By.ID, "none_none")))
@@ -4283,7 +4304,7 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         print("[FORM-49] Tamamlandi!")
 
     # ===== SAYFA 50: Ek bilgi =====
-    if should_run("other_information"):
+    if page == "other_information":
         print("[FORM-50] Ek bilgi...")
         # Bos birak, direkt kaydet
         click_submit(driver, wait)
