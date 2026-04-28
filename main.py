@@ -576,86 +576,122 @@ def run_ds160_until_captcha(job: dict):
 
         def on_photo_page():
             print(f"[BOT-{BOT_ID}] Fotoğraf sayfasına gelindi")
-
-            # 1. Fotoğrafı yükle
-            photo_uploaded = False
-            try:
-                from form_fill import upload_photo_by_fullname
-                upload_photo_by_fullname(wait, driver, data)
-                photo_uploaded = True
-                print(f"[BOT-{BOT_ID}] ✅ Fotoğraf yüklendi")
-            except Exception as e:
-                print(f"[BOT-{BOT_ID}] ⚠️ Fotoğraf yükleme hatası: {e}")
-
-            # 2. Screenshot al (her durumda)
             take_and_send_screenshot(driver, job_id)
 
-            if not photo_uploaded:
-                print(f"[BOT-{BOT_ID}] Fotoğraf yüklenemedi → manuel onay bekleniyor")
+            try:
+                # ── ADIM 1: "Upload Your Photo" butonuna tıkla ──────
+                upload_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", upload_btn)
+                upload_btn.click()
+                print(f"[BOT-{BOT_ID}] ✅ Upload Photo tıklandı")
+                time.sleep(3)
+                wait_document_ready(driver, 30)
+                print(f"[BOT-{BOT_ID}] Harici sistem URL: {driver.current_url}")
+
+                # ── ADIM 2: Harici sistemde file input bul ──────────
+                file_input = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, "//input[@type='file']"))
+                )
+                print(f"[BOT-{BOT_ID}] ✅ File input: id={file_input.get_attribute('id')}")
+
+                # ── ADIM 3: Fotoğraf yolunu bul ─────────────────────
+                import os, urllib.request, tempfile
+
+                photo_url = data.get("PHOTO_URL") or data.get("photo_url") or ""
+                photo_path = None
+                tmp_path   = None
+
+                if photo_url and photo_url.startswith("http"):
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+                        tmp_path = tmp.name
+                    urllib.request.urlretrieve(photo_url, tmp_path)
+                    if os.path.getsize(tmp_path) > 1000:
+                        photo_path = tmp_path
+                        print(f"[BOT-{BOT_ID}] ✅ Fotoğraf URL'den indirildi")
+                    else:
+                        os.unlink(tmp_path)
+                        tmp_path = None
+
+                if not photo_path:
+                    from form_fill import _find_best_photo
+                    full_name = data.get("FULL_NAME") or f"{data.get('GIVEN_NAME','')} {data.get('SURNAME','')}".strip()
+                    desktop   = os.path.join(os.path.expanduser("~"), "Desktop")
+                    fname, score = _find_best_photo(desktop, full_name)
+                    if fname and score >= 0.70:
+                        photo_path = os.path.join(desktop, fname)
+                        print(f"[BOT-{BOT_ID}] ✅ Fotoğraf masaüstünde bulundu: {fname}")
+
+                if not photo_path:
+                    raise Exception("Fotoğraf bulunamadı")
+
+                # ── ADIM 4: Dosyayı input'a gönder ──────────────────
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].style.display = 'block';
+                    arguments[0].style.visibility = 'visible';
+                """, file_input)
+                time.sleep(0.3)
+                file_input.send_keys(photo_path)
+                print(f"[BOT-{BOT_ID}] ✅ Dosya seçildi")
+                time.sleep(2.0)
+
+                # ── ADIM 5: Submit/Upload butonuna tıkla ────────────
+                submit_xpaths = [
+                    "//input[@type='submit' and contains(@value,'Upload')]",
+                    "//input[@type='submit' and contains(@value,'Submit')]",
+                    "//input[@type='image' and contains(@alt,'Upload')]",
+                    "//input[@type='submit']",
+                ]
+                for xpath in submit_xpaths:
+                    try:
+                        btn = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.XPATH, xpath))
+                        )
+                        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+                        btn.click()
+                        print(f"[BOT-{BOT_ID}] ✅ Submit tıklandı")
+                        time.sleep(4.0)
+                        wait_document_ready(driver, 30)
+                        break
+                    except Exception:
+                        continue
+
+                print(f"[BOT-{BOT_ID}] Result URL: {driver.current_url}")
+
+                # ── ADIM 6: Result sayfasında "Use This Photo" tıkla
+                # id: ctl00_cphButtons_btnContinue
+                continue_btn = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.ID, "ctl00_cphButtons_btnContinue"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", continue_btn)
+                continue_btn.click()
+                print(f"[BOT-{BOT_ID}] ✅ Use This Photo tıklandı")
+                time.sleep(4.0)
+                wait_document_ready(driver, 30)
+                print(f"[BOT-{BOT_ID}] DS-160 geri dönüş URL: {driver.current_url}")
+
+                # ── ADIM 7: Confirm Photo sayfasında Next tıkla ─────
+                # id: ctl00_SiteContentPlaceHolder_UpdateButton3
+                next_btn = WebDriverWait(driver, 15).until(
+                    EC.element_to_be_clickable((By.ID, "ctl00_SiteContentPlaceHolder_UpdateButton3"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", next_btn)
+                next_btn.click()
+                print(f"[BOT-{BOT_ID}] ✅ Next: REVIEW tıklandı, fotoğraf tamamlandı!")
+                time.sleep(3.0)
+
+            except Exception as e:
+                print(f"[BOT-{BOT_ID}] ❌ Fotoğraf yükleme hatası: {e}")
+                take_and_send_screenshot(driver, job_id)
                 wait_for_close_command(driver, job_id)
-                return
-
-            # 3. Upload butonunu tıkla (varsa)
-            upload_btn_ids = [
-                "ctl00_SiteContentPlaceHolder_FormView1_btnUploadPhoto",
-                "ctl00_SiteContentPlaceHolder_FormView1_btnUpload",
-                "ctl00_SiteContentPlaceHolder_ucPhoto_btnUpload",
-                "ctl00_cphMain_btnUpload",
-            ]
-            for btn_id in upload_btn_ids:
+            finally:
                 try:
-                    btn = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.ID, btn_id))
-                    )
-                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                    btn.click()
-                    print(f"[BOT-{BOT_ID}] ✅ Upload butonu tıklandı: {btn_id}")
-                    time.sleep(2.0)
-                    break
+                    if 'tmp_path' in locals() and tmp_path and os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
                 except Exception:
-                    continue
-
-            # 4. Next butonunu tıkla
-            next_btn_ids = [
-                "ctl00_SiteContentPlaceHolder_FormView1_btnNext",
-                "ctl00_SiteContentPlaceHolder_UpdateButton",
-                "ctl00_SiteContentPlaceHolder_UpdateButton2",
-                "ctl00_SiteContentPlaceHolder_UpdateButton3",
-                "ctl00_cphMain_btnNext",
-            ]
-            clicked = False
-            for btn_id in next_btn_ids:
-                try:
-                    btn = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.ID, btn_id))
-                    )
-                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                    btn.click()
-                    print(f"[BOT-{BOT_ID}] ✅ Next tıklandı: {btn_id}")
-                    time.sleep(2.0)
-                    clicked = True
-                    break
-                except Exception:
-                    continue
-
-            if not clicked:
-                # XPath fallback
-                try:
-                    btn = driver.find_element(
-                        By.XPATH,
-                        "//input[@type='submit' and ("
-                        "contains(@value,'Next') or "
-                        "contains(@value,'Submit') or "
-                        "contains(@value,'Save'))]"
-                    )
-                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-                    btn.click()
-                    print(f"[BOT-{BOT_ID}] ✅ Next tıklandı: XPath fallback")
-                    time.sleep(2.0)
-                except Exception as e:
-                    print(f"[BOT-{BOT_ID}] ⚠️ Next butonu bulunamadı: {e}")
-                    wait_for_close_command(driver, job_id)
-
+                    pass
         fill_ds160_full_application(
             driver, wait, data,
             on_personal1_saved=on_personal1_saved,
