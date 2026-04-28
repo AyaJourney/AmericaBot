@@ -3037,33 +3037,112 @@ def fill_date_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     if not date_str:
         return
 
-    d, m, y = date_str.strip().split("-")
-    day_text = d.zfill(2)
-    year = y
-    mon_key = m.upper()
+    # DD-MMM-YYYY veya DD-MM-YYYY parse et
+    parts = str(date_str).strip().split("-")
+    if len(parts) != 3:
+        return
 
-    num_to_mon = {
-        "1": "JAN", "2": "FEB", "3": "MAR", "4": "APR",
-        "5": "MAY", "6": "JUN", "7": "JUL", "8": "AUG",
-        "9": "SEP", "10": "OCT", "11": "NOV", "12": "DEC"
+    day_text   = parts[0].strip().zfill(2)
+    month_text = parts[1].strip().upper()
+    year_text  = parts[2].strip()
+
+    # Ay numaradan 3 harfe çevir
+    _MON = {
+        "01":"JAN","02":"FEB","03":"MAR","04":"APR","05":"MAY","06":"JUN",
+        "07":"JUL","08":"AUG","09":"SEP","10":"OCT","11":"NOV","12":"DEC",
+        "1":"JAN","2":"FEB","3":"MAR","4":"APR","5":"MAY","6":"JUN",
+        "7":"JUL","8":"AUG","9":"SEP","10":"OCT","11":"NOV","12":"DEC",
     }
+    if month_text.isdigit():
+        month_text = _MON.get(month_text, "JAN")
 
-    mon_text = num_to_mon[mon_key] if mon_key.isdigit() else mon_key
+    def _safe_select_day(el_id, value):
+        # Disabled olabilir — JS ile force et
+        for attempt in range(3):
+            try:
+                sel = Select(wait.until(
+                    EC.presence_of_element_located((By.ID, el_id))
+                ))
+                # Önce normal dene
+                try:
+                    sel.select_by_value(value)
+                    return
+                except Exception:
+                    pass
+                # disabled option varsa JS ile seç
+                driver.execute_script("""
+                    var sel = arguments[0];
+                    var val = arguments[1];
+                    for(var i=0; i<sel.options.length; i++){
+                        sel.options[i].disabled = false;
+                        if(sel.options[i].value === val || 
+                           sel.options[i].text.trim() === val){
+                            sel.options[i].selected = true;
+                            sel.dispatchEvent(new Event('change'));
+                            break;
+                        }
+                    }
+                """, driver.find_element(By.ID, el_id), value)
+                return
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    print(f"⚠️ select {el_id}={value}: {e}")
 
-    Select(wait.until(EC.presence_of_element_located((By.ID, day_id)))).select_by_visible_text(day_text)
-    time.sleep(0.4)
+    def _safe_select_month(el_id, value):
+        for attempt in range(3):
+            try:
+                sel = Select(wait.until(
+                    EC.presence_of_element_located((By.ID, el_id))
+                ))
+                try:
+                    sel.select_by_value(value)
+                    return
+                except Exception:
+                    pass
+                driver.execute_script("""
+                    var sel = arguments[0];
+                    var val = arguments[1];
+                    for(var i=0; i<sel.options.length; i++){
+                        sel.options[i].disabled = false;
+                        if(sel.options[i].value === val ||
+                           sel.options[i].text.trim() === val){
+                            sel.options[i].selected = true;
+                            sel.dispatchEvent(new Event('change'));
+                            break;
+                        }
+                    }
+                """, driver.find_element(By.ID, el_id), value)
+                return
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    print(f"⚠️ select {el_id}={value}: {e}")
 
-    Select(wait.until(EC.presence_of_element_located((By.ID, month_id)))).select_by_visible_text(mon_text)
-    time.sleep(0.6)
+    def _safe_fill_year(el_id, value):
+        for attempt in range(3):
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, el_id)))
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                """, el)
+                el.send_keys(str(value))
+                return
+            except Exception as e:
+                if attempt < 2:
+                    time.sleep(0.5)
+                else:
+                    print(f"⚠️ year {el_id}={value}: {e}")
 
-    year_el = wait.until(EC.presence_of_element_located((By.ID, year_id)))
-    driver.execute_script("""
-        arguments[0].removeAttribute('disabled');
-        arguments[0].removeAttribute('readonly');
-        arguments[0].value = '';
-    """, year_el)
-    year_el.send_keys(year)
-
+    _safe_select_day(day_id, day_text)
+    time.sleep(0.2)
+    _safe_select_month(month_id, month_text)
+    time.sleep(0.2)
+    _safe_fill_year(year_id, year_text)
 
 def fill_passport_info(wait, driver, data):
     print("🛂 Passport section başladı")
