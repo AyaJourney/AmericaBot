@@ -502,7 +502,16 @@ def run_ds160_until_captcha(job: dict):
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_btnRetrieve")
             )).click()
             print(f"[BOT-{BOT_ID}] Retrieve bitti")
+            wait.until(EC.element_to_be_clickable(
+            (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_btnRetrieve")
+        )).click()
+        print(f"[BOT-{BOT_ID}] Retrieve bitti")
 
+        # ── Sayfa tam yüklenene kadar bekle ──
+        time.sleep(3)
+        wait_document_ready(driver, 60)
+        time.sleep(2)
+        print(f"[BOT-{BOT_ID}] Retrieve sonrası URL: {driver.current_url}")
         wait_document_ready(driver, 90)
 
         # 6. BARCODE + PRIVACY
@@ -772,31 +781,54 @@ def clear_personal_1_form(wait, driver):
 
 def handle_privacy_and_continue(wait, driver):
     print(f"[BOT-{BOT_ID}] Personal 1'e geciliyor")
-    for attempt in range(5):
+
+    # Önce sayfanın yüklendiğinden emin ol
+    try:
+        wait_document_ready(driver, 30)
+    except Exception:
+        pass
+
+    # Mevcut URL'yi kontrol et
+    try:
+        current_url = driver.current_url
+        print(f"[BOT-{BOT_ID}] Mevcut URL: {current_url}")
+    except Exception as e:
+        raise RuntimeError(f"Browser kapanmış: {e}")
+
+    for attempt in range(10):  # 5'ten 10'a çıkar
         try:
+            # Personal linki ara
             personal1_link = wait.until(
                 EC.presence_of_element_located((By.ID, "Personal"))
             )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", personal1_link)
-            time.sleep(0.2)
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block:'center'});", personal1_link
+            )
+            time.sleep(0.3)
             driver.execute_script("arguments[0].click();", personal1_link)
-            wait.until(EC.presence_of_element_located(
-                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_lblAPP_SURNAME")
-            ))
+
+            # Sayfanın yüklenmesini bekle
+            wait_document_ready(driver, 30)
+            time.sleep(1)
+
+            # Personal 1 sayfasında mıyız?
+            WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_SURNAME"
+                ))
+            )
             print(f"[BOT-{BOT_ID}] Personal 1'e gecildi")
-            break
+            return
+
         except (StaleElementReferenceException, TimeoutException):
-            print(f"[BOT-{BOT_ID}] retry {attempt+1}/5")
-            time.sleep(0.5)
-    else:
-        raise RuntimeError("Personal 1'e gecilemedi")
+            print(f"[BOT-{BOT_ID}] retry {attempt+1}/10")
+            time.sleep(1)
+        except Exception as e:
+            print(f"[BOT-{BOT_ID}] retry {attempt+1}/10 hata: {e}")
+            time.sleep(1)
 
-    wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_lblAPP_SURNAME")
-    ))
-    print(f"[BOT-{BOT_ID}] Personal 1 hazir")
-
-
+    raise RuntimeError("Personal 1'e gecilemedi")
 # =====================================================
 # DAEMON
 # =====================================================
