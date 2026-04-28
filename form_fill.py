@@ -6347,45 +6347,92 @@ def upload_photo_from_url(wait, driver, photo_url: str) -> bool:
 def upload_photo_by_fullname(wait, driver, data):
     print("📷 Fotoğraf yükleme başlatıldı")
 
-    # ── Önce CRM'den gelen URL'yi dene ──────────────────────
+    import urllib.request
+
+    PHOTO_DIR = os.path.join(
+        os.path.expanduser("~"),
+        "OneDrive", "Desktop", "amerika bot", "AmericaBot", "photos"
+    )
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    print(f"📁 Fotoğraf klasörü: {PHOTO_DIR}")
+
+    photo_path = None
+    tmp_path   = None
+
+    # ── 1. PHOTO_URL varsa indir ──────────────────────────
     photo_url = data.get("PHOTO_URL") or data.get("photo_url") or ""
-    if photo_url:
-        print(f"🔗 PHOTO_URL mevcut, URL'den yükleniyor...")
-        if upload_photo_from_url(wait, driver, photo_url):
-            return  # ✅ URL'den başarıyla yüklendi, bitti
-        print("⚠️ URL'den yükleme başarısız, isimle deneniyor...")
+    print(f"📎 PHOTO_URL: '{photo_url[:80] if photo_url else 'BOŞ'}'")
 
-    # ── Fallback: masaüstünde isimle ara ────────────────────
-    full_name = data.get("FULL_NAME", "").strip()
-    if not full_name:
-        given   = data.get("GIVEN_NAME", "").strip()
-        surname = data.get("SURNAME", "").strip()
-        if not given or not surname:
-            raise Exception("❌ İsim bilgisi yok → foto yüklenemez")
-        full_name = f"{given} {surname}"
-        print(f"ℹ FULL_NAME otomatik oluşturuldu: {full_name}")
+    if photo_url and photo_url.startswith("http"):
+        tmp_path = os.path.join(PHOTO_DIR, "ds160_temp_upload.jpg")
+        try:
+            print(f"📥 İndiriliyor → {tmp_path}")
+            urllib.request.urlretrieve(photo_url, tmp_path)
+            size = os.path.getsize(tmp_path)
+            print(f"✅ İndirildi: {size} bytes")
+            if size > 1000:
+                photo_path = tmp_path
+            else:
+                print("⚠️ Dosya çok küçük, geçersiz")
+                os.unlink(tmp_path)
+                tmp_path = None
+        except Exception as e:
+            print(f"⚠️ URL'den indirme başarısız: {e}")
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            tmp_path = None
 
-    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-    fname, score = _find_best_photo(desktop, full_name)
+    # ── 2. Klasörde isimle ara ────────────────────────────
+    if not photo_path:
+        full_name = data.get("FULL_NAME", "").strip()
+        if not full_name:
+            given   = data.get("GIVEN_NAME", "").strip()
+            surname = data.get("SURNAME", "").strip()
+            if not given or not surname:
+                raise Exception("❌ İsim bilgisi yok → foto yüklenemez")
+            full_name = f"{given} {surname}"
 
-    if not fname or score < 0.70:
+        print(f"🔍 Klasörde aranıyor: '{full_name}'")
+        fname, score = _find_best_photo(PHOTO_DIR, full_name)
+        print(f"🔍 Arama sonucu: fname={fname} score={score:.2f if fname else 0}")
+        if fname and score >= 0.70:
+            photo_path = os.path.join(PHOTO_DIR, fname)
+            print(f"✅ Fotoğraf bulundu: {photo_path}")
+
+    if not photo_path:
         raise Exception(
-            f"❌ Foto bulunamadı → {full_name} (skor={score:.2f})"
+            f"❌ Fotoğraf bulunamadı — PHOTO_URL boş ve "
+            f"klasörde eşleşme yok. "
+            f"Fotoğrafı şu klasöre koy: {PHOTO_DIR}"
         )
 
-    photo_path = os.path.join(desktop, fname)
-    print(f"🖼 Foto bulundu: {photo_path}")
+    # ── 3. File input'a gönder ────────────────────────────
+    # id = ctl00_cphMain_imageFileUpload
+    try:
+        file_input = wait.until(EC.presence_of_element_located((
+            By.ID, "ctl00_cphMain_imageFileUpload"
+        )))
+        driver.execute_script("""
+            arguments[0].removeAttribute('disabled');
+            arguments[0].style.display    = 'block';
+            arguments[0].style.visibility = 'visible';
+            arguments[0].style.opacity    = '1';
+        """, file_input)
+        time.sleep(0.3)
 
-    file_input = wait.until(EC.presence_of_element_located((
-        By.ID, "ctl00_cphMain_imageFileUpload"
-    )))
-    driver.execute_script(
-        "arguments[0].scrollIntoView({block:'center'});",
-        file_input
-    )
-    file_input.send_keys(photo_path)
-    print("✅ Fotoğraf masaüstünden yüklendi")
+        abs_path = os.path.abspath(photo_path)
+        file_input.send_keys(abs_path)
+        print(f"✅ Dosya input'a gönderildi: {abs_path}")
+        time.sleep(1.0)
 
+    finally:
+        # Geçici dosyayı sil (sadece URL'den indirilenler)
+        try:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+                print(f"🗑️ Geçici dosya silindi: {tmp_path}")
+        except Exception:
+            pass
 import os
 import unicodedata
 from difflib import SequenceMatcher
