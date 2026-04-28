@@ -1406,6 +1406,8 @@ RELATIONSHIP_MAP = {
     "CHILD": "C",
     "RELATIVE": "R",
     "FRIEND": "F",
+    "OTHER RELATIVE": "O",
+    "OTHER PERSON": "O",
 }
 US_STATE_MAP = {
     "ALABAMA": "AL",
