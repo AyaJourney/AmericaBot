@@ -3503,24 +3503,46 @@ def fill_us_immediate_relatives(wait, driver, data):
 
 
 def fill_us_other_relatives(wait, driver, data):
-    other_rel = str(data.get("US_OTHER_RELATIVE", "NO")).strip().upper()
-    if other_rel not in ("YES", "NO"):
-        other_rel = "NO"
+    # ── 1. US IMMEDIATE RELATIVE ──────────────────────────────
+    immed = str(data.get("US_IMMEDIATE_RELATIVE", "NO")).strip().upper()
+    if immed not in ("YES", "NO"):
+        immed = "NO"
 
-    yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblOtherRelInd_0"
-    no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblOtherRelInd_1"
+    immed_yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_0"
+    immed_no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_1"
 
     try:
-        target_id = yes_id if other_rel == "YES" else no_id
-        relative_radio = wait.until(
-            EC.element_to_be_clickable((By.ID, target_id))
-        )
-        driver.execute_script("arguments[0].click();", relative_radio)
-        print(f"✅ US Other Relatives: {other_rel}")
-        time.sleep(0.5)
+        immed_radio = wait.until(EC.element_to_be_clickable(
+            (By.ID, immed_yes_id if immed == "YES" else immed_no_id)
+        ))
+        if not immed_radio.is_selected():
+            driver.execute_script("arguments[0].click();", immed_radio)
+            time.sleep(1.5)  # postback bekle
+        print(f"✅ US Immediate Relative: {immed}")
     except Exception as e:
-        print(f"⚠️ US Other Relatives radio bulunamadı: {e}")
+        print(f"⚠️ US Immediate Relative radio: {e}")
 
+    # ── 2. US OTHER RELATIVE ──────────────────────────────────
+    other = str(data.get("US_OTHER_RELATIVE", "NO")).strip().upper()
+    if other not in ("YES", "NO"):
+        other = "NO"
+
+    other_yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblUS_OTHER_RELATIVE_IND_0"
+    other_no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblUS_OTHER_RELATIVE_IND_1"
+
+    try:
+        wait.until(EC.visibility_of_element_located(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ShowDivOtherRelatives")
+        ))
+        other_radio = wait.until(EC.element_to_be_clickable(
+            (By.ID, other_yes_id if other == "YES" else other_no_id)
+        ))
+        if not other_radio.is_selected():
+            driver.execute_script("arguments[0].click();", other_radio)
+            time.sleep(0.5)
+        print(f"✅ US Other Relative: {other}")
+    except Exception as e:
+        print(f"⚠️ US Other Relative radio: {e}")
 def auto_fill_family_page(wait, driver, data):
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
 
