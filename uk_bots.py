@@ -14,10 +14,10 @@ from selenium.webdriver.common.keys import Keys
 # ============================================================
 
 # --- PRODUCTION (deploy sonrasi bunu ac) ---
-CRM_BASE = "https://crm.ayajourney.com/api/internal"
+# CRM_BASE = "https://crm.ayajourney.com/api/internal"
 
 # --- LOCAL TEST ---
-# CRM_BASE = "http://localhost:3000/api/internal"
+CRM_BASE = "http://localhost:3000/api/internal"
 
 QUEUE_URL    = f"{CRM_BASE}/queue/uk-visa/start"
 STATUS_URL   = f"{CRM_BASE}/job/uk-visa/status"
@@ -111,37 +111,96 @@ class VisaFormData:
         except:
             pass
         
-        # Key'ler string veya int olabilir
-        def get_step(key):
-            return self.raw.get(str(key), self.raw.get(int(key) if str(key).isdigit() else key, {}))
+        print(f"[DATA] Raw top-level keys: {list(self.raw.keys())}")
         
-        self.step1 = get_step("1")
-        self.step2 = get_step("2")
-        self.step3 = get_step("3")
-        self.step4 = get_step("4")
-        self.step5 = get_step("5")
-        self.step6 = get_step("6")
+        # Step'leri yükle - birden fazla yol dene
+        self.step1 = {}
+        self.step2 = {}
+        self.step3 = {}
+        self.step4 = {}
+        self.step5 = {}
+        self.step6 = {}
         
-        # Eger step'ler bos geliyorsa, raw data flat olabilir
-        if not self.step1 and not self.step3:
-            # Flat yapi: tum alanlar direkt raw icinde
-            print(f"[DATA] Step'ler bos! Raw flat yapi olabilir.")
-            print(f"[DATA] Raw keys: {list(self.raw.keys())[:20]}")
-            # fullName, tcId gibi alanlari direkt raw'dan ara
-            if self.raw.get("fullName") or self.raw.get("email"):
-                print(f"[DATA] Flat yapi tespit edildi! Tum step'ler = raw")
+        # YONTEM 1: Dogrudan "1", "2", "3" string key'ler (en yaygin)
+        if self.raw.get("1") and isinstance(self.raw.get("1"), dict):
+            self.step1 = self.raw["1"]
+            self.step2 = self.raw.get("2", {})
+            self.step3 = self.raw.get("3", {})
+            self.step4 = self.raw.get("4", {})
+            self.step5 = self.raw.get("5", {})
+            self.step6 = self.raw.get("6", {})
+            print(f"[DATA] Yontem 1: String key'ler ('1','2','3'...) bulundu")
+        
+        # YONTEM 2: Integer key'ler (1, 2, 3)
+        elif self.raw.get(1) and isinstance(self.raw.get(1), dict):
+            self.step1 = self.raw[1]
+            self.step2 = self.raw.get(2, {})
+            self.step3 = self.raw.get(3, {})
+            self.step4 = self.raw.get(4, {})
+            self.step5 = self.raw.get(5, {})
+            self.step6 = self.raw.get(6, {})
+            print(f"[DATA] Yontem 2: Integer key'ler (1,2,3...) bulundu")
+        
+        # YONTEM 3: "data" wrapper icinde
+        elif self.raw.get("data") and isinstance(self.raw.get("data"), dict):
+            d = self.raw["data"]
+            self.step1 = d.get("1", d.get(1, {}))
+            self.step2 = d.get("2", d.get(2, {}))
+            self.step3 = d.get("3", d.get(3, {}))
+            self.step4 = d.get("4", d.get(4, {}))
+            self.step5 = d.get("5", d.get(5, {}))
+            self.step6 = d.get("6", d.get(6, {}))
+            print(f"[DATA] Yontem 3: 'data' wrapper icinde bulundu")
+        
+        # YONTEM 4: "__raw.steps" icinde
+        elif self.raw.get("__raw") and isinstance(self.raw["__raw"], dict):
+            steps = self.raw["__raw"].get("steps", {})
+            if steps:
+                self.step1 = steps.get("1", steps.get(1, {}))
+                self.step2 = steps.get("2", steps.get(2, {}))
+                self.step3 = steps.get("3", steps.get(3, {}))
+                self.step4 = steps.get("4", steps.get(4, {}))
+                self.step5 = steps.get("5", steps.get(5, {}))
+                self.step6 = steps.get("6", steps.get(6, {}))
+                print(f"[DATA] Yontem 4: '__raw.steps' icinde bulundu")
+        
+        # YONTEM 5: Flat yapi - tum alanlar direkt raw icinde
+        if not self.step1:
+            if self.raw.get("fullName") or self.raw.get("email") or self.raw.get("gender"):
                 self.step1 = self.raw
                 self.step2 = self.raw
                 self.step3 = self.raw
                 self.step4 = self.raw
                 self.step5 = self.raw
                 self.step6 = self.raw
+                print(f"[DATA] Yontem 5: Flat yapi - tum alanlar raw icinde")
         
-        # Debug
-        print(f"[DATA] Step1 keys: {list(self.step1.keys())[:8] if self.step1 else 'BOS'}")
-        print(f"[DATA] Step3 keys: {list(self.step3.keys())[:8] if self.step3 else 'BOS'}")
-        tc = self.step3.get("tcId", "")
-        pp = self.step3.get("passport_number", "")
+        # Son kontrol: step3'te tcId yoksa tum raw'da ara
+        if not self.step3.get("tcId"):
+            for key, val in self.raw.items():
+                if isinstance(val, dict) and val.get("tcId"):
+                    self.step3 = val
+                    print(f"[DATA] tcId key='{key}' altinda bulundu: {val.get('tcId')}")
+                    break
+        
+        # Ust seviye fullName/email varsa ve step1'de yoksa, ust seviyeyi kullan
+        if not self.step1.get("fullName") and self.raw.get("fullName"):
+            print(f"[DATA] Step1'de fullName yok ama ust seviyede var, ekleniyor")
+            # step1'i kopyala ve ust seviye alanlari ekle
+            merged = dict(self.step1)
+            for k in ["fullName", "email", "phone", "phone_number", "gender", "birthDate",
+                       "birthPlace", "nationality", "maritalStatus", "home_address", 
+                       "home_city", "post_code", "home_district"]:
+                if self.raw.get(k) and not merged.get(k):
+                    merged[k] = self.raw[k]
+            self.step1 = merged
+        
+        # Debug output
+        fn = self.step1.get("fullName", "BOS")
+        tc = self.step3.get("tcId", "BOS")
+        em = self.step1.get("email", "BOS")
+        pp = self.step3.get("passport_number", "BOS")
+        print(f"[DATA] fullName='{fn}' | email='{em}'")
         print(f"[DATA] tcId='{tc}' | passport='{pp}'")
 
     # --- Step 1: Kisisel Bilgiler ---
@@ -509,10 +568,31 @@ class VisaFormData:
 
     @property
     def last_travels(self):
-        """CRM'den son seyahat listesi"""
+        """CRM'den son seyahat listesi - hem array hem flat key'lerden oku"""
+        result = []
+        
+        # YONTEM 1: lastTravels array'inden (bos olmayanlar)
         travels = self.step5.get("lastTravels", [])
-        # Bos kayitlari filtrele
-        return [t for t in travels if t.get("country", "").strip()]
+        for t in travels:
+            if t.get("country", "").strip():
+                result.append(t)
+        
+        # YONTEM 2: Flat key'lerden (lastTravel1_country, lastTravel2_country, ...)
+        if not result:
+            for i in range(1, 10):
+                country = self.step5.get(f"lastTravel{i}_country", "").strip()
+                if not country:
+                    break
+                result.append({
+                    "country": country,
+                    "purpose": self.step5.get(f"lastTravel{i}_purpose", "").strip(),
+                    "monthYear": self.step5.get(f"lastTravel{i}_monthYear", "").strip(),
+                    "durationDays": self.step5.get(f"lastTravel{i}_duration", "").strip(),
+                })
+        
+        if result:
+            print(f"[DATA] {len(result)} seyahat bulundu: {[t['country'] for t in result]}")
+        return result
 
     @property
     def travels_with_non_family(self):
@@ -845,6 +925,17 @@ def click_submit(driver, wait, max_retries=3):
                     var group = radioGroups[name];
                     var anyChecked = group.some(function(r) { return r.checked; });
                     if (!anyChecked) {
+                        // Bu radiolari ATLA - handler'lar doldurmali
+                        var skipGroups = ['hasValidIdCard', 'hasValidId', 'isCorrespondenceAddress', 
+                                          'emailOwner', 'hasOtherNationality', 'hasDependants',
+                                          'haveBeenToTheUK', 'haveYouHadTreatment', 'doYouHaveADrivingLicence',
+                                          'previouslyApplied', 'yesNo', 'purposeRef'];
+                        var shouldSkip = false;
+                        for (var s = 0; s < skipGroups.length; s++) {
+                            if (name === skipGroups[s] || name.indexOf(skipGroups[s]) !== -1) { shouldSkip = true; break; }
+                        }
+                        if (shouldSkip) return;
+                        
                         var nobtn = null;
                         if (name === 'convictionTypeRef') {
                             for (var k = 0; k < group.length; k++) {
@@ -1182,6 +1273,8 @@ def detect_current_page(driver):
         "addtelephonenumber": "phone",
         "contactpreference": "contact_preference",
         "applicantname": "name",
+        "standardapplicantname": "name",
+        "applicant.0.name": "name",
         "othernames": "other_names",
         "othername": "other_names",
         "genderandrelationship": "gender_marital",
@@ -1194,6 +1287,7 @@ def detect_current_page(driver):
         "previousaddress": "previous_address",
         "traveldocument": "passport",
         "hasvalidid": "id_card",
+        "standardidentitycard": "id_card",
         "identificationdocument": "id_card_details",
         "nationality": "nationality_dob",
         "othernationality": "other_nationality",
@@ -1254,6 +1348,45 @@ def detect_current_page(driver):
     for key, val in ACTION_MAP.items():
         if key in combined:
             return val
+    
+    # ACTION_MAP eslesmediyse - kritik element ID'lere bak (sadece cakismayan ID'ler)
+    critical_checks = [
+        ("password1", "email_register"),
+        ("emailOwner_you", "email_owner"),
+        ("telephoneNumber", "phone"),
+        ("contactByTelephone_callAndText", "contact_preference"),
+        ("outOfCountryAddress_line1", "address"),
+        ("yearsLived", "home_duration"),
+        ("travelDocumentNumber", "passport"),
+        ("hasValidIdCard_true", "id_card"),
+        ("nationalIdCardNo", "id_card_details"),
+        ("placeOfBirth", "nationality_dob"),
+        ("status_employed", "employment_status"),
+        ("dateOfArrival_day", "travel_dates"),
+        ("preferredLanguage_english", "language_pref"),
+        ("convictionTypeRef_none", "criminal_convictions"),
+        ("none_none", "employment_history"),
+    ]
+    for elem_id, page_name in critical_checks:
+        try:
+            el = driver.find_element(By.ID, elem_id)
+            if el.is_displayed():
+                print(f"[DETECT] Element ID fallback: {elem_id} -> {page_name}")
+                return page_name
+        except:
+            continue
+    
+    # givenName + familyName birlikte varsa = name sayfasi
+    try:
+        gn = driver.find_element(By.ID, "givenName")
+        fn = driver.find_element(By.ID, "familyName")
+        if gn.is_displayed() and fn.is_displayed():
+            # partner sayfasinda da var - form action'dan ayir
+            if "partner" not in form_action:
+                print(f"[DETECT] givenName+familyName -> name (partner degil)")
+                return "name"
+    except:
+        pass
     
     return "unknown"
 
@@ -1569,18 +1702,23 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
     # ===== SAYFA 6: Isim ve Soyisim =====
     elif page == "name":
-        print("[FORM-6] Isim ve soyisim giriliyor...")
+        print(f"[FORM-6] Isim ve soyisim giriliyor... first='{form.first_name}' last='{form.last_name}'")
+
+        if not form.first_name:
+            print(f"[FORM-6] UYARI: first_name bos! full_name='{form.full_name}' step1 fullName='{form.step1.get('fullName', 'YOK')}'")
 
         given_name = wait.until(EC.presence_of_element_located((By.ID, "givenName")))
         given_name.clear()
-        given_name.send_keys(form.first_name)
-        print(f"[FORM-6a] Isim girildi: {form.first_name}")
+        name_val = form.first_name if form.first_name else form.full_name.split()[0] if form.full_name else "UNKNOWN"
+        given_name.send_keys(name_val)
+        print(f"[FORM-6a] Isim girildi: {name_val}")
         time.sleep(0.5)
 
         family_name = wait.until(EC.presence_of_element_located((By.ID, "familyName")))
         family_name.clear()
-        family_name.send_keys(form.last_name)
-        print(f"[FORM-6b] Soyisim girildi: {form.last_name}")
+        surname_val = form.last_name if form.last_name else (" ".join(form.full_name.split()[1:]) if len(form.full_name.split()) > 1 else "UNKNOWN")
+        family_name.send_keys(surname_val)
+        print(f"[FORM-6b] Soyisim girildi: {surname_val}")
         time.sleep(0.5)
 
         click_submit(driver, wait)
@@ -2181,40 +2319,65 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
     # ===== SAYFA 13: Kimlik karti var mi =====
     elif page == "id_card":
-        print(f"[FORM-13] Kimlik karti sorgusu... tc_id='{form.tc_id}' (len={len(form.tc_id)})")
+        print(f"[FORM-13] Kimlik karti... tc_id='{form.tc_id}'")
+        
         if form.tc_id:
             print(f"[FORM-13] TC kimlik var ({form.tc_id}), Yes seciliyor...")
             set_radio(driver, "hasValidIdCard_true")
+            time.sleep(1)
+            
+            # Yes secince hidden alan acilir - JS ile ac
+            unhide_toggled(driver, "hasValidIdCard_true")
+            time.sleep(1)
+            
+            # TC Kimlik No
+            set_input(driver, "nationalIdCardNo", form.tc_id, wait)
+            print(f"[FORM-13] Kimlik no: {form.tc_id}")
+            
+            # Veren makam
+            set_input(driver, "issuingAuthority", form.home_district or "NUFUS MUDURLUGU", wait)
+            print(f"[FORM-13] Veren makam: {form.home_district or 'NUFUS MUDURLUGU'}")
+            
+            # Verilis tarihi
+            if form.birth_date:
+                id_issue = parse_date_safe(form.birth_date, "Kimlik verilis")
+            else:
+                id_issue = datetime.now() - relativedelta(years=18)
+            set_date(driver, "issueDate", id_issue)
+            print(f"[FORM-13] Verilis: {id_issue.day}/{id_issue.month}/{id_issue.year}")
+            
+            # Bitis tarihi
+            if form.tc_card_end_date:
+                id_expiry = parse_date_safe(form.tc_card_end_date, "Kimlik bitis")
+                if id_expiry < datetime.now():
+                    id_expiry = datetime.now() + relativedelta(years=1)
+            else:
+                id_expiry = datetime.now() + relativedelta(years=5)
+            set_date(driver, "expiryDate", id_expiry)
+            print(f"[FORM-13] Bitis: {id_expiry.day}/{id_expiry.month}/{id_expiry.year}")
         else:
             print("[FORM-13] TC kimlik yok, No seciliyor...")
             set_radio(driver, "hasValidIdCard_false")
+        
         click_submit(driver, wait)
         time.sleep(3)
         print("[FORM-13] Kimlik karti tamamlandi!")
 
     elif page == "id_card_details":
+        # Ayri sayfa olarak gelirse (bazi durumlarda)
         if not form.tc_id:
             print("[FORM-13b] TC kimlik yok, submit ile geciliyor...")
             click_submit(driver, wait)
             time.sleep(3)
             return
-        print("[FORM-13b] Kimlik karti detaylari giriliyor...")
-
+        print("[FORM-13b] Kimlik karti detaylari (ayri sayfa)...")
         set_input(driver, "nationalIdCardNo", form.tc_id, wait)
-        print(f"[FORM-13b] Kimlik no: {form.tc_id}")
-
         set_input(driver, "issuingAuthority", form.home_district or "NUFUS MUDURLUGU", wait)
-        print(f"[FORM-13b] Veren makam: {form.home_district or 'NUFUS MUDURLUGU'}")
-
-        # Verilis tarihi = dogum tarihi
         if form.birth_date:
             id_issue = parse_date_safe(form.birth_date, "Kimlik verilis")
         else:
             id_issue = datetime.now() - relativedelta(years=18)
         set_date(driver, "issueDate", id_issue)
-        print(f"[FORM-13b] Verilis tarihi: {id_issue.day}/{id_issue.month}/{id_issue.year}")
-
-        # Bitis tarihi
         if form.tc_card_end_date:
             id_expiry = parse_date_safe(form.tc_card_end_date, "Kimlik bitis")
             if id_expiry < datetime.now():
@@ -2222,11 +2385,9 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         else:
             id_expiry = datetime.now() + relativedelta(years=5)
         set_date(driver, "expiryDate", id_expiry)
-        print(f"[FORM-13b] Bitis tarihi: {id_expiry.day}/{id_expiry.month}/{id_expiry.year}")
-
         click_submit(driver, wait)
         time.sleep(3)
-        print("[FORM-13b] Kimlik karti detaylari tamamlandi!")
+        print("[FORM-13b] Tamamlandi!")
 
     # ===== SAYFA 14: Uyruk, Dogum Yeri, Dogum Tarihi =====
     elif page == "nationality_dob":
@@ -3884,11 +4045,22 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     set_input(driver, "date_month", str(visit_dt.month))
                     set_input(driver, "date_year", str(visit_dt.year))
 
-                    # Sure
-                    try:
-                        dur_days = int(duration) if duration else 7
-                    except:
+                    # Sure - duration tarih olabilir (bitis tarihi) veya gun sayisi
+                    dur_days = 7
+                    if duration:
+                        try:
+                            dur_days = int(duration)
+                        except ValueError:
+                            # Tarih formati olabilir - bitis tarihi
+                            try:
+                                end_dt = parse_date_safe(duration, "EEA bitis")
+                                dur_days = max(1, (end_dt - visit_dt).days)
+                            except:
+                                dur_days = 7
+                    if dur_days < 1:
                         dur_days = 7
+                    if dur_days > 365:
+                        dur_days = 30  # max 1 ay varsay
                     if dur_days <= 7:
                         set_select(driver, "durationOfStayUnit", "days")
                         set_input(driver, "durationOfStay", str(dur_days if dur_days > 0 else 7))
@@ -4296,10 +4468,21 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                         else:
                             visit_dt = datetime.now() - relativedelta(years=1)
 
-                        try:
-                            dur_days = int(duration) if duration else 7
-                        except:
+                        # Sure - duration tarih olabilir (bitis tarihi) veya gun sayisi
+                        dur_days = 7
+                        if duration:
+                            try:
+                                dur_days = int(duration)
+                            except ValueError:
+                                try:
+                                    end_parsed = parse_date_safe(duration, "Diger ulke bitis")
+                                    dur_days = max(1, (end_parsed - visit_dt).days)
+                                except:
+                                    dur_days = 7
+                        if dur_days < 1:
                             dur_days = 7
+                        if dur_days > 365:
+                            dur_days = 30
                         end_dt = visit_dt + relativedelta(days=max(dur_days, 1))
 
                         set_date(driver, "visitStartDate", visit_dt)
@@ -4457,30 +4640,39 @@ def main():
             continue
 
         job_id = job.get("job_id")
-        raw_form_data = job.get("data", {})
         resume_link = job.get("resume_link")
 
-        # DEBUG: CRM'den gelen veriyi logla
+        # CRM'den gelen veriyi al
+        raw_form_data = job.get("data", {})
+        
+        # data string olarak gelmis olabilir (JSON string)
+        if isinstance(raw_form_data, str):
+            try:
+                raw_form_data = json.loads(raw_form_data)
+                print(f"[DEBUG] data string'den parse edildi")
+            except:
+                raw_form_data = {}
+        
+        # data bos veya dict degilse, job'un kendisini dene
+        if not isinstance(raw_form_data, dict) or not raw_form_data:
+            raw_form_data = job
+            print(f"[DEBUG] data bos/gecersiz, job kullaniliyor")
+        
+        # data icinde step yok ama job'ta var mi?
+        if not raw_form_data.get("1") and not raw_form_data.get("fullName"):
+            if job.get("1") or job.get("fullName"):
+                raw_form_data = job
+                print(f"[DEBUG] data'da step yok, job kullaniliyor")
+        
+        # DEBUG
         print(f"[DEBUG] job keys: {list(job.keys())}")
-        print(f"[DEBUG] raw_form_data type: {type(raw_form_data)}")
-        if isinstance(raw_form_data, dict):
-            print(f"[DEBUG] raw_form_data keys: {list(raw_form_data.keys())[:10]}")
-            # tcId'yi tum veri icinde ara
-            import json as _json
-            raw_str = _json.dumps(raw_form_data, ensure_ascii=False)
-            if "tcId" in raw_str:
-                # tcId'nin bulundugu yeri goster
-                idx = raw_str.find("tcId")
-                print(f"[DEBUG] tcId bulundu! Context: ...{raw_str[max(0,idx-30):idx+50]}...")
-            else:
-                print(f"[DEBUG] tcId RAW DATA ICINDE YOK!")
-                # Belki farkli key ile var
-                for search_key in ["tc_id", "TC", "tckimlik", "identity", "nationalId"]:
-                    if search_key in raw_str.lower():
-                        print(f"[DEBUG] Alternatif key bulundu: {search_key}")
-            # Ilk 500 char goster
-            print(f"[DEBUG] Raw data (ilk 500): {raw_str[:500]}")
-
+        print(f"[DEBUG] raw_form_data keys: {list(raw_form_data.keys())[:15]}")
+        has_step1 = "1" in raw_form_data and isinstance(raw_form_data.get("1"), dict)
+        print(f"[DEBUG] Step1 mevcut: {has_step1}")
+        if has_step1:
+            print(f"[DEBUG] Step1 fullName: '{raw_form_data['1'].get('fullName', 'YOK')}'")
+            print(f"[DEBUG] Step3 tcId: '{raw_form_data.get('3', {}).get('tcId', 'YOK')}'")
+        
         # visa_forms verisini parse et
         form = VisaFormData(raw_form_data)
 
