@@ -575,9 +575,86 @@ def run_ds160_until_captcha(job: dict):
             take_and_send_screenshot(driver, job_id)
 
         def on_photo_page():
-            print(f"[BOT-{BOT_ID}] Fotograf sayfasina gelindi, screenshot aliniyor...")
+            print(f"[BOT-{BOT_ID}] Fotoğraf sayfasına gelindi")
+
+            # 1. Fotoğrafı yükle
+            photo_uploaded = False
+            try:
+                from form_fill import upload_photo_by_fullname
+                upload_photo_by_fullname(wait, driver, data)
+                photo_uploaded = True
+                print(f"[BOT-{BOT_ID}] ✅ Fotoğraf yüklendi")
+            except Exception as e:
+                print(f"[BOT-{BOT_ID}] ⚠️ Fotoğraf yükleme hatası: {e}")
+
+            # 2. Screenshot al (her durumda)
             take_and_send_screenshot(driver, job_id)
-            wait_for_close_command(driver, job_id)
+
+            if not photo_uploaded:
+                print(f"[BOT-{BOT_ID}] Fotoğraf yüklenemedi → manuel onay bekleniyor")
+                wait_for_close_command(driver, job_id)
+                return
+
+            # 3. Upload butonunu tıkla (varsa)
+            upload_btn_ids = [
+                "ctl00_SiteContentPlaceHolder_FormView1_btnUploadPhoto",
+                "ctl00_SiteContentPlaceHolder_FormView1_btnUpload",
+                "ctl00_SiteContentPlaceHolder_ucPhoto_btnUpload",
+                "ctl00_cphMain_btnUpload",
+            ]
+            for btn_id in upload_btn_ids:
+                try:
+                    btn = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.ID, btn_id))
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+                    btn.click()
+                    print(f"[BOT-{BOT_ID}] ✅ Upload butonu tıklandı: {btn_id}")
+                    time.sleep(2.0)
+                    break
+                except Exception:
+                    continue
+
+            # 4. Next butonunu tıkla
+            next_btn_ids = [
+                "ctl00_SiteContentPlaceHolder_FormView1_btnNext",
+                "ctl00_SiteContentPlaceHolder_UpdateButton",
+                "ctl00_SiteContentPlaceHolder_UpdateButton2",
+                "ctl00_SiteContentPlaceHolder_UpdateButton3",
+                "ctl00_cphMain_btnNext",
+            ]
+            clicked = False
+            for btn_id in next_btn_ids:
+                try:
+                    btn = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.ID, btn_id))
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+                    btn.click()
+                    print(f"[BOT-{BOT_ID}] ✅ Next tıklandı: {btn_id}")
+                    time.sleep(2.0)
+                    clicked = True
+                    break
+                except Exception:
+                    continue
+
+            if not clicked:
+                # XPath fallback
+                try:
+                    btn = driver.find_element(
+                        By.XPATH,
+                        "//input[@type='submit' and ("
+                        "contains(@value,'Next') or "
+                        "contains(@value,'Submit') or "
+                        "contains(@value,'Save'))]"
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+                    btn.click()
+                    print(f"[BOT-{BOT_ID}] ✅ Next tıklandı: XPath fallback")
+                    time.sleep(2.0)
+                except Exception as e:
+                    print(f"[BOT-{BOT_ID}] ⚠️ Next butonu bulunamadı: {e}")
+                    wait_for_close_command(driver, job_id)
 
         fill_ds160_full_application(
             driver, wait, data,

@@ -89,12 +89,26 @@ from form_fill import (
 # =====================================================
 def _check_photo_page(driver) -> bool:
     """Fotoğraf yükleme sayfasında mıyız?"""
+    photo_ids = [
+        "ctl00_SiteContentPlaceHolder_FormView1_btnUploadPhoto",
+        "ctl00_SiteContentPlaceHolder_btnUploadPhoto",
+        "ctl00_cphMain_imageFileUpload",
+        "ctl00_SiteContentPlaceHolder_FormView1_fileUpload",
+    ]
+    for pid in photo_ids:
+        try:
+            el = driver.find_element(By.ID, pid)
+            if el.is_displayed():
+                return True
+        except Exception:
+            continue
+    # URL kontrolü
     try:
-        el = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
-        return el.is_displayed()
+        if "Photo" in driver.current_url or "photo" in driver.current_url:
+            return True
     except Exception:
-        return False
-
+        pass
+    return False
 
 def _scn(wait, driver, on_photo_page=None, label="Travel Companions") -> bool:
     click_save(wait, driver)
