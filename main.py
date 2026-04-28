@@ -31,7 +31,7 @@ args   = parser.parse_args()
 BOT_ID = args.bot_id
 
 print(f"[BOT-{BOT_ID}] Baslatildi")
-
+PHOTO_DIR = r"C:\Users\ayajo\OneDrive\Desktop\amerika bot\AmericaBot\photos"
 # =====================================================
 # CONFIG
 # =====================================================
@@ -577,32 +577,29 @@ def run_ds160_until_captcha(job: dict):
         def on_photo_page():
             print(f"[BOT-{BOT_ID}] Fotoğraf sayfasına gelindi")
 
+            import urllib.request
+
+            PHOTO_DIR = os.path.join(
+                os.path.expanduser("~"),
+                "OneDrive", "Desktop", "amerika bot", "AmericaBot", "photos"
+            )
+            os.makedirs(PHOTO_DIR, exist_ok=True)
+            print(f"[BOT-{BOT_ID}] Fotoğraf klasörü: {PHOTO_DIR}")
+
+            photo_path = None
+            tmp_path   = None
+
             try:
-                # ── ADIM 1: Upload Photo butonuna tıkla ─────────────
-                upload_btn = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto"))
-                )
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", upload_btn)
-                upload_btn.click()
-                print(f"[BOT-{BOT_ID}] ✅ Upload Photo tıklandı")
-                time.sleep(3)
-                wait_document_ready(driver, 30)
-
-                # ── ADIM 2: Fotoğrafı diske kaydet ──────────────────
-                import os, urllib.request, tempfile
-
-                photo_url  = data.get("PHOTO_URL") or data.get("photo_url") or ""
-                photo_path = None
-                tmp_path   = None
+                # ── Fotoğrafı bul / indir ────────────────────────────
+                photo_url = data.get("PHOTO_URL") or data.get("photo_url") or ""
+                print(f"[BOT-{BOT_ID}] PHOTO_URL: '{photo_url[:80] if photo_url else 'BOŞ'}'")
 
                 if photo_url and photo_url.startswith("http"):
-                    # Temp klasörüne kaydet (Windows: C:\Users\...\AppData\Local\Temp)
-                    tmp_dir  = tempfile.gettempdir()
-                    tmp_path = os.path.join(tmp_dir, f"ds160_photo_{BOT_ID}.jpg")
-                    print(f"[BOT-{BOT_ID}] 📥 İndiriliyor: {photo_url[:80]}")
+                    tmp_path = os.path.join(PHOTO_DIR, f"ds160_photo_{BOT_ID}.jpg")
+                    print(f"[BOT-{BOT_ID}] 📥 İndiriliyor → {tmp_path}")
                     urllib.request.urlretrieve(photo_url, tmp_path)
                     size = os.path.getsize(tmp_path)
-                    print(f"[BOT-{BOT_ID}] ✅ İndirildi: {tmp_path} ({size} bytes)")
+                    print(f"[BOT-{BOT_ID}] ✅ İndirildi: {size} bytes")
                     if size > 1000:
                         photo_path = tmp_path
                     else:
@@ -611,69 +608,103 @@ def run_ds160_until_captcha(job: dict):
                         tmp_path = None
 
                 if not photo_path:
-                    # Fallback: masaüstünde isimle ara
                     from form_fill import _find_best_photo
                     full_name = data.get("FULL_NAME") or \
-                        f"{data.get('GIVEN_NAME','')} {data.get('SURNAME','')}".strip()
-                    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-                    fname, score = _find_best_photo(desktop, full_name)
+                        f"{data.get('GIVEN_NAME', '')} {data.get('SURNAME', '')}".strip()
+                    print(f"[BOT-{BOT_ID}] Klasörde aranıyor: '{full_name}'")
+                    fname, score = _find_best_photo(PHOTO_DIR, full_name)
+                    print(f"[BOT-{BOT_ID}] Arama sonucu: fname={fname} score={score:.2f}")
                     if fname and score >= 0.70:
-                        photo_path = os.path.join(desktop, fname)
-                        print(f"[BOT-{BOT_ID}] ✅ Masaüstünde bulundu: {fname}")
+                        photo_path = os.path.join(PHOTO_DIR, fname)
 
                 if not photo_path:
-                    raise Exception("Fotoğraf bulunamadı — ne URL ne masaüstü")
+                    raise Exception(
+                        f"Fotoğraf bulunamadı — PHOTO_URL boş ve klasörde eşleşme yok. "
+                        f"Fotoğrafı {PHOTO_DIR} klasörüne koy."
+                    )
 
-                # ── ADIM 3: File input'a dosyayı gönder ─────────────
-                # id=ctl00_cphMain_imageFileUpload
+                print(f"[BOT-{BOT_ID}] 📸 Kullanılacak fotoğraf: {photo_path}")
+
+                # ── ADIM 1: Upload Photo butonuna tıkla ─────────────
+                upload_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
+                    )
+                )
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block:'center'});", upload_btn
+                )
+                upload_btn.click()
+                print(f"[BOT-{BOT_ID}] ✅ Upload Photo tıklandı")
+                time.sleep(3)
+                wait_document_ready(driver, 30)
+                print(f"[BOT-{BOT_ID}] Upload sayfası URL: {driver.current_url}")
+
+                # ── ADIM 2: File input'a dosyayı gönder ─────────────
+                # id = ctl00_cphMain_imageFileUpload
                 file_input = WebDriverWait(driver, 15).until(
-                    EC.presence_of_element_located((By.ID, "ctl00_cphMain_imageFileUpload"))
+                    EC.presence_of_element_located(
+                        (By.ID, "ctl00_cphMain_imageFileUpload")
+                    )
                 )
                 driver.execute_script("""
                     arguments[0].removeAttribute('disabled');
-                    arguments[0].style.display = 'block';
-                    arguments[0].style.visibility = 'visible';
-                    arguments[0].style.opacity = '1';
+                    arguments[0].style.display      = 'block';
+                    arguments[0].style.visibility   = 'visible';
+                    arguments[0].style.opacity      = '1';
                 """, file_input)
                 time.sleep(0.3)
 
-                # send_keys mutlak yol ister
                 abs_path = os.path.abspath(photo_path)
                 file_input.send_keys(abs_path)
                 print(f"[BOT-{BOT_ID}] ✅ Dosya seçildi: {abs_path}")
                 time.sleep(1.5)
 
-                # ── ADIM 4: Upload butonu — id=ctl00_cphButtons_btnUpload
+                val = file_input.get_attribute("value")
+                print(f"[BOT-{BOT_ID}] Input value: '{val}'")
+
+                # ── ADIM 3: Upload butonu tıkla ──────────────────────
+                # id = ctl00_cphButtons_btnUpload  (type=image)
                 upload_submit = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.ID, "ctl00_cphButtons_btnUpload"))
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_cphButtons_btnUpload")
+                    )
                 )
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", upload_submit)
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block:'center'});", upload_submit
+                )
                 driver.execute_script("arguments[0].click();", upload_submit)
                 print(f"[BOT-{BOT_ID}] ✅ Upload tıklandı, sonuç bekleniyor...")
                 time.sleep(5.0)
                 wait_document_ready(driver, 30)
                 print(f"[BOT-{BOT_ID}] Result URL: {driver.current_url}")
 
-                # ── ADIM 5: "Use This Photo" — id=ctl00_cphButtons_btnContinue
+                # ── ADIM 4: Result sayfası — "Use This Photo" ────────
+                # id = ctl00_cphButtons_btnContinue  (type=image)
                 continue_btn = WebDriverWait(driver, 15).until(
-                    EC.element_to_be_clickable((By.ID, "ctl00_cphButtons_btnContinue"))
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_cphButtons_btnContinue")
+                    )
                 )
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", continue_btn)
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block:'center'});", continue_btn
+                )
                 driver.execute_script("arguments[0].click();", continue_btn)
                 print(f"[BOT-{BOT_ID}] ✅ Use This Photo tıklandı")
                 time.sleep(4.0)
                 wait_document_ready(driver, 30)
+                print(f"[BOT-{BOT_ID}] Confirm Photo URL: {driver.current_url}")
 
-                # ── ADIM 6: Confirm Photo — Next: REVIEW ────────────
-                # id=ctl00_SiteContentPlaceHolder_UpdateButton3
-                # onclick: __doPostBack ile çalışıyor
+                # ── ADIM 5: Confirm Photo — Next: REVIEW ─────────────
+                # id = ctl00_SiteContentPlaceHolder_UpdateButton3
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located(
                         (By.ID, "ctl00_SiteContentPlaceHolder_UpdateButton3")
                     )
                 )
                 driver.execute_script(
-                    "document.getElementById('ctl00_SiteContentPlaceHolder_UpdateButton3').disabled = false;"
+                    "document.getElementById('ctl00_SiteContentPlaceHolder_UpdateButton3')"
+                    ".disabled = false;"
                     "__doPostBack('ctl00$SiteContentPlaceHolder$UpdateButton3','');"
                 )
                 print(f"[BOT-{BOT_ID}] ✅ Next: REVIEW tıklandı — fotoğraf tamamlandı!")
@@ -689,13 +720,11 @@ def run_ds160_until_captcha(job: dict):
             finally:
                 # Geçici dosyayı sil
                 try:
-                    if 'tmp_path' in locals() and tmp_path and os.path.exists(tmp_path):
+                    if tmp_path and os.path.exists(tmp_path):
                         os.unlink(tmp_path)
                         print(f"[BOT-{BOT_ID}] 🗑️ Geçici dosya silindi: {tmp_path}")
                 except Exception:
                     pass
-        
-        
         
         
         fill_ds160_full_application(
