@@ -194,28 +194,6 @@ def translate_school_name(name: str) -> str:
         "GRUP":                    "GROUP",
         "ENTERNASYONAL":           "INTERNATIONAL",
         "ULUSLARARASI":            "INTERNATIONAL",
-        "SAN.TIC.LTD.STI.":        "INDUSTRY TRADE LTD CO",
-        "SAN.TIC.LTD.STI":         "INDUSTRY TRADE LTD CO",
-        "TIC.LTD.STI.":            "TRADE LTD CO",
-        "TIC.LTD.STI":             "TRADE LTD CO",
-        "LTD.STI.":                "LTD CO",
-        "LTD.STI":                 "LTD CO",
-        "A.S.":                    "INC",
-        "A.S":                     "INC",
-        "SAN":                     "INDUSTRY",
-        "TIC":                     "TRADE",
-        "LTD":                     "LTD",
-        "HIZ":                     "SERVICE",
-        "NAK":                     "TRANSPORTATION",
-        "INS":                     "CONSTRUCTION",
-        "MUH":                     "ENGINEERING",
-        "MIM":                     "ARCHITECTURE",
-        "OTM":                     "AUTOMOTIVE",
-        "SAN TIC LTD STI":         "INDUSTRY TRADE LTD CO",
-        "TIC SAN LTD STI":         "TRADE INDUSTRY LTD CO",
-        "HIZ SAN TIC LTD STI":     "SERVICE INDUSTRY TRADE LTD CO",
-        "TIC LTD STI":             "TRADE LTD CO",
-        "LTD STI":                 "LTD CO",
 
         # Yaygın Türkçe kelimeler
         "DEVLET":                   "STATE",
@@ -858,6 +836,319 @@ def clean_gender(raw: str) -> str:
 # ANA CLEANING FONKSİYONU
 # ══════════════════════════════════════════════
 
+# ══════════════════════════════════════════════
+# TARİH DOĞRULAMA / DÜZELTME
+# ══════════════════════════════════════════════
+
+from datetime import date, timedelta
+
+def _parse_ds160_date(ds_date_str: str) -> Optional[date]:
+    """DD-MMM-YYYY formatındaki tarihi date objesine çevirir."""
+    if not ds_date_str:
+        return None
+    _M = {
+        "JAN":1,"FEB":2,"MAR":3,"APR":4,"MAY":5,"JUN":6,
+        "JUL":7,"AUG":8,"SEP":9,"OCT":10,"NOV":11,"DEC":12,
+    }
+    parts = str(ds_date_str).strip().split("-")
+    if len(parts) != 3:
+        return None
+    try:
+        day   = int(parts[0])
+        month = _M.get(parts[1].upper())
+        year  = int(parts[2])
+        if not month:
+            return None
+        return date(year, month, day)
+    except Exception:
+        return None
+
+
+def _to_ds160_date(d: date) -> str:
+    """date objesini DD-MMM-YYYY formatına çevirir."""
+    _M = ["JAN","FEB","MAR","APR","MAY","JUN",
+          "JUL","AUG","SEP","OCT","NOV","DEC"]
+    return f"{d.day:02d}-{_M[d.month-1]}-{d.year}"
+
+
+def validate_birth_date(ds_date: str, field_name: str = "BIRTH_DATE") -> str:
+    """
+    Doğum tarihi kontrolü:
+    - Gelecekte olamaz → bugün
+    - 1900'den önce olamaz → 1900-01-01
+    """
+    today = date.today()
+    d = _parse_ds160_date(ds_date)
+    if d is None:
+        return ds_date
+
+    if d >= today:
+        fixed = date(today.year - 18, today.month, today.day)
+        print(f"⚠️ {field_name} gelecekte ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    if d.year < 1900:
+        fixed = date(1900, 1, 1)
+        print(f"⚠️ {field_name} çok eski ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    return ds_date
+
+
+def validate_parent_birth_date(
+    parent_ds_date: str,
+    child_ds_date: str,
+    parent_name: str = "PARENT"
+) -> str:
+    """
+    Anne/baba doğum tarihi, çocuktan büyük olmalı (en az 13 yıl önce).
+    Değilse çocuk doğumundan 25 yıl öncesine ayarla.
+    """
+    parent_d = _parse_ds160_date(parent_ds_date)
+    child_d  = _parse_ds160_date(child_ds_date)
+
+    if parent_d is None or child_d is None:
+        return parent_ds_date
+
+    min_parent_year = child_d.year - 13  # en az 13 yaş farkı
+
+    if parent_d.year >= min_parent_year:
+        fixed = date(child_d.year - 25, child_d.month, child_d.day)
+        print(f"⚠️ {parent_name}_DOB ({parent_ds_date}) çocuktan küçük/eşit → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    # 1900'den önce olamaz
+    if parent_d.year < 1900:
+        fixed = date(1900, 1, 1)
+        print(f"⚠️ {parent_name}_DOB ({parent_ds_date}) çok eski → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    return parent_ds_date
+
+
+def validate_passport_issue_date(ds_date: str) -> str:
+    """
+    Pasaport veriliş tarihi:
+    - Gelecekte olamaz → bugün - 1 gün
+    - 50 yıldan eski olamaz → bugün - 50 yıl
+    """
+    today = date.today()
+    d = _parse_ds160_date(ds_date)
+    if d is None:
+        return ds_date
+
+    if d >= today:
+        fixed = today - timedelta(days=1)
+        print(f"⚠️ PASSPORT_ISSUE_DATE gelecekte ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    if d.year < today.year - 50:
+        fixed = date(today.year - 10, today.month, today.day)
+        print(f"⚠️ PASSPORT_ISSUE_DATE çok eski ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    return ds_date
+
+
+def validate_passport_expiry_date(ds_date: str, issue_ds_date: str = "") -> str:
+    """
+    Pasaport bitiş tarihi:
+    - Geçmişte veya bugün ise → bugün + 6 ay
+    - Veriliş tarihinden önce olamaz → veriliş + 1 yıl
+    - 50 yıldan fazla ileri olamaz → bugün + 10 yıl
+    """
+    today = date.today()
+    d = _parse_ds160_date(ds_date)
+    if d is None:
+        return ds_date
+
+    # Geçmişte veya bugün
+    if d <= today:
+        fixed = today + timedelta(days=180)  # 6 ay sonra
+        print(f"⚠️ PASSPORT_EXPIRY_DATE geçmişte ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    # Veriliş tarihinden önce olamaz
+    if issue_ds_date:
+        issue_d = _parse_ds160_date(issue_ds_date)
+        if issue_d and d <= issue_d:
+            fixed = date(issue_d.year + 1, issue_d.month, issue_d.day)
+            print(f"⚠️ PASSPORT_EXPIRY_DATE veriliş tarihinden önce ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+            return _to_ds160_date(fixed)
+
+    # 50 yıldan fazla ileri
+    if d.year > today.year + 50:
+        fixed = date(today.year + 10, today.month, today.day)
+        print(f"⚠️ PASSPORT_EXPIRY_DATE çok ileri ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    return ds_date
+
+
+def validate_arrival_date(ds_date: str) -> str:
+    """
+    Varış tarihi:
+    - Geçmişte ise → bugün + 90 gün
+    - 10 yıldan fazla ileri ise → bugün + 90 gün
+    """
+    today = date.today()
+    d = _parse_ds160_date(ds_date)
+    if d is None:
+        return ds_date
+
+    if d < today:
+        fixed = today + timedelta(days=90)
+        print(f"⚠️ ARRIVAL_DATE geçmişte ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    if d.year > today.year + 10:
+        fixed = today + timedelta(days=90)
+        print(f"⚠️ ARRIVAL_DATE çok ileri ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    return ds_date
+
+
+def validate_employment_start_date(ds_date: str, birth_ds_date: str = "") -> str:
+    """
+    İşe giriş tarihi:
+    - Gelecekte olamaz → bugün
+    - Doğum tarihinden önce olamaz → doğum + 15 yıl
+    """
+    today = date.today()
+    d = _parse_ds160_date(ds_date)
+    if d is None:
+        return ds_date
+
+    if d > today:
+        fixed = today
+        print(f"⚠️ EMP_START_DATE gelecekte ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+        return _to_ds160_date(fixed)
+
+    if birth_ds_date:
+        birth_d = _parse_ds160_date(birth_ds_date)
+        if birth_d and d < birth_d:
+            fixed = date(birth_d.year + 15, birth_d.month, birth_d.day)
+            print(f"⚠️ EMP_START_DATE doğumdan önce ({ds_date}) → {_to_ds160_date(fixed)} olarak düzeltildi")
+            return _to_ds160_date(fixed)
+
+    return ds_date
+
+
+def validate_mil_dates(start_ds: str, end_ds: str, birth_ds: str = "") -> tuple:
+    """
+    Askerlik tarihleri:
+    - Başlangıç gelecekte olamaz
+    - Bitiş başlangıçtan önce olamaz
+    - Bitiş gelecekte olabilir (halen asker)
+    Tuple döner: (start, end)
+    """
+    today = date.today()
+    start_d = _parse_ds160_date(start_ds)
+    end_d   = _parse_ds160_date(end_ds)
+
+    if start_d and start_d > today:
+        start_d = today - timedelta(days=365)
+        print(f"⚠️ MIL_FROM gelecekte → {_to_ds160_date(start_d)} olarak düzeltildi")
+        start_ds = _to_ds160_date(start_d)
+
+    if end_d and start_d and end_d < start_d:
+        end_d = start_d + timedelta(days=365)
+        print(f"⚠️ MIL_TO başlangıçtan önce → {_to_ds160_date(end_d)} olarak düzeltildi")
+        end_ds = _to_ds160_date(end_d)
+
+    return start_ds, end_ds
+
+
+def apply_date_validations(data: dict) -> dict:
+    """
+    clean_all sonrası tüm tarih doğrulamalarını uygula.
+    data dict'ini in-place günceller ve döner.
+    """
+    birth_ds = data.get("BIRTH_DATE", "") or _assemble_birth_date(data)
+
+    # Doğum tarihi
+    if birth_ds:
+        birth_ds = validate_birth_date(birth_ds, "BIRTH_DATE")
+        data["BIRTH_DATE"] = birth_ds
+        # Ayrı alanları güncelle
+        bd = _parse_ds160_date(birth_ds)
+        if bd:
+            _M3 = ["JAN","FEB","MAR","APR","MAY","JUN",
+                   "JUL","AUG","SEP","OCT","NOV","DEC"]
+            data["BIRTH_DAY"]   = str(bd.day)
+            data["BIRTH_MONTH"] = _M3[bd.month - 1]
+            data["BIRTH_YEAR"]  = str(bd.year)
+
+    # Anne/Baba doğum tarihleri
+    for parent in ("FATHER", "MOTHER"):
+        pdob = data.get(f"{parent}_DOB", "")
+        if pdob and birth_ds:
+            fixed = validate_parent_birth_date(pdob, birth_ds, parent)
+            data[f"{parent}_DOB"] = fixed
+
+    # Pasaport veriliş tarihi
+    issue = data.get("PASSPORT_ISSUE_DATE", "")
+    if issue:
+        issue = validate_passport_issue_date(issue)
+        data["PASSPORT_ISSUE_DATE"] = issue
+
+    # Pasaport bitiş tarihi
+    expiry = data.get("PASSPORT_EXPIRY_DATE", "")
+    if expiry:
+        expiry = validate_passport_expiry_date(expiry, issue)
+        data["PASSPORT_EXPIRY_DATE"] = expiry
+
+    # Varış tarihi
+    for arrival_key in ("INTENDED_ARRIVAL_DATE", "ARRIVAL_DATE",
+                        "ARRIVAL_DAY"):  # ARRIVAL_DAY tek başına değil ama
+        pass  # aşağıda birleştirilmiş hali kontrol ediliyor
+
+    arrival = data.get("INTENDED_ARRIVAL_DATE", "")
+    if arrival:
+        data["INTENDED_ARRIVAL_DATE"] = validate_arrival_date(arrival)
+
+    arrival2 = data.get("ARRIVAL_DATE", "")
+    if arrival2:
+        data["ARRIVAL_DATE"] = validate_arrival_date(arrival2)
+
+    # İşe giriş tarihi
+    emp_start = data.get("EMP_SCH_START_DATE", "")
+    if emp_start:
+        data["EMP_SCH_START_DATE"] = validate_employment_start_date(
+            emp_start, birth_ds
+        )
+
+    # Askerlik tarihleri
+    mil_from = data.get("MIL_FROM", "")
+    mil_to   = data.get("MIL_TO",   "")
+    if mil_from or mil_to:
+        data["MIL_FROM"], data["MIL_TO"] = validate_mil_dates(
+            mil_from, mil_to, birth_ds
+        )
+
+    return data
+
+
+def _assemble_birth_date(data: dict) -> str:
+    """BIRTH_DAY/MONTH/YEAR varsa DD-MMM-YYYY formatında birleştirir."""
+    day   = data.get("BIRTH_DAY",   "")
+    month = data.get("BIRTH_MONTH", "")
+    year  = data.get("BIRTH_YEAR",  "")
+    if day and month and year:
+        _M = {
+            "JAN":"JAN","FEB":"FEB","MAR":"MAR","APR":"APR","MAY":"MAY","JUN":"JUN",
+            "JUL":"JUL","AUG":"AUG","SEP":"SEP","OCT":"OCT","NOV":"NOV","DEC":"DEC",
+        }
+        m3 = _M.get(str(month).upper()[:3], "")
+        if m3:
+            try:
+                return f"{int(day):02d}-{m3}-{year}"
+            except Exception:
+                pass
+    return ""
+
+
 def clean_all(raw: dict) -> dict:
     """
     JSON'dan gelen ham dict'i DS-160 bot için hazırlar.
@@ -1496,6 +1787,9 @@ def clean_all(raw: dict) -> dict:
     for k, v in raw.items():
         if k not in data:
             data[k] = v
+
+    # ── TARİH DOĞRULAMA / OTOMATİK DÜZELTME ──────────────
+    data = apply_date_validations(data)
 
     return data
 
