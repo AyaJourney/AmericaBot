@@ -248,12 +248,32 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
     # ─── Spouse ───────────────────────────────────────────────
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
-    if marital_status in ("MARRIED", "COMMON-LAW MARRIAGE", "DIVORCED", "WIDOWED"):
-        print(f"💍 {marital_status} — eş sayfası dolduruluyor")
+    if marital_status in ("MARRIED", "COMMON-LAW MARRIAGE"):
+        print(f"💍 {marital_status} — eş bilgileri dolduruluyor")
         auto_fill_family_page(wait, driver, data)
         _save_continue_next(wait, driver, label="Occupation")
+
+    elif marital_status in ("DIVORCED", "WIDOWED"):
+        print(f"💍 {marital_status} — eski eş bilgileri dolduruluyor")
+        auto_fill_family_page(wait, driver, data)
+        _save_continue_next(wait, driver, label="Occupation")
+
     else:
-        print(f"ℹ️ {marital_status} — eş sayfası atlanıyor")
+        # SINGLE veya diğer — sayfa yine de çıkabilir
+        print(f"ℹ️ {marital_status} — spouse sayfası kontrol ediliyor")
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseSurname"
+                ))
+            )
+            # Spouse sayfası çıktı ama SINGLE — sadece geç
+            print("ℹ️ Spouse sayfası mevcut (SINGLE) — Next ile geçiliyor")
+            _save_continue_next(wait, driver, label="Occupation")
+        except TimeoutException:
+            # Spouse sayfası yok — direkt occupation
+            print("ℹ️ Spouse sayfası yok — atlanıyor")
 
     # ─── Present Occupation ───────────────────────────────────
     fill_present_occupation_section(wait, driver, data)
