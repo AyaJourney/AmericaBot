@@ -276,6 +276,11 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
             print("ℹ️ Spouse sayfası yok — atlanıyor")
 
     # ─── Present Occupation ───────────────────────────────────
+    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
+    if occ in ("OTHER", "NOT_EMPLOYED", "O", "N"):
+        if not data.get("PRESENT_OCCUPATION_EXPLAIN", "").strip():
+            data["PRESENT_OCCUPATION_EXPLAIN"] = "XXXXXXXXXX"
+            print("ℹ️ PRESENT_OCCUPATION_EXPLAIN boş, XXXXXXXXXX yazıldı")
     fill_present_occupation_section(wait, driver, data)
     click_save(wait, driver)
     click_continue_applications(wait, driver)
