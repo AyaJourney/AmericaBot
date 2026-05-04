@@ -31,7 +31,7 @@ args   = parser.parse_args()
 BOT_ID = args.bot_id
 
 print(f"[BOT-{BOT_ID}] Baslatildi")
-PHOTO_DIR = r"C:\Users\ayajo\OneDrive\Desktop\amerika bot\AmericaBot\photos"
+PHOTO_DIR = r"C:\Users/1275/Desktop/AMERICA BOT/america\photos"
 # =====================================================
 # CONFIG
 # =====================================================

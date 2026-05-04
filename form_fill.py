@@ -4,7 +4,11 @@ import time
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from auto_fix import fix_country_select, fix_date, fix_text_value, fix_validation_errors, check_validation_errors
-
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    TimeoutException,
+    NoSuchElementException,
+)
 
 PAYER_MAP = {
     "SELF": "S",
@@ -2092,31 +2096,53 @@ def fill_travel_companions(wait, driver, data):
     base_path = "ctl00_SiteContentPlaceHolder_FormView1_dlTravelCompanions_ctl"
 
     def js_fill(element_id, value):
-        el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
+        for attempt in range(3):
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                """, el)
+                el.send_keys(value)
+                return
+            except StaleElementReferenceException:
+                print(f"⚠️ js_fill stale retry {attempt+1}: {element_id}")
+                time.sleep(0.5)
+
+    def safe_select(element_id, value, retries=5):
+        for attempt in range(retries):
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+                # Stale kontrolü
+                _ = el.is_enabled()
+                Select(el).select_by_value(value)
+                return
+            except StaleElementReferenceException:
+                print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
+                time.sleep(0.8)
+            except Exception as e:
+                print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
+                time.sleep(0.8)
+        raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
 
     for i, person in enumerate(persons):
         idx = f"{i:02d}"
         print(f"👤 Yolcu {i+1} işleniyor...")
 
-        def get_id(field):
-            return f"{base_path}{idx}_{field}"
+        def get_id(field, _idx=idx):
+            return f"{base_path}{_idx}_{field}"
 
-        surname = person.get("surname", "").strip()
-        given = person.get("given", "").strip()
+        surname   = person.get("surname", "").strip()
+        given     = person.get("given", "").strip()
         rel_value = person.get("relationship", "").strip().upper()
 
         if not surname or not given:
             raise Exception(f"❌ Companion {i+1}: isim/soyisim eksik")
 
-        rel_dd = wait.until(EC.element_to_be_clickable((By.ID, get_id("ddlTCRelationship"))))
-        Select(rel_dd).select_by_value(rel_value)
+        # Relationship — stale-safe
+        safe_select(get_id("ddlTCRelationship"), rel_value)
         time.sleep(0.5)
 
         js_fill(get_id("tbxSurname"), surname)
@@ -2126,16 +2152,32 @@ def fill_travel_companions(wait, driver, data):
 
         if i < len(persons) - 1:
             add_btn_id = get_id("InsertButtonPrincipalPOT")
-            wait.until(EC.element_to_be_clickable((By.ID, add_btn_id))).click()
-            print("➕ Add Another tıklandı, yeni satır bekleniyor...")
+            # Add Another — stale-safe tıklama
+            for attempt in range(3):
+                try:
+                    add_btn = wait.until(
+                        EC.element_to_be_clickable((By.ID, add_btn_id))
+                    )
+                    driver.execute_script("arguments[0].click();", add_btn)
+                    print("➕ Add Another tıklandı")
+                    break
+                except StaleElementReferenceException:
+                    print(f"⚠️ Add Another stale retry {attempt+1}")
+                    time.sleep(0.5)
+
+            # Yeni satırın DOM'a girmesini bekle
             next_idx = f"{i+1:02d}"
-            wait.until(EC.presence_of_element_located(
-                (By.ID, f"{base_path}{next_idx}_tbxSurname")
-            ))
+            next_rel_id = f"{base_path}{next_idx}_ddlTCRelationship"
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, next_rel_id))
+                )
+                print(f"✅ Yeni satır hazır: {next_idx}")
+            except Exception:
+                print("⚠️ Yeni satır timeout, devam ediliyor...")
             time.sleep(0.5)
 
     print("🟢 Travel Companions TAMAMLANDI")
-
 
 def fill_single_us_visit(wait, driver, data, index=1):
     date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
@@ -3531,17 +3573,54 @@ def fill_us_immediate_relatives(wait, driver, data):
 
     has_rel = data.get("US_IMMEDIATE_RELATIVE", "NO").upper()
 
-    wait.until(EC.element_to_be_clickable((By.ID,
+    def safe_click(element_id, retries=5):
+        for attempt in range(retries):
+            try:
+                el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+                driver.execute_script("arguments[0].click();", el)
+                return
+            except StaleElementReferenceException:
+                print(f"⚠️ safe_click stale retry {attempt+1}: {element_id}")
+                time.sleep(0.5)
+        raise Exception(f"❌ safe_click başarısız: {element_id}")
+
+    def safe_select(element_id, value, retries=5):
+        for attempt in range(retries):
+            try:
+                el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+                Select(el).select_by_value(value)
+                return
+            except StaleElementReferenceException:
+                print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
+                time.sleep(0.5)
+        raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
+
+    def js_fill(element_id, value):
+        for attempt in range(3):
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                """, el)
+                el.send_keys(value)
+                return
+            except StaleElementReferenceException:
+                print(f"⚠️ js_fill stale retry {attempt+1}: {element_id}")
+                time.sleep(0.5)
+
+    safe_click(
         "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_0"
         if has_rel == "YES"
         else "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_1"
-    ))).click()
+    )
 
     if has_rel == "NO":
         print("ℹ️ Immediate Relative yok")
         return
 
-    time.sleep(1)
+    time.sleep(1.5)
 
     relatives = []
     i = 1
@@ -3549,39 +3628,44 @@ def fill_us_immediate_relatives(wait, driver, data):
         relatives.append(i)
         i += 1
 
-    def js_fill(element_id, value):
-        el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
-
     for idx in relatives:
         row = f"ctl{idx-1:02d}"
 
         if idx > 1:
-            wait.until(EC.element_to_be_clickable((By.ID,
+            safe_click(
                 "ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_ctl00_InsertButtonUSRelative"
-            ))).click()
-            time.sleep(1)
+            )
+            time.sleep(1.5)
+            # Yeni satırın DOM'a girmesini bekle
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID,
+                        f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_SURNAME"
+                    ))
+                )
+            except Exception:
+                print(f"⚠️ Yeni satır timeout, devam ediliyor...")
+                time.sleep(1)
 
-        js_fill(f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_SURNAME",
-                data.get(f"US_REL{idx}_SURNAME", ""))
-        js_fill(f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_GIVEN_NAME",
-                data.get(f"US_REL{idx}_GIVEN", ""))
-
-        Select(wait.until(EC.element_to_be_clickable((By.ID,
-            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_TYPE"
-        )))).select_by_value(data.get(f"US_REL{idx}_TYPE", ""))
-
-        Select(wait.until(EC.element_to_be_clickable((By.ID,
-            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_STATUS"
-        )))).select_by_value(data.get(f"US_REL{idx}_STATUS", "O"))
+        js_fill(
+            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_SURNAME",
+            data.get(f"US_REL{idx}_SURNAME", "")
+        )
+        js_fill(
+            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_GIVEN_NAME",
+            data.get(f"US_REL{idx}_GIVEN", "")
+        )
+        safe_select(
+            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_TYPE",
+            data.get(f"US_REL{idx}_TYPE", "")
+        )
+        safe_select(
+            f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_STATUS",
+            data.get(f"US_REL{idx}_STATUS", "O")
+        )
+        print(f"✅ Relative {idx} dolduruldu")
 
     print("✅ Tüm Immediate Relatives dolduruldu")
-
 
 def fill_us_other_relatives(wait, driver, data):
     # ── 1. US IMMEDIATE RELATIVE ──────────────────────────────
