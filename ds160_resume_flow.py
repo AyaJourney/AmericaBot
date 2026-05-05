@@ -407,11 +407,11 @@ def _fill_additional_work_education_resume(driver, wait, data):
 
         # 3. COUNTRIES VISITED
         countries_raw = data.get("COUNTRIES_VISITED", "").strip()
-        if countries_raw and countries_raw.upper() not in ("NO", "NONE", ""):
-            _js_click_radio(driver, wait,
-                "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0",
-                do_postback=True
-            )
+        if (
+            countries_raw and
+            countries_raw.upper() not in ("NO", "NONE", "") and
+            not countries_raw.upper().startswith("I HAVE NOT")
+        ):
             time.sleep(1)
 
             countries = [c.strip().upper() for c in countries_raw.split(",") if c.strip()]
@@ -623,6 +623,9 @@ def _fill_additional_work_education_resume(driver, wait, data):
     print(f"✅ INSURGENT_ORG: {insurgent}")
 
     print("✅ Additional Work/Education (RESUME) tamamlandı")
+
+
+
 # =====================================================
 # MAIN RESUME FLOW
 # =====================================================

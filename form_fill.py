@@ -3593,9 +3593,14 @@ def fill_us_immediate_relatives(wait, driver, data):
             except StaleElementReferenceException:
                 print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
                 time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
+                time.sleep(0.5)
         raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
 
     def js_fill(element_id, value):
+        if not value:
+            return
         for attempt in range(3):
             try:
                 el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
@@ -3604,11 +3609,31 @@ def fill_us_immediate_relatives(wait, driver, data):
                     arguments[0].removeAttribute('readonly');
                     arguments[0].value = '';
                 """, el)
-                el.send_keys(value)
+                el.send_keys(str(value))
                 return
             except StaleElementReferenceException:
                 print(f"⚠️ js_fill stale retry {attempt+1}: {element_id}")
                 time.sleep(0.5)
+
+    # Status map — CRM'den gelen uzun değerleri DS-160 value'ya çevir
+    US_REL_STATUS_MAP = {
+        "CITIZEN":      "C",
+        "LAWFUL":       "L",
+        "LAWFUL PERMANENT RESIDENT": "L",
+        "NONIMMIGRANT": "N",
+        "OTHER":        "O",
+        "C": "C", "L": "L", "N": "N", "O": "O",
+    }
+
+    # Type map
+    US_REL_TYPE_MAP = {
+        "SPOUSE":   "SP",
+        "CHILD":    "C",
+        "SIBLING":  "SB",
+        "PARENT":   "P",
+        "FIANCE":   "F",
+        "SP": "SP", "C": "C", "SB": "SB", "P": "P", "F": "F",
+    }
 
     safe_click(
         "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_0"
@@ -3622,21 +3647,75 @@ def fill_us_immediate_relatives(wait, driver, data):
 
     time.sleep(1.5)
 
-    relatives = []
-    i = 1
-    while f"US_REL{i}_SURNAME" in data:
-        relatives.append(i)
-        i += 1
+    # ── Veriyi oku ───────────────────────────────────────────
+    persons = []
 
-    for idx in relatives:
-        row = f"ctl{idx-1:02d}"
+    # Format 1: US_REL_SURNAME (tekil düz key — bu data'da böyle geliyor)
+    if data.get("US_REL_SURNAME"):
+        status_raw = data.get("US_REL_STATUS", "O").strip().upper()
+        type_raw   = data.get("US_REL_TYPE",   "SP").strip().upper()
+        persons.append({
+            "surname": data.get("US_REL_SURNAME", ""),
+            "given":   data.get("US_REL_GIVEN",   ""),
+            "type":    US_REL_TYPE_MAP.get(type_raw, "C"),
+            "status":  US_REL_STATUS_MAP.get(status_raw, "O"),
+        })
 
-        if idx > 1:
+    # Format 2: US_REL1_SURNAME (numaralı)
+    if not persons:
+        i = 1
+        while data.get(f"US_REL{i}_SURNAME"):
+            status_raw = data.get(f"US_REL{i}_STATUS", "O").strip().upper()
+            type_raw   = data.get(f"US_REL{i}_TYPE",  "SP").strip().upper()
+            persons.append({
+                "surname": data.get(f"US_REL{i}_SURNAME", ""),
+                "given":   data.get(f"US_REL{i}_GIVEN",   ""),
+                "type":    US_REL_TYPE_MAP.get(type_raw, "C"),
+                "status":  US_REL_STATUS_MAP.get(status_raw, "O"),
+            })
+            i += 1
+
+    # Format 3: US_RELATIVES array
+    if not persons:
+        import json
+        relatives_raw = data.get("US_RELATIVES", [])
+        if isinstance(relatives_raw, str):
+            try:
+                relatives_raw = json.loads(relatives_raw)
+            except Exception:
+                relatives_raw = []
+        for r in relatives_raw:
+            status_raw = (r.get("status") or r.get("STATUS") or "O").strip().upper()
+            type_raw   = (r.get("type")   or r.get("TYPE")   or "SP").strip().upper()
+            persons.append({
+                "surname": r.get("surname") or r.get("SURNAME") or "",
+                "given":   r.get("given")   or r.get("GIVEN")   or "",
+                "type":    US_REL_TYPE_MAP.get(type_raw, "C"),
+                "status":  US_REL_STATUS_MAP.get(status_raw, "O"),
+            })
+
+    # Hiç veri yoksa fallback
+    if not persons:
+        print("⚠️ YES seçildi ama relative verisi yok, fallback ile doldurulacak")
+        persons = [{
+            "surname": "XXXXXXXXXX",
+            "given":   "XXXXXXXXXX",
+            "type":    "C",
+            "status":  "O",
+        }]
+
+    print(f"ℹ️ {len(persons)} relative doldurulacak: {persons}")
+
+    # ── Doldur ───────────────────────────────────────────────
+    for idx, person in enumerate(persons):
+        row = f"ctl{idx:02d}"
+        print(f"👤 Relative {idx+1}: {person}")
+
+        if idx > 0:
             safe_click(
                 "ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_ctl00_InsertButtonUSRelative"
             )
             time.sleep(1.5)
-            # Yeni satırın DOM'a girmesini bekle
             try:
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.ID,
@@ -3649,24 +3728,23 @@ def fill_us_immediate_relatives(wait, driver, data):
 
         js_fill(
             f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_SURNAME",
-            data.get(f"US_REL{idx}_SURNAME", "")
+            person["surname"]
         )
         js_fill(
             f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_tbxUS_REL_GIVEN_NAME",
-            data.get(f"US_REL{idx}_GIVEN", "")
+            person["given"]
         )
         safe_select(
             f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_TYPE",
-            data.get(f"US_REL{idx}_TYPE", "")
+            person["type"]
         )
         safe_select(
             f"ctl00_SiteContentPlaceHolder_FormView1_dlUSRelatives_{row}_ddlUS_REL_STATUS",
-            data.get(f"US_REL{idx}_STATUS", "O")
+            person["status"]
         )
-        print(f"✅ Relative {idx} dolduruldu")
+        print(f"✅ Relative {idx+1} dolduruldu: {person['given']} {person['surname']}")
 
     print("✅ Tüm Immediate Relatives dolduruldu")
-
 def fill_us_other_relatives(wait, driver, data):
     # ── 1. US IMMEDIATE RELATIVE ──────────────────────────────
     immed = str(data.get("US_IMMEDIATE_RELATIVE", "NO")).strip().upper()
