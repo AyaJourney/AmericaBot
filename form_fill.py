@@ -3743,6 +3743,36 @@ def fill_former_spouse(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
+    def safe_select_day(element_id, day_str):
+        """Gün değerini farklı formatlarda dener: '05', '5', ' 5'"""
+        day_str = str(day_str).strip()
+        padded   = day_str.zfill(2)          # "05"
+        unpadded = day_str.lstrip("0") or "1" # "5"
+        spaced   = f" {unpadded}"             # " 5"
+        el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+        for val in [padded, unpadded, spaced]:
+            try:
+                Select(el).select_by_value(val)
+                print(f"✅ Day seçildi: {val} ({element_id})")
+                return
+            except Exception:
+                continue
+        raise Exception(f"❌ Day seçilemedi: {day_str} → {element_id}")
+
+    def safe_select_month(element_id, month_val):
+        """Ay değerini value ve text olarak dener"""
+        el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+        for val in [month_val, str(month_val).lstrip("0") or "1"]:
+            try:
+                Select(el).select_by_value(val)
+                return
+            except Exception:
+                continue
+        try:
+            Select(el).select_by_visible_text(str(month_val))
+        except Exception as e:
+            raise Exception(f"❌ Month seçilemedi: {month_val} → {e}")
+
     count_el = wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxNumberOfPrevSpouses")
     ))
@@ -3759,104 +3789,73 @@ def fill_former_spouse(wait, driver, data):
 
     prefix = "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_"
 
-    js_fill(prefix + "tbxSURNAME", data.get("FORMER_SPOUSE_SURNAME"))
+    js_fill(prefix + "tbxSURNAME",    data.get("FORMER_SPOUSE_SURNAME"))
     js_fill(prefix + "tbxGIVEN_NAME", data.get("FORMER_SPOUSE_GIVEN"))
 
-    # ✅ DATE PARSE
     def parse_ds160_date(date_str):
         if not date_str or "-" not in date_str:
             return "01", "JAN", "1900"
-
         parts = date_str.strip().split("-")
-
         month_map = {
-            "01": "JAN", "02": "FEB", "03": "MAR", "04": "APR",
-            "05": "MAY", "06": "JUN", "07": "JUL", "08": "AUG",
-            "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC"
+            "01":"JAN","02":"FEB","03":"MAR","04":"APR",
+            "05":"MAY","06":"JUN","07":"JUL","08":"AUG",
+            "09":"SEP","10":"OCT","11":"NOV","12":"DEC"
         }
-
         try:
             if len(parts[0]) == 4:
-                year = parts[0]
-                month = parts[1]
-                day = parts[2]
+                year, month, day = parts[0], parts[1], parts[2]
             else:
-                day = parts[0]
-                month = parts[1]
-                year = parts[2]
-
+                day, month, year = parts[0], parts[1], parts[2]
             month = month_map.get(month.upper(), month.upper())
-
             return day.zfill(2), month, year
-
-        except:
+        except Exception:
             return "01", "JAN", "1900"
 
-    # 🔁 MONTH TEXT → NUMBER (Marriage için)
     month_to_number = {
-        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
-        "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
-        "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
+        "JAN":"1","FEB":"2","MAR":"3","APR":"4",
+        "MAY":"5","JUN":"6","JUL":"7","AUG":"8",
+        "SEP":"9","OCT":"10","NOV":"11","DEC":"12"
     }
 
-    # DOB (TEXT format)
+    # ── DOB ──────────────────────────────────────────────────
     dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB"))
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, prefix + "ddlDOBDay")
-    ))).select_by_value(dob_day)
-
+    safe_select_day(prefix + "ddlDOBDay", dob_day)
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDOBMonth")
     ))).select_by_value(dob_month)
-
     js_fill(prefix + "tbxDOBYear", dob_year)
 
-    # NATIONALITY
+    # ── NATIONALITY ───────────────────────────────────────────
     nat_dd = Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlSpouseNatDropDownList")
     )))
     try:
         nat_dd.select_by_value("TRKY")
-    except:
+    except Exception:
         nat_dd.select_by_visible_text("TURKEY")
 
-    # POB
+    # ── POB ───────────────────────────────────────────────────
     js_fill(prefix + "tbxSpousePOBCity", data.get("FORMER_SPOUSE_POB_CITY", "UNKNOWN"))
     try:
         Select(wait.until(EC.element_to_be_clickable(
             (By.ID, prefix + "ddlSpousePOBCountry")
         ))).select_by_value("TRKY")
-    except:
+    except Exception:
         pass
 
-    # MARRIAGE DATE (NUMERIC MONTH)
+    # ── MARRIAGE DATE ─────────────────────────────────────────
     dom_day, dom_month, dom_year = parse_ds160_date(data.get("FORMER_MARRIAGE_DATE"))
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, prefix + "ddlDomDay")
-    ))).select_by_value(dom_day)
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, prefix + "ddlDomMonth")
-    ))).select_by_value(month_to_number.get(dom_month, "1"))
-
+    safe_select_day(prefix + "ddlDomDay", dom_day)
+    safe_select_month(prefix + "ddlDomMonth", month_to_number.get(dom_month, "1"))
     js_fill(prefix + "txtDomYear", dom_year)
 
-    # END DATE (NUMERIC MONTH)
+    # ── END DATE ──────────────────────────────────────────────
     end_day, end_month, end_year = parse_ds160_date(data.get("FORMER_MARRIAGE_END_DATE"))
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, prefix + "ddlDomEndDay")
-    ))).select_by_value(end_day)
-
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, prefix + "ddlDomEndMonth")
-    ))).select_by_value(month_to_number.get(end_month, "1"))
-
+    safe_select_day(prefix + "ddlDomEndDay", end_day)
+    safe_select_month(prefix + "ddlDomEndMonth", month_to_number.get(end_month, "1"))
     js_fill(prefix + "txtDomEndYear", end_year)
 
-    # END REASON & COUNTRY
+    # ── END REASON ────────────────────────────────────────────
     reason_field = wait.until(EC.presence_of_element_located(
         (By.ID, prefix + "tbxHowMarriageEnded")
     ))
@@ -3875,10 +3874,11 @@ def fill_former_spouse(wait, driver, data):
         Select(wait.until(EC.element_to_be_clickable(
             (By.ID, prefix + "ddlMarriageEnded_CNTRY")
         ))).select_by_value("TRKY")
-    except:
+    except Exception:
         pass
 
     print("✅ Former Spouse tamamlandı.")
+
 def fill_spouse_info(wait, driver, data):
     print("💍 Spouse bilgileri kontrol ediliyor...")
 
