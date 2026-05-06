@@ -3759,13 +3759,24 @@ def fill_us_immediate_relatives(wait, driver, data):
 
     # Status map — CRM'den gelen uzun değerleri DS-160 value'ya çevir
     US_REL_STATUS_MAP = {
-        "CITIZEN":      "C",
-        "LAWFUL":       "L",
-        "LAWFUL PERMANENT RESIDENT": "L",
-        "NONIMMIGRANT": "N",
-        "OTHER":        "O",
-        "C": "C", "L": "L", "N": "N", "O": "O",
-    }
+    "CITIZEN":                   "S",
+    "US CITIZEN":                "S",
+    "U.S. CITIZEN":              "S",
+    "LAWFUL PERMANENT RESIDENT": "C",
+    "LAWFUL":                    "C",
+    "LPR":                       "C",
+    "NONIMMIGRANT":              "P",
+    "IMMIGRANT":                 "P",
+    "OTHER":                     "O",
+    "I DON'T KNOW":              "O",
+    # Kısa kodlar
+    "S": "S",
+    "C": "C",
+    "P": "P",
+    "O": "O",
+    "N": "P",  # NONIMMIGRANT → P
+    "L": "C",  # LAWFUL → C
+}
 
     # Type map
     US_REL_TYPE_MAP = {
