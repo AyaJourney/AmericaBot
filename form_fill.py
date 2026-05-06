@@ -2184,20 +2184,32 @@ def fill_travel_companions(wait, driver, data):
             try:
                 el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
                 sel = Select(el)
-                # İlk denemede options'ları logla
+
                 if attempt == 0:
                     opts = [(o.get_attribute("value"), o.text.strip()) for o in sel.options]
                     print(f"ℹ️ Options [{element_id.split('_')[-1]}]: {opts}")
+
+                # Value ile dene
                 try:
                     sel.select_by_value(value)
                     return
                 except Exception:
                     pass
+
+                # Visible text ile dene
                 try:
                     sel.select_by_visible_text(value)
                     return
                 except Exception:
                     pass
+
+                # Fallback: boş olmayan ilk option'ı seç
+                for opt in sel.options:
+                    if opt.get_attribute("value") and opt.get_attribute("value") != "":
+                        sel.select_by_value(opt.get_attribute("value"))
+                        print(f"⚠️ Fallback option seçildi: {opt.get_attribute('value')} ({opt.text})")
+                        return
+
                 raise Exception(f"Value bulunamadı: {value}")
             except StaleElementReferenceException:
                 print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
@@ -2206,6 +2218,7 @@ def fill_travel_companions(wait, driver, data):
                 print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
                 time.sleep(0.5)
         raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
+    
     for i, person in enumerate(persons):
         idx = f"{i:02d}"
         print(f"👤 Yolcu {i+1} işleniyor...")
