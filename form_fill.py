@@ -5206,7 +5206,8 @@ def fill_languages(wait, driver, data):
                 break
 def fill_countries_visited(wait, driver, data):
     val = data.get("COUNTRIES_VISITED", "").strip()
-
+    print(f"🌍 COUNTRIES_VISITED raw: '{val}'")
+    print(f"🌍 COUNTRIES_VISITED type: {type(val)}")
     has_countries = val and val.upper() not in ("NO", "NONE", "")
     country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
