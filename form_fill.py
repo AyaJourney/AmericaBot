@@ -2149,7 +2149,17 @@ def fill_travel_companions(wait, driver, data):
 
     persons = data.get("TRAVEL_COMPANIONS_LIST", [])
     if not persons:
-        raise Exception("❌ TRAVEL_COMPANIONS_LIST boş olamaz")
+        print("⚠️ TRAVEL_COMPANIONS_LIST boş — NO'ya çevriliyor")
+        try:
+            no_radio = wait.until(EC.element_to_be_clickable((
+            By.ID,
+            "ctl00_SiteContentPlaceHolder_FormView1_rblOtherPersonsTravelingWithYou_1"
+        )))
+            driver.execute_script("arguments[0].click();", no_radio)
+            print("✅ Traveling with others: NO (fallback)")
+        except Exception as e:
+            print(f"⚠️ NO radio tıklanamadı: {e}")
+        return
 
     base_path = "ctl00_SiteContentPlaceHolder_FormView1_dlTravelCompanions_ctl"
 
@@ -2172,17 +2182,29 @@ def fill_travel_companions(wait, driver, data):
     def safe_select(element_id, value, retries=5):
         for attempt in range(retries):
             try:
-                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
-                # Stale kontrolü
-                _ = el.is_enabled()
-                Select(el).select_by_value(value)
-                return
+                el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+                # Önce value ile dene
+                try:
+                    Select(el).select_by_value(value)
+                    return
+                except Exception:
+                    pass
+                # Sonra visible text ile dene
+                try:
+                    Select(el).select_by_visible_text(value)
+                    return
+                except Exception:
+                    pass
+                # İlk option hariç tüm option'ları logla
+                opts = [(o.get_attribute("value"), o.text) for o in Select(el).options]
+                print(f"ℹ️ Mevcut options: {opts}")
+                raise Exception(f"Value bulunamadı: {value}")
             except StaleElementReferenceException:
                 print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
-                time.sleep(0.8)
+                time.sleep(0.5)
             except Exception as e:
                 print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
-                time.sleep(0.8)
+                time.sleep(0.5)
         raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
 
     for i, person in enumerate(persons):
@@ -3735,13 +3757,25 @@ def fill_us_immediate_relatives(wait, driver, data):
 
     # Type map
     US_REL_TYPE_MAP = {
-        "SPOUSE":   "SP",
-        "CHILD":    "C",
-        "SIBLING":  "SB",
-        "PARENT":   "P",
-        "FIANCE":   "F",
-        "SP": "SP", "C": "C", "SB": "SB", "P": "P", "F": "F",
-    }
+    "SPOUSE":   "S",    # S olabilir SP değil
+    "CHILD":    "C",
+    "SIBLING":  "B",    # SB değil B
+    "BROTHER":  "B",
+    "SISTER":   "B",
+    "PARENT":   "P",
+    "FIANCE":   "F",
+    "RELATIVE": "O",
+    "OTHER":    "O",
+    # Kısa kodlar
+    "SP": "S",
+    "SB": "B",          # ← SB → B
+    "S":  "S",
+    "C":  "C",
+    "B":  "B",
+    "P":  "P",
+    "F":  "F",
+    "O":  "O",
+}
 
     safe_click(
         "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_0"
