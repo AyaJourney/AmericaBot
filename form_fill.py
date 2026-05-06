@@ -363,6 +363,25 @@ def fill_basic_identity_form(wait, driver, surname, given_name, full_name_native
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_SURNAME", surname)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_GIVEN_NAME", given_name)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_FULL_NAME_NATIVE", full_name_native)
+def split_address(address: str, max_len: int = 40):
+    """Adresi max_len karakterde kelime sınırından böler."""
+    if not address:
+        return "", ""
+    address = address.strip()
+    if len(address) <= max_len:
+        return address, ""
+    # max_len içinde son boşluğu bul
+    cut = address.rfind(" ", 0, max_len)
+    if cut == -1:
+        cut = max_len  # boşluk yoksa zorla kes
+    addr1 = address[:cut].strip()
+    addr2 = address[cut:].strip()
+    # addr2 de 40'ı geçiyorsa kırp
+    if len(addr2) > max_len:
+        addr2 = addr2[:max_len].strip()
+    return addr1, addr2
+
+
 
 import time
 from selenium.webdriver.common.by import By
@@ -1654,6 +1673,8 @@ def fill_intended_length_of_stay(wait, driver, data):
 def fill_us_address(wait, driver, data):
 
     def js_fill(element_id, value):
+        if not value:
+            return
         el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
@@ -1662,19 +1683,28 @@ def fill_us_address(wait, driver, data):
         """, el)
         el.send_keys(value)
 
-    # Address 1
-    addr1 = clean_address(data.get("US_ADDRESS1", "").strip())
-    if not addr1:
+    # Address — 40 karakteri geçince 2. satıra taşı
+    raw_addr = clean_address(data.get("US_ADDRESS1", "").strip())
+    if not raw_addr:
         raise Exception("❌ US_ADDRESS1 boş olamaz")
+
+    addr1, addr2_overflow = split_address(raw_addr, max_len=40)
+    print(f"📍 US addr1: '{addr1}' ({len(addr1)} kar)")
+
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxStreetAddress1", addr1)
 
-    # Address 2
-    addr2_value = data.get("US_ADDRESS2", "").strip().upper()
-    if addr2_value and addr2_value not in ("NA", "N/A"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxStreetAddress2", addr2_value)
+    # Address 2 — önce overflow, yoksa data'dan al
+    addr2_data = clean_address(data.get("US_ADDRESS2", "").strip())
+    if addr2_data and addr2_data.upper() in ("NA", "N/A"):
+        addr2_data = ""
+
+    addr2_final = addr2_overflow or addr2_data
+    if addr2_final:
+        print(f"📍 US addr2: '{addr2_final}' ({len(addr2_final)} kar)")
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxStreetAddress2", addr2_final)
 
     # City
-    us_city = data.get("US_CITY", "").strip()
+    us_city = data.get("US_CITY", "").strip().upper()
     if not us_city:
         raise Exception("❌ US_CITY boş olamaz")
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCity", us_city)
@@ -1699,7 +1729,6 @@ def fill_us_address(wait, driver, data):
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlWhoIsPaying")
     ))
     print("🟢 Payer dropdown hazır")
-
 
 def select_payer_relationship(wait, raw_value):
     if not raw_value:
@@ -1834,12 +1863,24 @@ def fill_payer_info(wait, driver, data):
         time.sleep(0.4)
 
         if same == "NO":
-            addr1 = clean_address(data.get("PAYER_COMPANY_ADDRESS1") or data.get("PAYER_ADDRESS1") or "XXXXXXXXXX")
-            city  = clean_address(data.get("PAYER_COMPANY_CITY")     or data.get("PAYER_CITY")     or "XXXXXXXXXX")
-            country = data.get("PAYER_COUNTRY",  "TURKEY")     or "TURKEY"
+            raw_addr = clean_address(
+                data.get("PAYER_COMPANY_ADDRESS1") or
+                data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
+            )
+            addr1, addr2_overflow = split_address(raw_addr, max_len=40)
+            addr2_data  = clean_address(data.get("PAYER_ADDRESS2", ""))
+            addr2_final = addr2_overflow or addr2_data
 
+            city    = clean_address(data.get("PAYER_COMPANY_CITY") or data.get("PAYER_CITY") or "XXXXXXXXXX")
+            country = data.get("PAYER_COUNTRY", "TURKEY") or "TURKEY"
+
+            print(f"📍 PAYER addr1: '{addr1}' ({len(addr1)} kar)")
             js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", data.get("PAYER_ADDRESS2", ""))
+
+            if addr2_final:
+                print(f"📍 PAYER addr2: '{addr2_final}' ({len(addr2_final)} kar)")
+                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", addr2_final)
+
             js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
 
             state = data.get("PAYER_STATE", "").strip()
@@ -1847,7 +1888,9 @@ def fill_payer_info(wait, driver, data):
                 js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStateProvince", state)
             else:
                 try:
-                    state_cb = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince")
+                    state_cb = driver.find_element(
+                        By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince"
+                    )
                     if not state_cb.is_selected():
                         driver.execute_script("arguments[0].click();", state_cb)
                         time.sleep(1)
@@ -1859,7 +1902,9 @@ def fill_payer_info(wait, driver, data):
                 js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPostalZIPCode", zip_code)
             else:
                 try:
-                    zip_cb = driver.find_element(By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode")
+                    zip_cb = driver.find_element(
+                        By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode"
+                    )
                     if not zip_cb.is_selected():
                         driver.execute_script("arguments[0].click();", zip_cb)
                         time.sleep(1)
@@ -1914,11 +1959,25 @@ def fill_payer_info(wait, driver, data):
                 except Exception:
                     print("ℹ️ Company Payer Email alanı bulunamadı, geçiliyor.")
 
-            addr1   = data.get("PAYER_COMPANY_ADDRESS1") or data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
-            city    = data.get("PAYER_COMPANY_CITY")     or data.get("PAYER_CITY")     or "XXXXXXXXXX"
-            country = data.get("PAYER_COMPANY_COUNTRY")  or data.get("PAYER_COUNTRY")  or "TURKEY"
+            # COMPANY ADDRESS — split_address
+            raw_company_addr = clean_address(
+                data.get("PAYER_COMPANY_ADDRESS1") or
+                data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
+            )
+            company_addr1, company_addr2_overflow = split_address(raw_company_addr, max_len=40)
+            company_addr2_data  = clean_address(data.get("PAYER_COMPANY_ADDRESS2", ""))
+            company_addr2_final = company_addr2_overflow or company_addr2_data
 
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
+            city    = clean_address(data.get("PAYER_COMPANY_CITY") or data.get("PAYER_CITY") or "XXXXXXXXXX")
+            country = data.get("PAYER_COMPANY_COUNTRY") or data.get("PAYER_COUNTRY") or "TURKEY"
+
+            print(f"📍 COMPANY addr1: '{company_addr1}' ({len(company_addr1)} kar)")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", company_addr1)
+
+            if company_addr2_final:
+                print(f"📍 COMPANY addr2: '{company_addr2_final}' ({len(company_addr2_final)} kar)")
+                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", company_addr2_final)
+
             js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
 
             # State — Does Not Apply
@@ -1962,7 +2021,6 @@ def fill_payer_info(wait, driver, data):
         except Exception as e:
             print(f"❌ COMPANY bilgileri doldurulamadı: {e}")
             raise
-
 
 def click_save(wait, driver):
     save_btn_id = "ctl00_SiteContentPlaceHolder_UpdateButton2"
@@ -2586,27 +2644,46 @@ def fill_home_address(wait, driver, data):
     if not full_address or not city or not country:
         raise Exception("❌ HOME_ADDRESS, HOME_CITY, HOME_COUNTRY zorunlu")
 
-    addr1, addr2 = split_address(full_address)
+    addr1, addr2 = split_address(full_address, max_len=40)
+    print(f"📍 HOME addr1: '{addr1}' ({len(addr1)} kar)")
+    print(f"📍 HOME addr2: '{addr2}' ({len(addr2)} kar)")
 
     def js_fill(element_id, value):
         if not value:
             return
-        el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+        try:
+            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(value)
+        except Exception as e:
+            print(f"⚠️ js_fill hata {element_id}: {e}")
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN1", addr1)
+    time.sleep(0.2)
+
+    # 2. satır — addr2 varsa doldur, yoksa temizle
+    try:
+        addr2_el = wait.until(EC.presence_of_element_located((
+            By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN2"
+        )))
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
             arguments[0].removeAttribute('readonly');
             arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
-
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN1", addr1)
-
-    if addr2:
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN2", addr2)
+        """, addr2_el)
+        if addr2:
+            addr2_el.send_keys(addr2)
+            print(f"📍 HOME addr2 dolduruldu: '{addr2}'")
+    except Exception as e:
+        print(f"⚠️ addr2 alanı bulunamadı: {e}")
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_CITY", city)
 
-    state_input    = wait.until(EC.presence_of_element_located(
+    state_input = wait.until(EC.presence_of_element_located(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_STATE")
     ))
     state_na_checkbox = wait.until(EC.presence_of_element_located(
@@ -2639,10 +2716,9 @@ def fill_home_address(wait, driver, data):
         country
     )
 
-    print(f"🌍 Home Address tamamlandı → {country}")
+    print(f"🌍 Home Address tamamlandı → {addr1} | {addr2} | {city} | {country}")
     click_outside(driver)
     time.sleep(0.5)
-
 def fill_mailing_address(wait, driver, data):
 
     same = data.get("MAILING_SAME_AS_HOME", "YES").strip().upper()
@@ -2742,11 +2818,14 @@ def clean_address(addr: str) -> str:
         return ""
     import re
     # Virgül, nokta, !, ?, ;, :, ', " gibi noktalama işaretlerini kaldır
-    # Slash ve tire adres için gerekli olabilir, onları bırak
     cleaned = re.sub(r"[.,!?;:\"\'`]", " ", addr)
     # Çoklu boşlukları tek boşluğa indir
-    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned).strip().upper()
     return cleaned
+
+
+
+
 def safe_phone_fill(wait, driver, input_id, checkbox_id, value):
     try:
         cb = driver.find_element(By.ID, checkbox_id)
@@ -3371,25 +3450,21 @@ def fill_us_point_of_contact(wait, driver, data):
             el.send_keys(str(val))
             print(f"✍️ {eid} dolduruldu: {val}")
 
-    # 1) & 2) POC NAME + ORGANIZATION — her zaman ikisi de dolu olacak
+    # 1) POC NAME
     poc_surname = data.get("US_POC_SURNAME", "").strip()
     poc_given   = data.get("US_POC_GIVEN_NAME", "").strip()
     org_name    = data.get("US_POC_ORG_NAME", "").strip()
 
-    # İsim yoksa fallback
     final_surname = poc_surname if poc_surname else "UNKNOWN"
     final_given   = poc_given   if poc_given   else "UNKNOWN"
+    final_org     = org_name    if org_name    else "HOTEL OR BUSINESS"
 
-    # Org yoksa fallback
-    final_org = org_name if org_name else "HOTEL OR BUSINESS"
-
-    # NAME — her zaman doldur, NA kaldır
     handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_NAME_NA", False)
     safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME", final_surname)
     safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME", final_given)
     print(f"✅ POC isim dolduruldu: {final_surname} {final_given}")
 
-    # ORG — her zaman doldur, NA kaldır
+    # 2) ORGANIZATION
     handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_ORG_NA_IND", False)
     safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION", final_org)
     print(f"✅ POC organizasyon dolduruldu: {final_org}")
@@ -3401,11 +3476,32 @@ def fill_us_point_of_contact(wait, driver, data):
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlUS_POC_REL_TO_APP")
     ))).select_by_value(rel_val)
 
-    # 4) ADDRESS
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1", data.get("US_POC_ADDR1"))
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN2", data.get("US_POC_ADDR2"))
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY", data.get("US_POC_CITY"))
+    # 4) ADDRESS — 40 karakter split
+    raw_poc_addr = clean_address((data.get("US_POC_ADDR1") or "").strip())
+    poc_addr1, poc_addr2_overflow = split_address(raw_poc_addr, max_len=40)
+    print(f"📍 POC addr1: '{poc_addr1}' ({len(poc_addr1)} kar)")
 
+    safe_js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1",
+        poc_addr1
+    )
+
+    # addr2 — önce overflow, yoksa data'dan al
+    poc_addr2_data  = clean_address((data.get("US_POC_ADDR2") or "").strip())
+    poc_addr2_final = poc_addr2_overflow or poc_addr2_data
+    if poc_addr2_final:
+        print(f"📍 POC addr2: '{poc_addr2_final}' ({len(poc_addr2_final)} kar)")
+        safe_js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN2",
+            poc_addr2_final
+        )
+
+    safe_js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY",
+        (data.get("US_POC_CITY") or "").strip().upper()
+    )
+
+    # 5) STATE
     raw_state = data.get("US_POC_STATE", "").strip().upper()
     state_val = raw_state if len(raw_state) == 2 else US_STATE_MAP.get(raw_state)
 
@@ -3416,21 +3512,33 @@ def fill_us_point_of_contact(wait, driver, data):
         print(f"📍 Eyalet seçildi: {state_val}")
         time.sleep(2.5)
 
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD", data.get("US_POC_ZIP"))
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL", data.get("US_POC_PHONE"))
+    # 6) ZIP & PHONE
+    safe_js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD",
+        data.get("US_POC_ZIP", "").strip()
+    )
+    safe_js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL",
+        data.get("US_POC_PHONE", "").strip()
+    )
 
-    # 5) EMAIL
+    # 7) EMAIL
     email = data.get("US_POC_EMAIL", "").strip()
     is_email_na = email.upper() in ("NA", "N/A", "DOES NOT APPLY", "")
 
-    handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbexUS_POC_EMAIL_ADDR_NA", is_email_na)
+    handle_checkbox(
+        "ctl00_SiteContentPlaceHolder_FormView1_cbexUS_POC_EMAIL_ADDR_NA",
+        is_email_na
+    )
 
     if not is_email_na:
-        safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR", email)
+        safe_js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR",
+            email
+        )
 
     click_outside(driver)
     print("🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI")
-
 def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     if not date_str or "-" not in date_str:
         print(f"⚠️ Geçersiz tarih: {date_str}")
@@ -4298,16 +4406,28 @@ def fill_employer_or_school_info(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",
-            translate_school_name(data.get("EMP_SCH_NAME", ""))[:75])
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1",
-            clean_address(data.get("EMP_SCH_ADDR1", "")))
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",
+        translate_school_name(data.get("EMP_SCH_NAME", ""))[:75]
+    )
 
-    if data.get("EMP_SCH_ADDR2"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", data["EMP_SCH_ADDR2"])
+    # ADDR1 — 40 karakter split
+    raw_addr = clean_address(data.get("EMP_SCH_ADDR1", ""))
+    addr1, addr2_overflow = split_address(raw_addr, max_len=40)
+    print(f"📍 EMP addr1: '{addr1}' ({len(addr1)} kar)")
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", addr1)
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",
-            clean_address(data.get("EMP_SCH_CITY", "")))
+    # ADDR2 — önce overflow, yoksa data'dan al
+    addr2_data  = clean_address(data.get("EMP_SCH_ADDR2", ""))
+    addr2_final = addr2_overflow or addr2_data
+    if addr2_final:
+        print(f"📍 EMP addr2: '{addr2_final}' ({len(addr2_final)} kar)")
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", addr2_final)
+
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",
+        clean_address(data.get("EMP_SCH_CITY", ""))
+    )
 
     state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
 
@@ -4330,8 +4450,10 @@ def fill_employer_or_school_info(wait, driver, data):
         print(f"✅ State girildi: {state_val}")
 
     if data.get("EMP_SCH_POSTAL"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD",
-                data["EMP_SCH_POSTAL"])
+        js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD",
+            data["EMP_SCH_POSTAL"]
+        )
     else:
         wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_POSTAL_CD_NA")
@@ -4344,7 +4466,10 @@ def fill_employer_or_school_info(wait, driver, data):
     )
 
     if data.get("EMP_SCH_PHONE"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL", data["EMP_SCH_PHONE"])
+        js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL",
+            data["EMP_SCH_PHONE"]
+        )
 
     fill_date_dd_mmm_yyyy(
         wait, driver,
@@ -4355,8 +4480,10 @@ def fill_employer_or_school_info(wait, driver, data):
     )
 
     if data.get("EMP_MONTHLY_SALARY"):
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY",
-                data["EMP_MONTHLY_SALARY"])
+        js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY",
+            data["EMP_MONTHLY_SALARY"]
+        )
     else:
         wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
@@ -4364,12 +4491,13 @@ def fill_employer_or_school_info(wait, driver, data):
 
     duties = data.get("EMP_DUTIES", "").strip()
     if not duties:
-        raise Exception("❌ EMP_DUTIES zorunlu")
+        duties = "XXXXXXXXXX"
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDescribeDuties", duties)
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
+
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
 
