@@ -1,5 +1,5 @@
 from concurrent.futures import wait
-from curses import raw
+# from curses import raw
 import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
