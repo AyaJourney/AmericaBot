@@ -2183,21 +2183,21 @@ def fill_travel_companions(wait, driver, data):
         for attempt in range(retries):
             try:
                 el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
-                # Önce value ile dene
+                sel = Select(el)
+                # İlk denemede options'ları logla
+                if attempt == 0:
+                    opts = [(o.get_attribute("value"), o.text.strip()) for o in sel.options]
+                    print(f"ℹ️ Options [{element_id.split('_')[-1]}]: {opts}")
                 try:
-                    Select(el).select_by_value(value)
+                    sel.select_by_value(value)
                     return
                 except Exception:
                     pass
-                # Sonra visible text ile dene
                 try:
-                    Select(el).select_by_visible_text(value)
+                    sel.select_by_visible_text(value)
                     return
                 except Exception:
                     pass
-                # İlk option hariç tüm option'ları logla
-                opts = [(o.get_attribute("value"), o.text) for o in Select(el).options]
-                print(f"ℹ️ Mevcut options: {opts}")
                 raise Exception(f"Value bulunamadı: {value}")
             except StaleElementReferenceException:
                 print(f"⚠️ safe_select stale retry {attempt+1}: {element_id}")
@@ -2206,7 +2206,6 @@ def fill_travel_companions(wait, driver, data):
                 print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
                 time.sleep(0.5)
         raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
-
     for i, person in enumerate(persons):
         idx = f"{i:02d}"
         print(f"👤 Yolcu {i+1} işleniyor...")
