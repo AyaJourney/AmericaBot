@@ -141,11 +141,22 @@ def _scn(wait, driver, on_photo_page=None, label="Travel Companions") -> bool:
 # =====================================================
 def enrich_data_with_fallbacks(data: dict) -> dict:
     d = data.copy()
+
+    # ── raw_data string ise parse et, sonra üst seviyeye taşı ──
+    import json
     raw = d.get("raw_data", {})
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+            d["raw_data"] = raw
+        except Exception as e:
+            print(f"⚠️ raw_data parse hatası: {e}")
+            raw = {}
     if isinstance(raw, dict):
         for k, v in raw.items():
             if k not in d or not str(d.get(k, "")).strip():
                 d[k] = v
+
     def fb(key, value):
         if not str(d.get(key, "")).strip():
             d[key] = value
@@ -234,7 +245,6 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
 
     fb("LANGUAGES", "Turkish")
 
-    # ─── Askerlik sabit değerleri ─────────────────────────────
     fb("MIL_COUNTRY",   "TURKEY")
     fb("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
     fb("MIL_RANK",      "INFANTRY")
@@ -282,8 +292,6 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
 
     print("✅ enrich_data_with_fallbacks tamamlandı")
     return d
-
-
 # =====================================================
 # PRESENT OCCUPATION – RESUME FIX
 # =====================================================

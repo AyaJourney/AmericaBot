@@ -51,13 +51,21 @@ SELENIUM_PAGELOAD_TIMEOUT = 120
 def flatten_job_data(data: dict) -> dict:
     if not isinstance(data, dict):
         return data
-    if "raw_data" in data and isinstance(data["raw_data"], dict):
-        for k, v in data["raw_data"].items():
-            if k not in data or not data[k]:
-                data[k] = v
+    if "raw_data" in data:
+        raw = data["raw_data"]
+        # String ise parse et
+        if isinstance(raw, str):
+            import json
+            try:
+                raw = json.loads(raw)
+                data["raw_data"] = raw
+            except Exception:
+                raw = {}
+        if isinstance(raw, dict):
+            for k, v in raw.items():
+                if k not in data or not data[k]:
+                    data[k] = v
     return data
-
-
 def get_field(data: dict, key: str, default: str = "") -> str:
     val = data.get(key)
     if val:
