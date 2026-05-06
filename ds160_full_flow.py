@@ -316,6 +316,17 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         WebDriverWait(driver, 3).until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")
         ))
+
+        # raw_data'dan eksik alanları üst seviyeye çıkar
+        _raw = data.get("raw_data", {})
+        if isinstance(_raw, dict):
+            for _k in ("COUNTRIES_VISITED", "LANGUAGES", "CLAN_TRIBE",
+                       "ORGANIZATION", "SPECIALIZED_SKILLS",
+                       "MILITARY_SERVICE", "INSURGENT_ORG"):
+                if not data.get(_k) and _raw.get(_k):
+                    data[_k] = _raw[_k]
+                    print(f"✅ {_k} raw_data'dan alındı: {data[_k]}")
+
         fill_additional_work_education_section(wait, driver, data)
         _save_continue_next(wait, driver, label="Health")
         print("✅ Additional Work/Education tamamlandı.")
