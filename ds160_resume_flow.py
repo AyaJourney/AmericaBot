@@ -141,7 +141,11 @@ def _scn(wait, driver, on_photo_page=None, label="Travel Companions") -> bool:
 # =====================================================
 def enrich_data_with_fallbacks(data: dict) -> dict:
     d = data.copy()
-
+    raw = d.get("raw_data", {})
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            if k not in d or not str(d.get(k, "")).strip():
+                d[k] = v
     def fb(key, value):
         if not str(d.get(key, "")).strip():
             d[key] = value
