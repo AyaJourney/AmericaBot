@@ -1,3 +1,5 @@
+from concurrent.futures import wait
+from curses import raw
 import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -209,6 +211,12 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     _save_continue_next(wait, driver, label="Travel Companions")
 
     # ─── Travel Companions ────────────────────────────────────
+    raw = data.get("raw_data", {})
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            if k.startswith("TRAV_COMP_") and k not in data:
+                data[k] = v
+
     data = parse_travel_companions(data)
     fill_travel_companions(wait, driver, data)
     _save_continue_next(wait, driver, label="Previous US Travel")
