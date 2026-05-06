@@ -5205,13 +5205,29 @@ def fill_languages(wait, driver, data):
                 print(f"⚠️ Dil Insert hatası: {e}")
                 break
 def fill_countries_visited(wait, driver, data):
+    import json
+
+    # raw_data'dan da kontrol et
     val = data.get("COUNTRIES_VISITED", "").strip()
-    print(f"🌍 COUNTRIES_VISITED raw: '{val}'")
-    print(f"🌍 COUNTRIES_VISITED type: {type(val)}")
+
+    if not val or val.upper() in ("NO", "NONE"):
+        raw = data.get("raw_data", {})
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                raw = {}
+        if isinstance(raw, dict):
+            raw_val = raw.get("COUNTRIES_VISITED", "").strip()
+            if raw_val and raw_val.upper() not in ("NO", "NONE", ""):
+                val = raw_val
+                print(f"🌍 COUNTRIES_VISITED raw_data'dan alındı: '{val}'")
+
+    print(f"🌍 COUNTRIES_VISITED: '{val}'")
+
     has_countries = val and val.upper() not in ("NO", "NONE", "")
     country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
 
-    # "I HAVE NOT TRAVELLED..." ifadesini filtrele
     SKIP_PHRASES = [
         "I HAVE NOT TRAVELLED",
         "I HAVE NOT TRAVELED",
@@ -5222,7 +5238,6 @@ def fill_countries_visited(wait, driver, data):
         if not any(phrase in c.upper() for phrase in SKIP_PHRASES)
     ]
 
-    # Filtreledikten sonra gerçek ülke kalmadıysa NO seç
     if not country_list:
         has_countries = False
 
@@ -5238,7 +5253,7 @@ def fill_countries_visited(wait, driver, data):
         print("ℹ️ Ziyaret edilen ülke yok")
         return
 
-    # YES radio kontrolü
+    # YES radio
     try:
         yes_radio = wait.until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCOUNTRIES_VISITED_IND_0")
@@ -5258,7 +5273,6 @@ def fill_countries_visited(wait, driver, data):
 
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-    # Dropdown açılana kadar bekle
     ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl00_ddlCOUNTRIES_VISITED"
     try:
         wait.until(EC.visibility_of_element_located((By.ID, ddl_id)))
@@ -5277,13 +5291,15 @@ def fill_countries_visited(wait, driver, data):
             print("❌ Dropdown açılamadı, ülkeler atlanıyor")
             return
 
-    # Ülke map
     COUNTRY_MAP = {
-       
-     "USA": "UNITED STATES OF AMERICA",
+    # Kısaltmalar / alternatif isimler
+    "USA": "UNITED STATES OF AMERICA",
     "UNITED STATES": "UNITED STATES OF AMERICA",
     "UK": "UNITED KINGDOM",
     "ENGLAND": "UNITED KINGDOM",
+    "SCOTLAND": "UNITED KINGDOM",
+    "WALES": "UNITED KINGDOM",
+    "NORTHERN IRELAND": "NORTHERN IRELAND",
     "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
     "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
     "MACEDONIA": "MACEDONIA, NORTH",
@@ -5291,69 +5307,202 @@ def fill_countries_visited(wait, driver, data):
     "UAE": "UNITED ARAB EMIRATES",
     "TURKEY": "TURKEY",
     "TÜRKİYE": "TURKEY",
+    "TURKIYE": "TURKEY",
     "VATICAN": "HOLY SEE (VATICAN CITY)",
     "BOSNIA": "BOSNIA-HERZEGOVINA",
     "BOSNIA HERZEGOVINA": "BOSNIA-HERZEGOVINA",
-    "CABO VERDE": "CABO VERDE", # HTML'de "CAPE VERDE" değil, "CABO VERDE" geçiyor
+    "CZECHIA": "CZECH REPUBLIC",
+    "CZECH": "CZECH REPUBLIC",
+    "CABO VERDE": "CABO VERDE",
+    "CAPE VERDE": "CABO VERDE",
     "CONGO DEMOCRATIC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
     "CONGO REPUBLIC": "CONGO, REPUBLIC OF THE",
-    "CZECHIA": "CZECH REPUBLIC",
-    
-    # Geri kalanlar HTML ile birebir örtüşüyor:
+    "DRC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
+    "TIMOR LESTE": "TIMOR-LESTE",
+    "EAST TIMOR": "TIMOR-LESTE",
+    "ESWATINI": "ESWATINI",
+    "SWAZILAND": "ESWATINI",
+    "BURMA": "BURMA",
+    "MYANMAR": "BURMA",
+
+    # Avrupa
     "ALBANIA": "ALBANIA",
+    "ANDORRA": "ANDORRA",
+    "AUSTRIA": "AUSTRIA",
+    "BELARUS": "BELARUS",
     "BELGIUM": "BELGIUM",
+    "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
     "BULGARIA": "BULGARIA",
+    "CROATIA": "CROATIA",
+    "CYPRUS": "CYPRUS",
+    "CZECH REPUBLIC": "CZECH REPUBLIC",
+    "DENMARK": "DENMARK",
+    "ESTONIA": "ESTONIA",
+    "FINLAND": "FINLAND",
     "FRANCE": "FRANCE",
     "GERMANY": "GERMANY",
     "GREECE": "GREECE",
     "HUNGARY": "HUNGARY",
-    "ITALY": "ITALY",
-    "NETHERLANDS": "NETHERLANDS",
-    "SWITZERLAND": "SWITZERLAND",
-    "RUSSIA": "RUSSIA",
-    "UKRAINE": "UKRAINE",
-    "SPAIN": "SPAIN",
-    "PORTUGAL": "PORTUGAL",
-    "AUSTRIA": "AUSTRIA",
-    "POLAND": "POLAND",
-    "ROMANIA": "ROMANIA",
-    "SERBIA": "SERBIA",
-    "CROATIA": "CROATIA",
-    "SWEDEN": "SWEDEN",
-    "NORWAY": "NORWAY",
-    "DENMARK": "DENMARK",
-    "FINLAND": "FINLAND",
+    "ICELAND": "ICELAND",
     "IRELAND": "IRELAND",
-    "MALTA": "MALTA",
-    "CYPRUS": "CYPRUS",
+    "ITALY": "ITALY",
+    "KOSOVO": "KOSOVO",
+    "LATVIA": "LATVIA",
+    "LIECHTENSTEIN": "LIECHTENSTEIN",
+    "LITHUANIA": "LITHUANIA",
     "LUXEMBOURG": "LUXEMBOURG",
-    "SAUDI ARABIA": "SAUDI ARABIA",
-    "JORDAN": "JORDAN",
-    "EGYPT": "EGYPT",
-    "MOROCCO": "MOROCCO",
-    "TUNISIA": "TUNISIA",
-    "CHINA": "CHINA",
-    "JAPAN": "JAPAN",
-    "INDIA": "INDIA",
-    "THAILAND": "THAILAND",
-    "INDONESIA": "INDONESIA",
-    "MALAYSIA": "MALAYSIA",
-    "SINGAPORE": "SINGAPORE",
-    "CANADA": "CANADA",
-    "MEXICO": "MEXICO",
-    "BRAZIL": "BRAZIL",
-    "ARGENTINA": "ARGENTINA",
-    "AUSTRALIA": "AUSTRALIA",
-    "NEW ZEALAND": "NEW ZEALAND",
-    "GEORGIA": "GEORGIA",
+    "MALTA": "MALTA",
+    "MOLDOVA": "MOLDOVA",
+    "MONACO": "MONACO",
+    "MONTENEGRO": "MONTENEGRO",
+    "NETHERLANDS": "NETHERLANDS",
+    "NORTH MACEDONIA": "MACEDONIA, NORTH",
+    "NORWAY": "NORWAY",
+    "POLAND": "POLAND",
+    "PORTUGAL": "PORTUGAL",
+    "ROMANIA": "ROMANIA",
+    "RUSSIA": "RUSSIA",
+    "SAN MARINO": "SAN MARINO",
+    "SERBIA": "SERBIA",
+    "SLOVAKIA": "SLOVAKIA",
+    "SLOVENIA": "SLOVENIA",
+    "SPAIN": "SPAIN",
+    "SWEDEN": "SWEDEN",
+    "SWITZERLAND": "SWITZERLAND",
+    "UKRAINE": "UKRAINE",
+    "UNITED KINGDOM": "UNITED KINGDOM",
+
+    # Asya
+    "AFGHANISTAN": "AFGHANISTAN",
     "ARMENIA": "ARMENIA",
     "AZERBAIJAN": "AZERBAIJAN",
-    "BELARUS": "BELARUS",
-    "MOLDOVA": "MOLDOVA",
-    "KOSOVO": "KOSOVO",
-    "MONTENEGRO": "MONTENEGRO"
-    }
+    "BAHRAIN": "BAHRAIN",
+    "BANGLADESH": "BANGLADESH",
+    "BHUTAN": "BHUTAN",
+    "BRUNEI": "BRUNEI",
+    "CAMBODIA": "CAMBODIA",
+    "CHINA": "CHINA",
+    "GEORGIA": "GEORGIA",
+    "HONG KONG": "HONG KONG",
+    "INDIA": "INDIA",
+    "INDONESIA": "INDONESIA",
+    "IRAN": "IRAN",
+    "IRAQ": "IRAQ",
+    "ISRAEL": "ISRAEL",
+    "JAPAN": "JAPAN",
+    "JORDAN": "JORDAN",
+    "KAZAKHSTAN": "KAZAKHSTAN",
+    "KUWAIT": "KUWAIT",
+    "KYRGYZSTAN": "KYRGYZSTAN",
+    "LAOS": "LAOS",
+    "LEBANON": "LEBANON",
+    "MACAU": "MACAU",
+    "MALAYSIA": "MALAYSIA",
+    "MALDIVES": "MALDIVES",
+    "MONGOLIA": "MONGOLIA",
+    "MYANMAR": "BURMA",
+    "NEPAL": "NEPAL",
+    "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+    "OMAN": "OMAN",
+    "PAKISTAN": "PAKISTAN",
+    "PALESTINE": "WEST BANK",
+    "PHILIPPINES": "PHILIPPINES",
+    "QATAR": "QATAR",
+    "SAUDI ARABIA": "SAUDI ARABIA",
+    "SINGAPORE": "SINGAPORE",
+    "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+    "SRI LANKA": "SRI LANKA",
+    "SYRIA": "SYRIA",
+    "TAIWAN": "TAIWAN",
+    "TAJIKISTAN": "TAJIKISTAN",
+    "THAILAND": "THAILAND",
+    "TIMOR-LESTE": "TIMOR-LESTE",
+    "TURKMENISTAN": "TURKMENISTAN",
+    "UZBEKISTAN": "UZBEKISTAN",
+    "VIETNAM": "VIETNAM",
+    "WEST BANK": "WEST BANK",
+    "YEMEN": "YEMEN",
 
+    # Afrika
+    "ALGERIA": "ALGERIA",
+    "ANGOLA": "ANGOLA",
+    "BENIN": "BENIN",
+    "BOTSWANA": "BOTSWANA",
+    "BURKINA FASO": "BURKINA FASO",
+    "BURUNDI": "BURUNDI",
+    "CAMEROON": "CAMEROON",
+    "CENTRAL AFRICAN REPUBLIC": "CENTRAL AFRICAN REPUBLIC",
+    "CHAD": "CHAD",
+    "COMOROS": "COMOROS",
+    "DJIBOUTI": "DJIBOUTI",
+    "EGYPT": "EGYPT",
+    "EQUATORIAL GUINEA": "EQUATORIAL GUINEA",
+    "ERITREA": "ERITREA",
+    "ETHIOPIA": "ETHIOPIA",
+    "GABON": "GABON",
+    "GHANA": "GHANA",
+    "GUINEA": "GUINEA",
+    "KENYA": "KENYA",
+    "LESOTHO": "LESOTHO",
+    "LIBERIA": "LIBERIA",
+    "LIBYA": "LIBYA",
+    "MADAGASCAR": "MADAGASCAR",
+    "MALAWI": "MALAWI",
+    "MALI": "MALI",
+    "MAURITANIA": "MAURITANIA",
+    "MAURITIUS": "MAURITIUS",
+    "MOROCCO": "MOROCCO",
+    "MOZAMBIQUE": "MOZAMBIQUE",
+    "NAMIBIA": "NAMIBIA",
+    "NIGER": "NIGER",
+    "NIGERIA": "NIGERIA",
+    "RWANDA": "RWANDA",
+    "SENEGAL": "SENEGAL",
+    "SIERRA LEONE": "SIERRA LEONE",
+    "SOMALIA": "SOMALIA",
+    "SOUTH AFRICA": "SOUTH AFRICA",
+    "SOUTH SUDAN": "SOUTH SUDAN",
+    "SUDAN": "SUDAN",
+    "TANZANIA": "TANZANIA",
+    "TOGO": "TOGO",
+    "TUNISIA": "TUNISIA",
+    "UGANDA": "UGANDA",
+    "ZAMBIA": "ZAMBIA",
+    "ZIMBABWE": "ZIMBABWE",
+
+    # Amerika
+    "ARGENTINA": "ARGENTINA",
+    "BOLIVIA": "BOLIVIA",
+    "BRAZIL": "BRAZIL",
+    "CANADA": "CANADA",
+    "CHILE": "CHILE",
+    "COLOMBIA": "COLOMBIA",
+    "COSTA RICA": "COSTA RICA",
+    "CUBA": "CUBA",
+    "DOMINICAN REPUBLIC": "DOMINICAN REPUBLIC",
+    "ECUADOR": "ECUADOR",
+    "EL SALVADOR": "EL SALVADOR",
+    "GUATEMALA": "GUATEMALA",
+    "HAITI": "HAITI",
+    "HONDURAS": "HONDURAS",
+    "JAMAICA": "JAMAICA",
+    "MEXICO": "MEXICO",
+    "NICARAGUA": "NICARAGUA",
+    "PANAMA": "PANAMA",
+    "PARAGUAY": "PARAGUAY",
+    "PERU": "PERU",
+    "TRINIDAD AND TOBAGO": "TRINIDAD AND TOBAGO",
+    "UNITED STATES OF AMERICA": "UNITED STATES OF AMERICA",
+    "URUGUAY": "URUGUAY",
+    "VENEZUELA": "VENEZUELA",
+
+    # Okyanusya
+    "AUSTRALIA": "AUSTRALIA",
+    "FIJI": "FIJI",
+    "NEW ZEALAND": "NEW ZEALAND",
+    "PAPUA NEW GUINEA": "PAPUA NEW GUINEA",
+    "SAMOA": "SAMOA",
+}
     seen = set()
     unique_countries = []
     for c in country_list:
@@ -5366,7 +5515,6 @@ def fill_countries_visited(wait, driver, data):
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
 
-    # ── Sayfadaki mevcut ülkeleri oku ──────────────────────────
     existing_countries = []
     try:
         i = 0
@@ -5387,12 +5535,10 @@ def fill_countries_visited(wait, driver, data):
 
     print(f"🔍 Sayfadaki mevcut ülkeler ({len(existing_countries)}): {existing_countries}")
 
-    # Aynıysa atla
     if existing_countries == unique_countries:
         print("✅ Ülkeler zaten doğru, atlanıyor")
         return
 
-    # Fazla satırları sil — sondan başa doğru
     while len(existing_countries) > 1:
         try:
             last_idx = f"{len(existing_countries)-1:02d}"
@@ -5407,7 +5553,6 @@ def fill_countries_visited(wait, driver, data):
             print(f"⚠️ Satır silinemedi: {e}")
             break
 
-    # ── Ülkeleri doldur ────────────────────────────────────────
     for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
         try:
@@ -5419,10 +5564,7 @@ def fill_countries_visited(wait, driver, data):
 
             sel = Select(sel_el)
 
-            # Tam eşleşme
             matched = next((o.text for o in sel.options if o.text.upper().strip() == country), None)
-
-            # Kısmi eşleşme
             if not matched:
                 matched = next((o.text for o in sel.options if country in o.text.upper()), None)
 
@@ -5439,7 +5581,6 @@ def fill_countries_visited(wait, driver, data):
                 print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
                 continue
 
-            # Son ülke değilse Add Another tıkla
             if i < len(unique_countries) - 1:
                 try:
                     driver.execute_script(
@@ -5447,7 +5588,6 @@ def fill_countries_visited(wait, driver, data):
                     )
                     time.sleep(1.5)
                     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-
                     next_idx = f"{i+1:02d}"
                     WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.ID, f"{base}{next_idx}_ddlCOUNTRIES_VISITED"))
@@ -5460,7 +5600,6 @@ def fill_countries_visited(wait, driver, data):
             print(f"⚠️ Ülke [{i}] {country} girilemedi: {e}")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
-
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
