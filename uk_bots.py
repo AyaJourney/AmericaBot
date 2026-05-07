@@ -2493,12 +2493,6 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 15: Baska uyruk var mi =====
     elif page == "other_nationality":
 
-    # =========================================
-    # OTHER NATIONALITY BOOLEAN PARSE
-    # JSON:
-    # "other_nationality": "EVET" | "HAYIR"
-    # =========================================
-
         has_other_nationality = (
             str(form.other_nationality).strip().upper() == "EVET"
         )
@@ -2512,6 +2506,32 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         print(f"[FORM-15] country => {country}")
 
         # =========================================
+        # RADIO SEÇİMİ — JS ile zorla
+        # =========================================
+
+        radio_id = "hasOtherNationality_true" if has_other_nationality else "hasOtherNationality_false"
+
+        try:
+            radio_el = wait.until(
+                EC.presence_of_element_located((By.ID, radio_id))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", radio_el)
+            time.sleep(0.3)
+            driver.execute_script("""
+                var el = document.getElementById(arguments[0]);
+                if (el) {
+                    el.checked = true;
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('click',  { bubbles: true }));
+                }
+            """, radio_id)
+            print(f"[FORM-15] Radio secildi => {radio_id}")
+        except Exception as e:
+            print(f"[FORM-15] Radio secilemedi => {e}")
+
+        time.sleep(0.5)
+
+        # =========================================
         # YES FLOW
         # =========================================
 
@@ -2519,251 +2539,105 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
             print(f"[FORM-15] Baska uyruk VAR: {country}")
 
-            # YES seç
-            set_radio(driver, "hasOtherNationality_true")
-            time.sleep(0.5)
-
             click_submit(driver, wait)
             time.sleep(3)
 
             print("[FORM-15a] Diger uyruk detaylari giriliyor...")
 
-            # =========================================
             # COUNTRY CODE NORMALIZATION
-            # =========================================
-
             country_code = country.upper()
-
             country_name_to_code = {
                 "TURKEY": "TUR",
                 "TURKIYE": "TUR",
                 "TÜRKİYE": "TUR",
             }
-
             if country_code in country_name_to_code:
                 country_code = country_name_to_code[country_code]
 
-            # =========================================
             # COUNTRY SELECT
-            # =========================================
-
             driver.execute_script(f"""
                 var s = document.getElementById('otherNationality');
-
                 if (s) {{
-
                     s.value = '{country_code}';
-
-                    s.dispatchEvent(
-                        new Event('change', {{ bubbles: true }})
-                    );
-
+                    s.dispatchEvent(new Event('change', {{ bubbles: true }}));
                     var ui = document.getElementById('otherNationality_ui');
-
                     if (ui) {{
-
-                        var opt = s.querySelector(
-                            'option[value="{country_code}"]'
-                        );
-
-                        if (opt) {{
-                            ui.value = opt.textContent.trim();
-                        }}
+                        var opt = s.querySelector('option[value="{country_code}"]');
+                        if (opt) {{ ui.value = opt.textContent.trim(); }}
                     }}
                 }}
             """)
-
             time.sleep(1)
-
             print(f"[FORM-15a] Uyruk secildi => {country_code}")
 
-            # =========================================
             # START DATE
-            # =========================================
-
             if form.other_nationality_start_date:
-
-                start_date = parse_date_safe(
-                    form.other_nationality_start_date,
-                    "Diger uyruk baslangic"
-                )
-
+                start_date = parse_date_safe(form.other_nationality_start_date, "Diger uyruk baslangic")
             else:
-
-                start_date = parse_date_safe(
-                    form.birthDate,
-                    "Dogum tarihi fallback"
-                )
+                start_date = parse_date_safe(form.birthDate, "Dogum tarihi fallback")
 
             driver.execute_script(f"""
                 function setVal(id, val) {{
-
                     var el = document.getElementById(id);
-
                     if (!el) return;
-
-                    var setter =
-                        Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype,
-                            'value'
-                        ).set;
-
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                     setter.call(el, val);
-
-                    el.dispatchEvent(
-                        new Event('input', {{ bubbles: true }})
-                    );
-
-                    el.dispatchEvent(
-                        new Event('change', {{ bubbles: true }})
-                    );
+                    el.dispatchEvent(new Event('input',  {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
                 }}
-
-                setVal(
-                    'otherNatHeldFrom_day',
-                    '{start_date.day}'
-                );
-
-                setVal(
-                    'otherNatHeldFrom_month',
-                    '{start_date.month}'
-                );
-
-                setVal(
-                    'otherNatHeldFrom_year',
-                    '{start_date.year}'
-                );
+                setVal('otherNatHeldFrom_day',   '{start_date.day}');
+                setVal('otherNatHeldFrom_month', '{start_date.month}');
+                setVal('otherNatHeldFrom_year',  '{start_date.year}');
             """)
-
             time.sleep(0.5)
+            print(f"[FORM-15b] Baslangic => {start_date.day}/{start_date.month}/{start_date.year}")
 
-            print(
-                f"[FORM-15b] Baslangic => "
-                f"{start_date.day}/"
-                f"{start_date.month}/"
-                f"{start_date.year}"
-            )
-
-            # =========================================
             # END DATE
-            # =========================================
-
             if form.other_nationality_end_date:
-
-                end_date = parse_date_safe(
-                    form.other_nationality_end_date,
-                    "Diger uyruk bitis"
-                )
-
+                end_date = parse_date_safe(form.other_nationality_end_date, "Diger uyruk bitis")
                 driver.execute_script(f"""
                     function setVal(id, val) {{
-
                         var el = document.getElementById(id);
-
                         if (!el) return;
-
-                        var setter =
-                            Object.getOwnPropertyDescriptor(
-                                window.HTMLInputElement.prototype,
-                                'value'
-                            ).set;
-
+                        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
                         setter.call(el, val);
-
-                        el.dispatchEvent(
-                            new Event('input', {{ bubbles: true }})
-                        );
-
-                        el.dispatchEvent(
-                            new Event('change', {{ bubbles: true }})
-                        );
+                        el.dispatchEvent(new Event('input',  {{ bubbles: true }}));
+                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
                     }}
-
-                    setVal(
-                        'otherNatHeldTo_day',
-                        '{end_date.day}'
-                    );
-
-                    setVal(
-                        'otherNatHeldTo_month',
-                        '{end_date.month}'
-                    );
-
-                    setVal(
-                        'otherNatHeldTo_year',
-                        '{end_date.year}'
-                    );
+                    setVal('otherNatHeldTo_day',   '{end_date.day}');
+                    setVal('otherNatHeldTo_month', '{end_date.month}');
+                    setVal('otherNatHeldTo_year',  '{end_date.year}');
                 """)
-
-                print(
-                    f"[FORM-15c] Bitis => "
-                    f"{end_date.day}/"
-                    f"{end_date.month}/"
-                    f"{end_date.year}"
-                )
-
+                print(f"[FORM-15c] Bitis => {end_date.day}/{end_date.month}/{end_date.year}")
             else:
-
                 try:
-
                     still_held = driver.find_element(
-                        By.ID,
-                        "confirmNatStillHeld_confirmNatStillHeld"
+                        By.ID, "confirmNatStillHeld_confirmNatStillHeld"
                     )
-
                     safe_click(driver, still_held)
-
-                    print(
-                        "[FORM-15c] "
-                        "Hala bu uyruktayim secildi"
-                    )
-
+                    print("[FORM-15c] Hala bu uyruktayim secildi")
                 except Exception as e:
-
-                    print(
-                        "[FORM-15c] "
-                        f"Checkbox bulunamadi => {e}"
-                    )
+                    print(f"[FORM-15c] Checkbox bulunamadi => {e}")
 
             time.sleep(0.5)
 
-            # =========================================
             # SUBMIT DETAIL PAGE
-            # =========================================
-
             click_submit(driver, wait)
             time.sleep(3)
-
             print("[FORM-15] Diger uyruk tamamlandi")
 
-            # =========================================
             # ADD ANOTHER NATIONALITY
-            # =========================================
-
             try:
-
                 no_more = wait.until(
-                    EC.presence_of_element_located(
-                        (By.ID, "addAnother_false")
-                    )
+                    EC.presence_of_element_located((By.ID, "addAnother_false"))
                 )
-
                 safe_click(driver, no_more)
-
                 time.sleep(0.5)
-
                 click_submit(driver, wait)
-
                 time.sleep(3)
-
                 print("[FORM-15] Baska uyruk yok")
-
             except Exception as e:
-
-                print(
-                    "[FORM-15] addAnother sayfasi yok => "
-                    f"{e}"
-                )
+                print(f"[FORM-15] addAnother sayfasi yok => {e}")
 
         # =========================================
         # NO FLOW
@@ -2771,19 +2645,12 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
         else:
 
-            print("[FORM-15] Baska uyruk YOK")
-
-            set_radio(driver, "hasOtherNationality_false")
-
-            time.sleep(0.5)
+            print("[FORM-15] Baska uyruk YOK, submit ediliyor")
 
             click_submit(driver, wait)
-
             time.sleep(3)
 
             print("[FORM-15] Tamamlandi")
-    
-    
     
     
     # ===== SAYFA 16: Is durumu =====
