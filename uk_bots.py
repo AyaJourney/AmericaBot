@@ -4712,7 +4712,6 @@ def main():
                 complete_job(job_id, {"url": driver.current_url, "resume_link": resume_url or resume_link})
                 print(f"[OK] Form kaydedildi! Resume: {resume_url}")
 
-                input("[BEKLE] Tarayici acik. Kapatmak icin Enter'a bas...")
             else:
                 # Sifirdan basla
                 update_job_status(job_id, "processing", f"Form aciliyor: {form.full_name}")
@@ -4727,7 +4726,6 @@ def main():
                 complete_job(job_id, {"url": driver.current_url, "resume_link": resume_url})
                 print(f"[OK] Form kaydedildi! Resume: {resume_url}")
 
-                input("[BEKLE] Tarayici acik. Kapatmak icin Enter'a bas...")
 
         except Exception as e:
             error_msg = str(e)
@@ -4754,7 +4752,6 @@ def main():
                 except:
                     pass
 
-            input("[BEKLE] Hata olustu! Tarayici acik. Kapatmak icin Enter'a bas...")
 
         finally:
             if driver:
