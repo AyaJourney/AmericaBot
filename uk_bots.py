@@ -2494,6 +2494,38 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 15: Baska uyruk var mi =====
     elif page == "other_nationality":
 
+    # =========================================
+    # SAYFA YÜKLENMESİNİ BEKLE
+    # =========================================
+
+        print("[FORM-15] Sayfa yuklenmesi bekleniyor...")
+        
+        try:
+            # Form action kontrolu ile sayfanin gelmesini bekle
+            wait.until(lambda d: "othernationality" in (
+                d.execute_script("""
+                    var f = document.querySelector('form[action]');
+                    return f ? f.getAttribute('action').toLowerCase() : '';
+                """) or ""
+            ))
+            print("[FORM-15] Sayfa yuklendi (form action dogrulandi)")
+        except Exception as e:
+            print(f"[FORM-15] Form action beklenemedi: {e}")
+
+        # Radio elementin DOM'da olmасını bekle
+        try:
+            wait.until(
+                EC.presence_of_element_located(
+                    (By.ID, "hasOtherNationality_false")
+                )
+            )
+            print("[FORM-15] Radio elementler DOM'da mevcut")
+        except Exception as e:
+            print(f"[FORM-15] Radio element beklenemedi: {e}")
+
+        # Sayfanin tam render olmasi icin kisa bekleme
+        time.sleep(2)
+
         has_other_nationality = (
             str(form.step1.get("other_nationality", "")).strip().upper() == "EVET"
         )
@@ -2512,60 +2544,73 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
         radio_id = "hasOtherNationality_true" if has_other_nationality else "hasOtherNationality_false"
 
-        try:
-            radio_el = wait.until(
-                EC.presence_of_element_located((By.ID, radio_id))
-            )
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", radio_el
-            )
-            time.sleep(0.5)
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                radio_el = wait.until(
+                    EC.element_to_be_clickable((By.ID, radio_id))
+                )
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});", radio_el
+                )
+                time.sleep(0.5)
 
-            # Tüm radio'ları uncheck et
-            driver.execute_script("""
-                var radios = document.querySelectorAll(
-                    'input[name="hasOtherNationality"]'
-                );
-                radios.forEach(function(r) {
-                    r.checked = false;
-                    var label = document.querySelector('label[for="' + r.id + '"]');
-                    if (label) label.classList.remove('selected');
-                });
-            """)
-            time.sleep(0.2)
-
-            # Hedef radio'yu seç
-            driver.execute_script("""
-                var el = document.getElementById(arguments[0]);
-                if (el) {
-                    el.checked = true;
-                    el.dispatchEvent(new MouseEvent('click', {
-                        bubbles: true,
-                        cancelable: true
-                    }));
-                    el.dispatchEvent(new Event('change', {bubbles: true}));
-                    var label = document.querySelector(
-                        'label[for="' + el.id + '"]'
+                # Tüm radio'ları uncheck et
+                driver.execute_script("""
+                    var radios = document.querySelectorAll(
+                        'input[name="hasOtherNationality"]'
                     );
-                    if (label) label.classList.add('selected');
-                }
-            """, radio_id)
-            time.sleep(0.3)
+                    radios.forEach(function(r) {
+                        r.checked = false;
+                        var label = document.querySelector('label[for="' + r.id + '"]');
+                        if (label) label.classList.remove('selected');
+                    });
+                """)
+                time.sleep(0.2)
 
-            # Doğrulama
-            is_checked = driver.execute_script(
-                "return document.getElementById(arguments[0]).checked;",
-                radio_id
-            )
-            if not is_checked:
-                print(f"[FORM-15] JS ile secilemedi, Selenium click deneniyor...")
-                radio_el.click()
+                # Hedef radio'yu seç
+                driver.execute_script("""
+                    var el = document.getElementById(arguments[0]);
+                    if (el) {
+                        el.checked = true;
+                        el.dispatchEvent(new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true
+                        }));
+                        el.dispatchEvent(new Event('change', {bubbles: true}));
+                        var label = document.querySelector(
+                            'label[for="' + el.id + '"]'
+                        );
+                        if (label) label.classList.add('selected');
+                    }
+                """, radio_id)
                 time.sleep(0.3)
 
-            print(f"[FORM-15] Radio secildi => {radio_id}")
+                # Doğrulama
+                is_checked = driver.execute_script(
+                    "return document.getElementById(arguments[0]).checked;",
+                    radio_id
+                )
 
-        except Exception as e:
-            print(f"[FORM-15] Radio secilemedi => {e}")
+                if is_checked:
+                    print(f"[FORM-15] Radio secildi => {radio_id} (deneme {attempt+1})")
+                    break
+                else:
+                    print(f"[FORM-15] Deneme {attempt+1} basarisiz, tekrar...")
+                    # Selenium native click dene
+                    radio_el.click()
+                    time.sleep(0.5)
+                    is_checked = driver.execute_script(
+                        "return document.getElementById(arguments[0]).checked;",
+                        radio_id
+                    )
+                    if is_checked:
+                        print(f"[FORM-15] Selenium click ile secildi (deneme {attempt+1})")
+                        break
+
+            except Exception as e:
+                print(f"[FORM-15] Deneme {attempt+1} hatasi => {e}")
+                time.sleep(1)
 
         time.sleep(0.5)
 
@@ -2582,17 +2627,15 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
             print("[FORM-15a] Diger uyruk detaylari giriliyor...")
 
-            # COUNTRY CODE NORMALIZATION
             country_code = country.upper()
             country_name_to_code = {
-                "TURKEY":   "TUR",
-                "TURKIYE":  "TUR",
-                "TÜRKİYE":  "TUR",
+                "TURKEY":  "TUR",
+                "TURKIYE": "TUR",
+                "TÜRKİYE": "TUR",
             }
             if country_code in country_name_to_code:
                 country_code = country_name_to_code[country_code]
 
-            # COUNTRY SELECT
             driver.execute_script(f"""
                 var s = document.getElementById('otherNationality');
                 if (s) {{
@@ -2608,7 +2651,6 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             time.sleep(1)
             print(f"[FORM-15a] Uyruk secildi => {country_code}")
 
-            # START DATE
             other_nat_start = form.step1.get("other_nationality_start_date", "")
             if other_nat_start:
                 start_date = parse_date_safe(other_nat_start, "Diger uyruk baslangic")
@@ -2636,7 +2678,6 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                 f"{start_date.day}/{start_date.month}/{start_date.year}"
             )
 
-            # END DATE
             other_nat_end = form.step1.get("other_nationality_end_date", "")
             if other_nat_end:
                 end_date = parse_date_safe(other_nat_end, "Diger uyruk bitis")
@@ -2670,12 +2711,10 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     print(f"[FORM-15c] Checkbox bulunamadi => {e}")
 
             time.sleep(0.5)
-
             click_submit(driver, wait)
             time.sleep(3)
             print("[FORM-15] Diger uyruk tamamlandi")
 
-            # ADD ANOTHER NATIONALITY
             try:
                 no_more = wait.until(
                     EC.presence_of_element_located((By.ID, "addAnother_false"))
@@ -2697,6 +2736,9 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             click_submit(driver, wait)
             time.sleep(3)
             print("[FORM-15] Tamamlandi")
+    
+    
+    
     # ===== SAYFA 16: Is durumu =====
     elif page == "employment_status":
         print("[FORM-16] Is durumu seciliyor...")
