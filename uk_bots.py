@@ -1290,7 +1290,6 @@ def detect_current_page(driver):
         "standardidentitycard": "id_card",
         "identificationdocument": "id_card_details",
         "nationality": "nationality_dob",
-        "standardothernationality": "other_nationality",
         "othernationality": "other_nationality",
         "employmentstatus": "employment_status",
         "fundingemploymentemployerdetails": "employer_details",
@@ -1346,7 +1345,8 @@ def detect_current_page(driver):
         "declaration": "declaration",
     }
     
-    for key, val in ACTION_MAP.items():
+    # Uzun key'ler once kontrol edilmeli (substring cakismasi onlenir)
+    for key, val in sorted(ACTION_MAP.items(), key=lambda x: len(x[0]), reverse=True):
         if key in combined:
             return val
     
@@ -2494,251 +2494,119 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 15: Baska uyruk var mi =====
     elif page == "other_nationality":
 
-    # =========================================
-    # SAYFA YÜKLENMESİNİ BEKLE
-    # =========================================
-
         print("[FORM-15] Sayfa yuklenmesi bekleniyor...")
         
         try:
-            # Form action kontrolu ile sayfanin gelmesini bekle
             wait.until(lambda d: "othernationality" in (
                 d.execute_script("""
                     var f = document.querySelector('form[action]');
                     return f ? f.getAttribute('action').toLowerCase() : '';
                 """) or ""
             ))
-            print("[FORM-15] Sayfa yuklendi (form action dogrulandi)")
-        except Exception as e:
-            print(f"[FORM-15] Form action beklenemedi: {e}")
+        except:
+            pass
 
-        # Radio elementin DOM'da olmасını bekle
         try:
-            wait.until(
-                EC.presence_of_element_located(
-                    (By.ID, "hasOtherNationality_false")
-                )
-            )
-            print("[FORM-15] Radio elementler DOM'da mevcut")
-        except Exception as e:
-            print(f"[FORM-15] Radio element beklenemedi: {e}")
+            wait.until(EC.presence_of_element_located((By.ID, "hasOtherNationality_false")))
+        except:
+            pass
 
-        # Sayfanin tam render olmasi icin kisa bekleme
         time.sleep(2)
 
-        has_other_nationality = (
-            str(form.step1.get("other_nationality", "")).strip().upper() == "EVET"
-        )
+        has_other_nationality = str(form.step1.get("other_nationality", "")).strip().upper() == "EVET"
+        country = (form.step1.get("other_nationality_country", "") or "").strip()
 
-        country = (
-            form.step1.get("other_nationality_country", "") or ""
-        ).strip()
-
-        print(f"[FORM-15] raw other_nationality => {form.step1.get('other_nationality', '')}")
-        print(f"[FORM-15] parsed => {has_other_nationality}")
-        print(f"[FORM-15] country => {country}")
-
-        # =========================================
-        # RADIO SEÇİMİ
-        # =========================================
+        print(f"[FORM-15] other_nationality='{form.step1.get('other_nationality', '')}' -> {has_other_nationality}, country='{country}'")
 
         radio_id = "hasOtherNationality_true" if has_other_nationality else "hasOtherNationality_false"
 
-        max_attempts = 3
-        for attempt in range(max_attempts):
+        for attempt in range(3):
             try:
-                radio_el = wait.until(
-                    EC.element_to_be_clickable((By.ID, radio_id))
-                )
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block: 'center'});", radio_el
-                )
+                radio_el = wait.until(EC.element_to_be_clickable((By.ID, radio_id)))
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", radio_el)
                 time.sleep(0.5)
-
-                # Tüm radio'ları uncheck et
                 driver.execute_script("""
-                    var radios = document.querySelectorAll(
-                        'input[name="hasOtherNationality"]'
-                    );
-                    radios.forEach(function(r) {
-                        r.checked = false;
-                        var label = document.querySelector('label[for="' + r.id + '"]');
-                        if (label) label.classList.remove('selected');
-                    });
+                    var radios = document.querySelectorAll('input[name="hasOtherNationality"]');
+                    radios.forEach(function(r) { r.checked = false; });
                 """)
                 time.sleep(0.2)
-
-                # Hedef radio'yu seç
                 driver.execute_script("""
                     var el = document.getElementById(arguments[0]);
                     if (el) {
                         el.checked = true;
-                        el.dispatchEvent(new MouseEvent('click', {
-                            bubbles: true,
-                            cancelable: true
-                        }));
+                        el.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
                         el.dispatchEvent(new Event('change', {bubbles: true}));
-                        var label = document.querySelector(
-                            'label[for="' + el.id + '"]'
-                        );
-                        if (label) label.classList.add('selected');
                     }
                 """, radio_id)
                 time.sleep(0.3)
-
-                # Doğrulama
-                is_checked = driver.execute_script(
-                    "return document.getElementById(arguments[0]).checked;",
-                    radio_id
-                )
-
+                is_checked = driver.execute_script("return document.getElementById(arguments[0]).checked;", radio_id)
                 if is_checked:
-                    print(f"[FORM-15] Radio secildi => {radio_id} (deneme {attempt+1})")
+                    print(f"[FORM-15] Radio secildi: {radio_id} (deneme {attempt+1})")
                     break
                 else:
-                    print(f"[FORM-15] Deneme {attempt+1} basarisiz, tekrar...")
-                    # Selenium native click dene
                     radio_el.click()
                     time.sleep(0.5)
-                    is_checked = driver.execute_script(
-                        "return document.getElementById(arguments[0]).checked;",
-                        radio_id
-                    )
-                    if is_checked:
-                        print(f"[FORM-15] Selenium click ile secildi (deneme {attempt+1})")
-                        break
-
             except Exception as e:
-                print(f"[FORM-15] Deneme {attempt+1} hatasi => {e}")
+                print(f"[FORM-15] Deneme {attempt+1} hatasi: {e}")
                 time.sleep(1)
 
         time.sleep(0.5)
 
-        # =========================================
-        # YES FLOW
-        # =========================================
-
         if has_other_nationality and country:
-
             print(f"[FORM-15] Baska uyruk VAR: {country}")
-
             click_submit(driver, wait)
             time.sleep(3)
 
-            print("[FORM-15a] Diger uyruk detaylari giriliyor...")
-
             country_code = country.upper()
-            country_name_to_code = {
-                "TURKEY":  "TUR",
-                "TURKIYE": "TUR",
-                "TÜRKİYE": "TUR",
-            }
-            if country_code in country_name_to_code:
-                country_code = country_name_to_code[country_code]
+            name_to_code = {"TURKEY": "TUR", "TURKIYE": "TUR"}
+            if country_code in name_to_code:
+                country_code = name_to_code[country_code]
 
             driver.execute_script(f"""
                 var s = document.getElementById('otherNationality');
                 if (s) {{
                     s.value = '{country_code}';
-                    s.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    s.dispatchEvent(new Event('change', {{bubbles: true}}));
                     var ui = document.getElementById('otherNationality_ui');
-                    if (ui) {{
-                        var opt = s.querySelector('option[value="{country_code}"]');
-                        if (opt) {{ ui.value = opt.textContent.trim(); }}
-                    }}
+                    if (ui) {{ var opt = s.querySelector('option[value="{country_code}"]'); if (opt) ui.value = opt.textContent.trim(); }}
                 }}
             """)
             time.sleep(1)
-            print(f"[FORM-15a] Uyruk secildi => {country_code}")
 
             other_nat_start = form.step1.get("other_nationality_start_date", "")
-            if other_nat_start:
-                start_date = parse_date_safe(other_nat_start, "Diger uyruk baslangic")
-            else:
-                start_date = parse_date_safe(form.birth_date, "Dogum tarihi fallback")
-
-            driver.execute_script(f"""
-                function setVal(id, val) {{
-                    var el = document.getElementById(id);
-                    if (!el) return;
-                    var setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value'
-                    ).set;
-                    setter.call(el, val);
-                    el.dispatchEvent(new Event('input',  {{ bubbles: true }}));
-                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                }}
-                setVal('otherNatHeldFrom_day',   '{start_date.day}');
-                setVal('otherNatHeldFrom_month', '{start_date.month}');
-                setVal('otherNatHeldFrom_year',  '{start_date.year}');
-            """)
-            time.sleep(0.5)
-            print(
-                f"[FORM-15b] Baslangic => "
-                f"{start_date.day}/{start_date.month}/{start_date.year}"
-            )
+            start_date = parse_date_safe(other_nat_start if other_nat_start else form.birth_date, "Diger uyruk baslangic")
+            set_date(driver, "otherNatHeldFrom", start_date)
+            print(f"[FORM-15] Baslangic: {start_date.day}/{start_date.month}/{start_date.year}")
 
             other_nat_end = form.step1.get("other_nationality_end_date", "")
             if other_nat_end:
                 end_date = parse_date_safe(other_nat_end, "Diger uyruk bitis")
-                driver.execute_script(f"""
-                    function setVal(id, val) {{
-                        var el = document.getElementById(id);
-                        if (!el) return;
-                        var setter = Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype, 'value'
-                        ).set;
-                        setter.call(el, val);
-                        el.dispatchEvent(new Event('input',  {{ bubbles: true }}));
-                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    }}
-                    setVal('otherNatHeldTo_day',   '{end_date.day}');
-                    setVal('otherNatHeldTo_month', '{end_date.month}');
-                    setVal('otherNatHeldTo_year',  '{end_date.year}');
-                """)
-                print(
-                    f"[FORM-15c] Bitis => "
-                    f"{end_date.day}/{end_date.month}/{end_date.year}"
-                )
+                set_date(driver, "otherNatHeldTo", end_date)
             else:
                 try:
-                    still_held = driver.find_element(
-                        By.ID, "confirmNatStillHeld_confirmNatStillHeld"
-                    )
-                    safe_click(driver, still_held)
-                    print("[FORM-15c] Hala bu uyruktayim secildi")
-                except Exception as e:
-                    print(f"[FORM-15c] Checkbox bulunamadi => {e}")
+                    safe_click(driver, driver.find_element(By.ID, "confirmNatStillHeld_confirmNatStillHeld"))
+                    print("[FORM-15] Hala bu uyruktayim secildi")
+                except:
+                    pass
 
-            time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-15] Diger uyruk tamamlandi")
 
             try:
-                no_more = wait.until(
-                    EC.presence_of_element_located((By.ID, "addAnother_false"))
-                )
-                safe_click(driver, no_more)
+                safe_click(driver, wait.until(EC.presence_of_element_located((By.ID, "addAnother_false"))))
                 time.sleep(0.5)
                 click_submit(driver, wait)
                 time.sleep(3)
-                print("[FORM-15] Baska uyruk yok")
-            except Exception as e:
-                print(f"[FORM-15] addAnother sayfasi yok => {e}")
+            except:
+                pass
 
-        # =========================================
-        # NO FLOW
-        # =========================================
-
+            print("[FORM-15] Diger uyruk tamamlandi!")
         else:
-            print("[FORM-15] Baska uyruk YOK, submit ediliyor")
+            print("[FORM-15] Baska uyruk YOK, submit ediliyor...")
             click_submit(driver, wait)
             time.sleep(3)
-            print("[FORM-15] Tamamlandi")
-    
-    
-    
+            print("[FORM-15] Tamamlandi!")
+
     # ===== SAYFA 16: Is durumu =====
     elif page == "employment_status":
         print("[FORM-16] Is durumu seciliyor...")
