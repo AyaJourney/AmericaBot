@@ -1308,6 +1308,8 @@ def detect_current_page(driver):
         "purposeofvisit": "visit_purpose",
         "subpurposeofvisit": "visit_sub_purpose",
         "touristandshortstaydetails": "visit_sub_purpose",
+        "purposeoftourismvisitforvv": "visit_sub_purpose",
+        "purposeofbusinessvisit": "visit_sub_purpose",
         "businessdetails": "visit_sub_purpose",
         "aboutvisit": "about_visit",
         "hasdependants": "has_dependants",
