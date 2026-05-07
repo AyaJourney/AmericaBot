@@ -2493,26 +2493,33 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 15: Baska uyruk var mi =====
     elif page == "other_nationality":
 
-    # =========================
-    # 🔒 SAFE BOOLEAN PARSE
-    # =========================
-        has_other_nationality = str(
-            form.has_other_nationality
-        ).strip().lower() in ["true", "1", "yes", "on"]
+    # =========================================
+    # OTHER NATIONALITY BOOLEAN PARSE
+    # JSON:
+    # "other_nationality": "EVET" | "HAYIR"
+    # =========================================
 
-        country_raw = (form.other_nationality_country or "").strip()
+        has_other_nationality = (
+            str(form.other_nationality).strip().upper() == "EVET"
+        )
 
-        print(f"[FORM-15] raw has_other_nationality => {form.has_other_nationality}")
+        country = (
+            form.other_nationality_country or ""
+        ).strip()
+
+        print(f"[FORM-15] raw other_nationality => {form.other_nationality}")
         print(f"[FORM-15] parsed => {has_other_nationality}")
-        print(f"[FORM-15] country => {country_raw}")
+        print(f"[FORM-15] country => {country}")
 
-        # =========================
+        # =========================================
         # YES FLOW
-        # =========================
-        if has_other_nationality and country_raw:
+        # =========================================
 
-            print(f"[FORM-15] Baska uyruk VAR: {country_raw}")
+        if has_other_nationality and country:
 
+            print(f"[FORM-15] Baska uyruk VAR: {country}")
+
+            # YES seç
             set_radio(driver, "hasOtherNationality_true")
             time.sleep(0.5)
 
@@ -2521,75 +2528,126 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
             print("[FORM-15a] Diger uyruk detaylari giriliyor...")
 
-            # =========================
-            # COUNTRY NORMALIZATION
-            # =========================
-            country_code = country_raw.upper()
+            # =========================================
+            # COUNTRY CODE NORMALIZATION
+            # =========================================
 
-            country_map = {
+            country_code = country.upper()
+
+            country_name_to_code = {
                 "TURKEY": "TUR",
                 "TURKIYE": "TUR",
-                "TÜRKİYE": "TUR"
+                "TÜRKİYE": "TUR",
             }
 
-            if country_code in country_map:
-                country_code = country_map[country_code]
+            if country_code in country_name_to_code:
+                country_code = country_name_to_code[country_code]
+
+            # =========================================
+            # COUNTRY SELECT
+            # =========================================
 
             driver.execute_script(f"""
                 var s = document.getElementById('otherNationality');
-                if (!s) return;
 
-                s.value = '{country_code}';
-                s.dispatchEvent(new Event('change', {{bubbles: true}}));
+                if (s) {{
 
-                var ui = document.getElementById('otherNationality_ui');
-                if (ui) {{
-                    var opt = s.querySelector('option[value="{country_code}"]');
-                    if (opt) ui.value = opt.textContent.trim();
+                    s.value = '{country_code}';
+
+                    s.dispatchEvent(
+                        new Event('change', {{ bubbles: true }})
+                    );
+
+                    var ui = document.getElementById('otherNationality_ui');
+
+                    if (ui) {{
+
+                        var opt = s.querySelector(
+                            'option[value="{country_code}"]'
+                        );
+
+                        if (opt) {{
+                            ui.value = opt.textContent.trim();
+                        }}
+                    }}
                 }}
             """)
 
             time.sleep(1)
-            print(f"[FORM-15a] Uyruk ulkesi secildi: {country_code}")
 
-            # =========================
+            print(f"[FORM-15a] Uyruk secildi => {country_code}")
+
+            # =========================================
             # START DATE
-            # =========================
-            start_date = parse_date_safe(
-                form.other_nationality_start_date,
-                "Diger uyruk baslangic"
-            )
+            # =========================================
 
-            if not form.other_nationality_start_date:
+            if form.other_nationality_start_date:
+
                 start_date = parse_date_safe(
-                    form.birth_date,
-                    "Fallback dogum tarihi"
+                    form.other_nationality_start_date,
+                    "Diger uyruk baslangic"
+                )
+
+            else:
+
+                start_date = parse_date_safe(
+                    form.birthDate,
+                    "Dogum tarihi fallback"
                 )
 
             driver.execute_script(f"""
                 function setVal(id, val) {{
+
                     var el = document.getElementById(id);
+
                     if (!el) return;
 
-                    var setter = Object.getOwnPropertyDescriptor(
-                        window.HTMLInputElement.prototype, 'value'
-                    ).set;
+                    var setter =
+                        Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype,
+                            'value'
+                        ).set;
 
                     setter.call(el, val);
-                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+
+                    el.dispatchEvent(
+                        new Event('input', {{ bubbles: true }})
+                    );
+
+                    el.dispatchEvent(
+                        new Event('change', {{ bubbles: true }})
+                    );
                 }}
 
-                setVal('otherNatHeldFrom_day', '{start_date.day}');
-                setVal('otherNatHeldFrom_month', '{start_date.month}');
-                setVal('otherNatHeldFrom_year', '{start_date.year}');
+                setVal(
+                    'otherNatHeldFrom_day',
+                    '{start_date.day}'
+                );
+
+                setVal(
+                    'otherNatHeldFrom_month',
+                    '{start_date.month}'
+                );
+
+                setVal(
+                    'otherNatHeldFrom_year',
+                    '{start_date.year}'
+                );
             """)
 
-            print(f"[FORM-15b] Baslangic: {start_date.day}/{start_date.month}/{start_date.year}")
+            time.sleep(0.5)
 
-            # =========================
+            print(
+                f"[FORM-15b] Baslangic => "
+                f"{start_date.day}/"
+                f"{start_date.month}/"
+                f"{start_date.year}"
+            )
+
+            # =========================================
             # END DATE
-            # =========================
+            # =========================================
+
             if form.other_nationality_end_date:
 
                 end_date = parse_date_safe(
@@ -2599,68 +2657,135 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
                 driver.execute_script(f"""
                     function setVal(id, val) {{
+
                         var el = document.getElementById(id);
+
                         if (!el) return;
 
-                        var setter = Object.getOwnPropertyDescriptor(
-                            window.HTMLInputElement.prototype, 'value'
-                        ).set;
+                        var setter =
+                            Object.getOwnPropertyDescriptor(
+                                window.HTMLInputElement.prototype,
+                                'value'
+                            ).set;
 
                         setter.call(el, val);
-                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
+
+                        el.dispatchEvent(
+                            new Event('input', {{ bubbles: true }})
+                        );
+
+                        el.dispatchEvent(
+                            new Event('change', {{ bubbles: true }})
+                        );
                     }}
 
-                    setVal('otherNatHeldTo_day', '{end_date.day}');
-                    setVal('otherNatHeldTo_month', '{end_date.month}');
-                    setVal('otherNatHeldTo_year', '{end_date.year}');
+                    setVal(
+                        'otherNatHeldTo_day',
+                        '{end_date.day}'
+                    );
+
+                    setVal(
+                        'otherNatHeldTo_month',
+                        '{end_date.month}'
+                    );
+
+                    setVal(
+                        'otherNatHeldTo_year',
+                        '{end_date.year}'
+                    );
                 """)
 
-                print(f"[FORM-15c] Bitis: {end_date.day}/{end_date.month}/{end_date.year}")
+                print(
+                    f"[FORM-15c] Bitis => "
+                    f"{end_date.day}/"
+                    f"{end_date.month}/"
+                    f"{end_date.year}"
+                )
 
             else:
+
                 try:
-                    still = driver.find_element(By.ID, "confirmNatStillHeld_confirmNatStillHeld")
-                    safe_click(driver, still)
-                    print("[FORM-15c] Hala uyruk checkbox isaretlendi")
-                except:
-                    print("[FORM-15c] Checkbox yok")
+
+                    still_held = driver.find_element(
+                        By.ID,
+                        "confirmNatStillHeld_confirmNatStillHeld"
+                    )
+
+                    safe_click(driver, still_held)
+
+                    print(
+                        "[FORM-15c] "
+                        "Hala bu uyruktayim secildi"
+                    )
+
+                except Exception as e:
+
+                    print(
+                        "[FORM-15c] "
+                        f"Checkbox bulunamadi => {e}"
+                    )
 
             time.sleep(0.5)
+
+            # =========================================
+            # SUBMIT DETAIL PAGE
+            # =========================================
 
             click_submit(driver, wait)
             time.sleep(3)
 
-            print("[FORM-15] Diger uyruk tamamlandi!")
+            print("[FORM-15] Diger uyruk tamamlandi")
 
-            # =========================
-            # ADD ANOTHER
-            # =========================
+            # =========================================
+            # ADD ANOTHER NATIONALITY
+            # =========================================
+
             try:
-                no_more = wait.until(
-                    EC.presence_of_element_located((By.ID, "addAnother_false"))
-                )
-                safe_click(driver, no_more)
-                time.sleep(0.5)
-                click_submit(driver, wait)
-                time.sleep(3)
-                print("[FORM-15] Baska uyruk yok")
-            except:
-                print("[FORM-15] addAnother yok")
 
-        # =========================
+                no_more = wait.until(
+                    EC.presence_of_element_located(
+                        (By.ID, "addAnother_false")
+                    )
+                )
+
+                safe_click(driver, no_more)
+
+                time.sleep(0.5)
+
+                click_submit(driver, wait)
+
+                time.sleep(3)
+
+                print("[FORM-15] Baska uyruk yok")
+
+            except Exception as e:
+
+                print(
+                    "[FORM-15] addAnother sayfasi yok => "
+                    f"{e}"
+                )
+
+        # =========================================
         # NO FLOW
-        # =========================
+        # =========================================
+
         else:
-            print("[FORM-15] Baska uyruk YOK -> No seciliyor")
+
+            print("[FORM-15] Baska uyruk YOK")
 
             set_radio(driver, "hasOtherNationality_false")
+
             time.sleep(0.5)
 
             click_submit(driver, wait)
+
             time.sleep(3)
 
             print("[FORM-15] Tamamlandi")
+    
+    
+    
+    
     # ===== SAYFA 16: Is durumu =====
     elif page == "employment_status":
         print("[FORM-16] Is durumu seciliyor...")
