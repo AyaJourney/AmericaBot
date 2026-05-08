@@ -1,5 +1,4 @@
-from concurrent.futures import wait
-# from curses import raw
+from concurrent.futures import wait as _wait
 import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -96,7 +95,6 @@ def _save_continue_next(wait, driver, label="next"):
     click_save(wait, driver)
     time.sleep(1.5)
 
-    # Validation hatası var mı?
     errors = check_validation_errors(driver)
     if errors:
         print(f"⚠️ {len(errors)} validation hatası, otomatik düzeltiliyor...")
@@ -108,27 +106,33 @@ def _save_continue_next(wait, driver, label="next"):
     click_continue_applications(wait, driver)
     click_nexts(wait, driver, label=label)
 
+
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print(f"DEBUG PRESENT_OCCUPATION: {data.get('PRESENT_OCCUPATION')}")
     print(f"DEBUG PRESENT_OCCUPATION_EXPLAIN: {data.get('PRESENT_OCCUPATION_EXPLAIN')}")
     print("🧪 DS-160 FULL FLOW BAŞLADI")
+
     from ds160_resume_flow import enrich_data_with_fallbacks
     data = enrich_data_with_fallbacks(data)
+
     print(f"🎓 EDU_00_SCHOOL_NAME: {data.get('EDU_00_SCHOOL_NAME', 'YOK')}")
     print(f"🎓 EDU_01_SCHOOL_NAME: {data.get('EDU_01_SCHOOL_NAME', 'YOK')}")
     print(f"🎓 OTHER_EDUCATION: {data.get('OTHER_EDUCATION', 'YOK')}")
+
     # ─── Personal 1 ───────────────────────────────────────────
     SURNAME          = data.get("SURNAME", "")
     GIVEN_NAME       = data.get("GIVEN_NAME", "")
     FULL_NAME_NATIVE = data.get("FULL_NAME_NATIVE", "")
-    OTHER_NAMES      = data.get("OTHER_NAMES", "N").upper()
+
+    _other_name_raw = (data.get("OTHER_NAME") or data.get("OTHER_NAMES") or "NO").strip().upper()
+    OTHER_NAMES = "Y" if _other_name_raw in ("YES", "Y") else "N"
 
     fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
     time.sleep(0.1)
 
     select_other_names(wait, driver, data.get("OTHER_NAME"))
 
-    if OTHER_NAMES == "N":
+    if OTHER_NAMES == "Y":
         other_names_list = []
         i = 1
         while True:
@@ -211,9 +215,9 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     _save_continue_next(wait, driver, label="Travel Companions")
 
     # ─── Travel Companions ────────────────────────────────────
-    raw = data.get("raw_data", {})
-    if isinstance(raw, dict):
-        for k, v in raw.items():
+    _raw = data.get("raw_data", {})
+    if isinstance(_raw, dict):
+        for k, v in _raw.items():
             if k.startswith("TRAV_COMP_") and k not in data:
                 data[k] = v
 
@@ -256,6 +260,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
     # ─── Spouse ───────────────────────────────────────────────
     marital_status = data.get("MARITAL_STATUS", "").upper().strip()
+
     if marital_status in ("MARRIED", "COMMON-LAW MARRIAGE"):
         print(f"💍 {marital_status} — eş bilgileri dolduruluyor")
         auto_fill_family_page(wait, driver, data)
@@ -267,7 +272,6 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         _save_continue_next(wait, driver, label="Occupation")
 
     else:
-        # SINGLE veya diğer — sayfa yine de çıkabilir
         print(f"ℹ️ {marital_status} — spouse sayfası kontrol ediliyor")
         try:
             WebDriverWait(driver, 5).until(
@@ -276,28 +280,35 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
                     "ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseSurname"
                 ))
             )
-            # Spouse sayfası çıktı ama SINGLE — sadece geç
             print("ℹ️ Spouse sayfası mevcut (SINGLE) — Next ile geçiliyor")
             _save_continue_next(wait, driver, label="Occupation")
         except TimeoutException:
-            # Spouse sayfası yok — direkt occupation
-            print("ℹ️ Spouse sayfası yok — atlanıyor")
+            print("ℹ️ Spouse sayfası yok — Occupation'a geçiliyor")
+            _save_continue_next(wait, driver, label="Occupation")
 
     # ─── Present Occupation ───────────────────────────────────
     occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
-    if occ in ("OTHER", "NOT_EMPLOYED", "O", "N"):
+    if occ in ("OTHER", "NOT_EMPLOYED", "HOMEMAKER", "RETIRED", "O", "N", "H", "R"):
         if not data.get("PRESENT_OCCUPATION_EXPLAIN", "").strip():
             data["PRESENT_OCCUPATION_EXPLAIN"] = "XXXXXXXXXX"
             print("ℹ️ PRESENT_OCCUPATION_EXPLAIN boş, XXXXXXXXXX yazıldı")
-    fill_present_occupation_section(wait, driver, data)
-    click_save(wait, driver)
-    click_continue_applications(wait, driver)
 
     try:
-        click_nexts(WebDriverWait(driver, 3), driver, label="Prev Employment")
-        print("✅ Occupation next geçildi.")
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation")
+        ))
+        print("✅ Occupation sayfası bulundu, dolduruluyor...")
+        fill_present_occupation_section(wait, driver, data)
+        click_save(wait, driver)
+        click_continue_applications(wait, driver)
+        try:
+            click_nexts(WebDriverWait(driver, 3), driver, label="Prev Employment")
+            print("✅ Occupation next geçildi.")
+        except (TimeoutException, NoSuchElementException):
+            print("ℹ️ Occupation next yok, atlanıyor.")
+        print("✅ Present Occupation tamamlandı.")
     except (TimeoutException, NoSuchElementException):
-        print("ℹ️ Occupation next yok, atlanıyor.")
+        print("ℹ️ Occupation sayfası yok — kaydedilmeden geçiliyor")
 
     # ─── Previous Employment / Education ──────────────────────
     try:
@@ -316,8 +327,6 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         WebDriverWait(driver, 3).until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblCLAN_TRIBE_IND_0")
         ))
-
-        # raw_data'dan eksik alanları üst seviyeye çıkar
         _raw = data.get("raw_data", {})
         if isinstance(_raw, dict):
             for _k in ("COUNTRIES_VISITED", "LANGUAGES", "CLAN_TRIBE",
@@ -326,7 +335,6 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
                 if not data.get(_k) and _raw.get(_k):
                     data[_k] = _raw[_k]
                     print(f"✅ {_k} raw_data'dan alındı: {data[_k]}")
-
         fill_additional_work_education_section(wait, driver, data)
         _save_continue_next(wait, driver, label="Health")
         print("✅ Additional Work/Education tamamlandı.")

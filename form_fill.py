@@ -4558,6 +4558,8 @@ def fill_employer_or_school_info(wait, driver, data):
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
 
+    from selenium.webdriver.common.keys import Keys
+
     try:
         select_present_occupation(wait, driver, data)
     except Exception as e:
@@ -4570,74 +4572,45 @@ def fill_present_occupation_section(wait, driver, data):
 
     print(f"🧑‍💼 Occupation: {occ}")
 
+    def fill_explain_textarea(expl_text):
+        """Açıklama textarea'sını doldurur."""
+        textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+        try:
+            el = WebDriverWait(driver, 15).until(
+                EC.element_to_be_clickable((By.ID, textarea_id))
+            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+            time.sleep(0.5)
+            driver.execute_script("arguments[0].value = '';", el)
+            time.sleep(0.2)
+            el.click()
+            time.sleep(0.3)
+            el.send_keys(Keys.CONTROL + "a")
+            time.sleep(0.1)
+            el.send_keys(Keys.DELETE)
+            time.sleep(0.1)
+            el.send_keys(expl_text)
+            time.sleep(0.5)
+            current = (el.get_attribute("value") or "").strip()
+            print(f"✍️ Explain girildi: '{current}'")
+        except Exception as e:
+            print(f"⚠️ Explain textarea hatası: {e}")
+
+    # ── RETIRED / HOMEMAKER ───────────────────────────────────
     if occ in ("RETIRED", "HOMEMAKER"):
         print(f"ℹ️ {occ} → Ekstra alan yok.")
         return
 
     # ── NOT_EMPLOYED ──────────────────────────────────────────
     if occ == "NOT_EMPLOYED":
-        textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
-        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip()
-        if not expl:
-            expl = "XXXXX"
-
-        try:
-            el = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.ID, textarea_id))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            time.sleep(1)
-
-        # Mevcut değeri JS ile temizle
-            driver.execute_script("arguments[0].value = '';", el)
-            time.sleep(0.3)
-
-            el.click()
-            time.sleep(0.3)
-
-            from selenium.webdriver.common.keys import Keys
-            el.send_keys(Keys.CONTROL + "a")
-            time.sleep(0.1)
-            el.send_keys(Keys.DELETE)
-            time.sleep(0.1)
-            el.send_keys(expl)
-            time.sleep(0.5)
-
-            current = (el.get_attribute("value") or "").strip()
-            print(f"✍️ NOT_EMPLOYED explain girildi: '{current}'")
-
-        except Exception as e:
-            print(f"⚠️ NOT_EMPLOYED explain hatası: {e}")
+        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
+        fill_explain_textarea(expl)
         return
+
     # ── OTHER ─────────────────────────────────────────────────
     if occ == "OTHER":
-        textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
-        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "OTHER OCCUPATION").strip()
-
-        try:
-            el = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.ID, textarea_id))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            time.sleep(1)
-
-            el.click()
-            time.sleep(0.5)
-
-            from selenium.webdriver.common.keys import Keys
-            el.send_keys(Keys.CONTROL + "a")
-            time.sleep(0.2)
-            el.send_keys(Keys.DELETE)
-            time.sleep(0.2)
-
-            el.send_keys(expl)
-            time.sleep(0.5)
-
-            current = (el.get_attribute("value") or "").strip()
-            print(f"✍️ OTHER explain girildi: '{current}'")
-
-        except Exception as e:
-            print(f"⚠️ OTHER explain hatası: {e}")
+        expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
+        fill_explain_textarea(expl)
 
         # OTHER'da işveren/okul bilgileri de dolduruluyor
         try:
@@ -4664,7 +4637,6 @@ def fill_present_occupation_section(wait, driver, data):
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
         print(f"⚠️ İşveren/Okul bilgileri doldurulamadı: {e}")
-
 def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
 
