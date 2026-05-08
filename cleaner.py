@@ -558,27 +558,23 @@ def clean_phone_international(raw: str) -> str:
 # ══════════════════════════════════════════════
 
 def clean_address_line(raw: str, max_len: int = 40) -> str:
-    """
-    Adres satırı temizleme:
-    - Türkçe → ASCII büyük harf
-    - Noktalama (virgül, nokta, ünlem vb.) → boşluk
-    - Tire, slash, # korunur (adres numarası için)
-    - Çift boşluk → tek boşluk
-    - maxlength
-
-    Örnekler:
-      "Atatürk Mah., No:5/3"  → "ATATURK MAH  NO 5/3"
-      "123 Main St."           → "123 MAIN ST"
-      "Apt. 4B, Floor 2"       → "APT  4B  FLOOR 2"
-    """
     if not raw:
         return ""
     text = to_ascii_upper(raw)
-    # Noktalama → boşluk (tire ve slash hariç)
     text = re.sub(r"[,\.!?;:\"\'`@\(\)]", " ", text)
     text = collapse_spaces(text)
-    return text[:max_len]
+    text = text[:max_len]
 
+    # Geçersiz adres kontrolü — sadece rakam veya çok kısa
+    stripped = re.sub(r"\s+", "", text)
+    if not stripped:
+        return ""
+    # Sadece rakamlardan oluşuyorsa veya 3 karakterden kısaysa geçersiz
+    if stripped.isdigit() or len(stripped) < 4:
+        print(f"⚠️ Geçersiz adres girişi: '{raw}' → XXXXXXXXXX")
+        return "XXXXXXXXXX"
+
+    return text
 
 def clean_city(raw: str, max_len: int = 20) -> str:
     """
@@ -1061,10 +1057,7 @@ def validate_mil_dates(start_ds: str, end_ds: str, birth_ds: str = "") -> tuple:
 
 
 def apply_date_validations(data: dict) -> dict:
-    """
-    clean_all sonrası tüm tarih doğrulamalarını uygula.
-    data dict'ini in-place günceller ve döner.
-    """
+
     birth_ds = data.get("BIRTH_DATE", "") or _assemble_birth_date(data)
 
     # Doğum tarihi
@@ -1251,14 +1244,30 @@ def clean_all(raw: dict) -> dict:
 
     # ── TELEFON (maxlength=15, minlength=5) ──────────────
     def _clean_phone_15(raw_p):
-        """DS-160 telefon: + korunur, rakamlar alınır, maxlength=15"""
         if not raw_p:
             return ""
         raw_p = str(raw_p).strip()
         has_plus = raw_p.startswith("+")
         digits = re.sub(r"\D", "", raw_p)
         result = ("+" + digits) if has_plus else digits
-        return result[:15]
+        result = result[:15]
+
+        # Geçersiz telefon kontrolü
+        pure_digits = re.sub(r"\D", "", result)
+        # Tüm rakamlar aynıysa (111, 000, 123 gibi) veya çok kısaysa geçersiz
+        if len(pure_digits) < 5:
+            print(f"⚠️ Geçersiz telefon: '{raw_p}' → 5555555555")
+            return "5555555555"
+        if len(set(pure_digits)) <= 2:  # max 2 farklı rakam varsa (111, 1212 gibi)
+            print(f"⚠️ Geçersiz telefon (tekrarlı): '{raw_p}' → 5555555555")
+            return "5555555555"
+        if pure_digits in ("1234567890", "0987654321", "1111111111",
+                        "2222222222", "3333333333", "0000000000",
+                        "1234567", "123456789"):
+            print(f"⚠️ Geçersiz telefon (sıralı): '{raw_p}' → 5555555555")
+            return "5555555555"
+
+        return result
 
     data["PRIMARY_PHONE"]       = _clean_phone_15(raw.get("PRIMARY_PHONE", ""))
     data["MOBILE_PHONE"]        = _clean_phone_15(raw.get("MOBILE_PHONE", ""))
