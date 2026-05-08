@@ -363,25 +363,81 @@ def fill_basic_identity_form(wait, driver, surname, given_name, full_name_native
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_SURNAME", surname)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_GIVEN_NAME", given_name)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_FULL_NAME_NATIVE", full_name_native)
+import re
+import unicodedata
+
+def clean_address(text):
+    """
+    Türkçe karakterleri ASCII'ye çevirir
+    ve gereksiz boşlukları temizler
+    """
+
+    if not text:
+        return ""
+
+    tr_map = str.maketrans({
+        "Ç": "C",
+        "Ğ": "G",
+        "İ": "I",
+        "I": "I",
+        "Ö": "O",
+        "Ş": "S",
+        "Ü": "U",
+        "ç": "c",
+        "ğ": "g",
+        "ı": "i",
+        "ö": "o",
+        "ş": "s",
+        "ü": "u",
+    })
+
+    text = text.translate(tr_map)
+
+    # Unicode normalize
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+
+    # Fazla boşluk temizle
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
 def split_address(address: str, max_len: int = 40):
-    """Adresi max_len karakterde kelime sınırından böler."""
+    """
+    Adresi kelime sınırından iki satıra böler.
+    Her satır max_len karakter olur.
+    """
+
     if not address:
         return "", ""
+
     address = address.strip()
+
+    # Tek satıra sığıyorsa
     if len(address) <= max_len:
         return address, ""
-    # max_len içinde son boşluğu bul
-    cut = address.rfind(" ", 0, max_len)
-    if cut == -1:
-        cut = max_len  # boşluk yoksa zorla kes
-    addr1 = address[:cut].strip()
-    addr2 = address[cut:].strip()
-    # addr2 de 40'ı geçiyorsa kırp
-    if len(addr2) > max_len:
-        addr2 = addr2[:max_len].strip()
+
+    # 1. satır için en uygun boşluk
+    cut1 = address.rfind(" ", 0, max_len)
+
+    if cut1 == -1:
+        cut1 = max_len
+
+    addr1 = address[:cut1].strip()
+    remaining = address[cut1:].strip()
+
+    # 2. satır da uzunsa yine kelime sınırından kes
+    if len(remaining) > max_len:
+        cut2 = remaining.rfind(" ", 0, max_len)
+
+        if cut2 == -1:
+            cut2 = max_len
+
+        addr2 = remaining[:cut2].strip()
+    else:
+        addr2 = remaining
+
     return addr1, addr2
-
-
 
 import time
 from selenium.webdriver.common.by import By
@@ -2669,90 +2725,196 @@ def split_address(address, max_len=40):
 
 def fill_home_address(wait, driver, data):
 
-    full_address = clean_address(data.get("HOME_ADDRESS", "").strip())
-    city         = clean_address(data.get("HOME_CITY", "").strip())
-    state        = clean_address(data.get("HOME_STATE", "").strip())
-    postal       = data.get("HOME_POSTAL_CODE", "").strip()
-    country      = data.get("HOME_COUNTRY", "").strip().upper()
+    # =========================
+    # RAW DATA
+    # =========================
+    full_address = clean_address(
+        data.get("HOME_ADDRESS", "").strip()
+    )
 
+    city = clean_address(
+        data.get("HOME_CITY", "").strip()
+    )
+
+    state = clean_address(
+        data.get("HOME_STATE", "").strip()
+    )
+
+    postal = clean_address(
+        data.get("HOME_POSTAL_CODE", "").strip()
+    )
+
+    country = clean_address(
+        data.get("HOME_COUNTRY", "").strip().upper()
+    )
+
+    # =========================
+    # VALIDATION
+    # =========================
     if not full_address or not city or not country:
-        raise Exception("❌ HOME_ADDRESS, HOME_CITY, HOME_COUNTRY zorunlu")
+        raise Exception(
+            "❌ HOME_ADDRESS, HOME_CITY, HOME_COUNTRY zorunlu"
+        )
 
+    # =========================
+    # ADDRESS SPLIT
+    # =========================
     addr1, addr2 = split_address(full_address, max_len=40)
-    print(f"📍 HOME addr1: '{addr1}' ({len(addr1)} kar)")
-    print(f"📍 HOME addr2: '{addr2}' ({len(addr2)} kar)")
 
+    print(f"📍 HOME addr1: '{addr1}' ({len(addr1)} karakter)")
+    print(f"📍 HOME addr2: '{addr2}' ({len(addr2)} karakter)")
+
+    # =========================
+    # JS FILL HELPER
+    # =========================
     def js_fill(element_id, value):
+
         if not value:
             return
+
         try:
-            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            el = wait.until(
+                EC.presence_of_element_located((By.ID, element_id))
+            )
+
             driver.execute_script("""
                 arguments[0].removeAttribute('disabled');
                 arguments[0].removeAttribute('readonly');
                 arguments[0].value = '';
             """, el)
+
+            time.sleep(0.1)
+
+            el.clear()
             el.send_keys(value)
+
+            print(f"✅ Filled {element_id} -> {value}")
+
         except Exception as e:
-            print(f"⚠️ js_fill hata {element_id}: {e}")
+            print(f"⚠️ js_fill hata ({element_id}): {e}")
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN1", addr1)
-    time.sleep(0.2)
+    # =========================
+    # ADDRESS LINE 1
+    # =========================
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN1",
+        addr1
+    )
 
-    # 2. satır — addr2 varsa doldur, yoksa temizle
+    time.sleep(0.3)
+
+    # =========================
+    # ADDRESS LINE 2
+    # =========================
     try:
-        addr2_el = wait.until(EC.presence_of_element_located((
-            By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN2"
-        )))
+        addr2_el = wait.until(
+            EC.presence_of_element_located((
+                By.ID,
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_LN2"
+            ))
+        )
+
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
             arguments[0].removeAttribute('readonly');
             arguments[0].value = '';
         """, addr2_el)
+
+        time.sleep(0.1)
+
+        addr2_el.clear()
+
         if addr2:
             addr2_el.send_keys(addr2)
-            print(f"📍 HOME addr2 dolduruldu: '{addr2}'")
+            print(f"✅ HOME addr2 dolduruldu -> {addr2}")
+        else:
+            print("ℹ️ HOME addr2 boş bırakıldı")
+
     except Exception as e:
         print(f"⚠️ addr2 alanı bulunamadı: {e}")
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_CITY", city)
+    # =========================
+    # CITY
+    # =========================
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_CITY",
+        city
+    )
 
-    state_input = wait.until(EC.presence_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_STATE")
-    ))
-    state_na_checkbox = wait.until(EC.presence_of_element_located(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_ADDR_STATE_NA")
-    ))
+    # =========================
+    # STATE / PROVINCE
+    # =========================
+    state_input = wait.until(
+        EC.presence_of_element_located((
+            By.ID,
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_STATE"
+        ))
+    )
+
+    state_na_checkbox = wait.until(
+        EC.presence_of_element_located((
+            By.ID,
+            "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_ADDR_STATE_NA"
+        ))
+    )
 
     if state:
+
         if state_na_checkbox.is_selected():
             state_na_checkbox.click()
             time.sleep(0.3)
+
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
             arguments[0].removeAttribute('readonly');
             arguments[0].value = '';
         """, state_input)
+
+        state_input.clear()
         state_input.send_keys(state)
-        print(f"✅ State girildi: {state}")
+
+        print(f"✅ State girildi -> {state}")
+
     else:
+
         if not state_na_checkbox.is_selected():
             state_na_checkbox.click()
             time.sleep(0.3)
-        print("ℹ️ State/Province: Does Not Apply")
 
+        print("ℹ️ State/Province = Does Not Apply")
+
+    # =========================
+    # POSTAL CODE
+    # =========================
     if postal:
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_POSTAL_CD", postal)
+        js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_ADDR_POSTAL_CD",
+            postal
+        )
 
+    # =========================
+    # COUNTRY
+    # =========================
     select_country_by_name(
         wait,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlCountry",
         country
     )
 
-    print(f"🌍 Home Address tamamlandı → {addr1} | {addr2} | {city} | {country}")
+    # =========================
+    # FINISH
+    # =========================
+    print(
+        f"🌍 Home Address tamamlandı -> "
+        f"{addr1} | {addr2} | {city} | {country}"
+    )
+
     click_outside(driver)
+
     time.sleep(0.5)
+
+
+
 def fill_mailing_address(wait, driver, data):
 
     same = data.get("MAILING_SAME_AS_HOME", "YES").strip().upper()
