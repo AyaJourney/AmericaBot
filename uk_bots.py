@@ -1285,6 +1285,7 @@ def detect_current_page(driver):
         "correspondenceaddress": "correspondence",
         "homeliving": "home_duration",
         "previousaddress": "previous_address",
+        "addresshistory": "previous_address",
         "traveldocument": "passport",
         "hasvalidid": "id_card",
         "standardidentitycard": "id_card",
@@ -2188,25 +2189,67 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
             now = datetime.now()
             current_move_in = now - relativedelta(months=form.residence_months_total)
-            prev_move_in = current_move_in - relativedelta(months=3)
+            
+            # Onceki adres: mevcut eve tasınmadan ONCE yasamis
+            # Baslangic: mevcut eve tasınmadan 2 yil once
+            # Bitis: mevcut eve tasınma tarihi
             prev_move_out = current_move_in
+            prev_move_in = current_move_in - relativedelta(years=2)
+            
+            # Baslangic ve bitis ayni olamaz - en az 1 ay fark
+            if prev_move_in.month == prev_move_out.month and prev_move_in.year == prev_move_out.year:
+                prev_move_in = prev_move_out - relativedelta(months=6)
+            
+            # Eger sayfada zaten deger varsa onlari kullan (site pre-filled)
+            existing_start_m = driver.execute_script("return document.getElementById('startDateAtAddress_month').value;")
+            existing_start_y = driver.execute_script("return document.getElementById('startDateAtAddress_year').value;")
+            existing_end_m = driver.execute_script("return document.getElementById('endDateAtAddress_month').value;")
+            existing_end_y = driver.execute_script("return document.getElementById('endDateAtAddress_year').value;")
+            
+            if existing_start_m and existing_start_y and existing_end_m and existing_end_y:
+                # Site zaten doldurmus, ayni olup olmadigini kontrol et
+                if existing_start_m == existing_end_m and existing_start_y == existing_end_y:
+                    # Ayni tarih - bitis'i 1 ay ileri al
+                    end_m = int(existing_end_m)
+                    end_y = int(existing_end_y)
+                    end_m += 1
+                    if end_m > 12:
+                        end_m = 1
+                        end_y += 1
+                    prev_move_out = datetime(end_y, end_m, 1)
+                    prev_move_in = datetime(int(existing_start_y), int(existing_start_m), 1)
+                    print(f"[FORM-11b] Site doldurmus ama ayni tarih, bitis duzeltildi")
+                else:
+                    print(f"[FORM-11b] Site zaten doldurmus: {existing_start_m}/{existing_start_y} - {existing_end_m}/{existing_end_y}, degistirmiyorum")
+                    # Province ve postcode bos olabilir - onlari doldur
+                    if not driver.execute_script("return document.getElementById('overseasAddress_province').value;"):
+                        set_input(driver, "overseasAddress_province", form.home_district or form.home_city or "Istanbul")
+                    if not driver.execute_script("return document.getElementById('overseasAddress_postCode').value;"):
+                        set_input(driver, "overseasAddress_postCode", form.post_code or "34000")
+                    click_submit(driver, wait)
+                    time.sleep(3)
+                    print("[FORM-11b] Onceki adres tamamlandi!")
+                    # Baska adres ekleme kismi asagida devam edecek
+                    # Bu bloktan cikmak icin prev_move_in'i None yap
+                    prev_move_in = None
 
-            driver.execute_script(f"""
-                function setVal(id, val) {{
-                    var el = document.getElementById(id);
-                    if (!el) return;
-                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                    setter.call(el, String(val));
-                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                }}
-                setVal('startDateAtAddress_month', {prev_move_in.month});
-                setVal('startDateAtAddress_year', {prev_move_in.year});
-                setVal('endDateAtAddress_month', {prev_move_out.month});
-                setVal('endDateAtAddress_year', {prev_move_out.year});
-            """)
+            if prev_move_in is not None:
+                driver.execute_script(f"""
+                    function setVal(id, val) {{
+                        var el = document.getElementById(id);
+                        if (!el) return;
+                        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                        setter.call(el, String(val));
+                        el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                        el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                    }}
+                    setVal('startDateAtAddress_month', {prev_move_in.month});
+                    setVal('startDateAtAddress_year', {prev_move_in.year});
+                    setVal('endDateAtAddress_month', {prev_move_out.month});
+                    setVal('endDateAtAddress_year', {prev_move_out.year});
+                """)
 
-            print(f"[FORM-11b] Onceki adres girildi. Giris: {prev_move_in.month}/{prev_move_in.year} Cikis: {prev_move_out.month}/{prev_move_out.year}")
+                print(f"[FORM-11b] Onceki adres girildi. Giris: {prev_move_in.month}/{prev_move_in.year} Cikis: {prev_move_out.month}/{prev_move_out.year}")
 
             click_submit(driver, wait)
             time.sleep(3)
