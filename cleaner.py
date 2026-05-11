@@ -1228,14 +1228,14 @@ def clean_all(raw: dict) -> dict:
     data["TRAVEL_LOS_UNIT"]     = to_ascii_upper(raw.get("TRAVEL_LOS_UNIT", "D"))
 
     # ── ABD ADRESİ ────────────────────────────────────────
-    data["US_ADDRESS1"] = clean_address_line(raw.get("US_ADDRESS1", ""), 40)
+    data["US_ADDRESS1"] = clean_address_line(raw.get("US_ADDRESS1", ""), 200)
     data["US_ADDRESS2"] = clean_address_line(raw.get("US_ADDRESS2", ""), 40)
     data["US_CITY"]     = clean_city(raw.get("US_CITY", ""), 20)
     data["US_STATE"]    = to_ascii_upper(raw.get("US_STATE", ""))
     data["US_ZIP"]      = clean_zip(raw.get("US_ZIP", ""))
 
     # ── EV ADRESİ ─────────────────────────────────────────
-    data["HOME_ADDRESS"]     = clean_address_line(raw.get("HOME_ADDRESS", ""), 40)
+    data["HOME_ADDRESS"]     = clean_address_line(raw.get("HOME_ADDRESS", ""), 200)
     data["HOME_CITY"]        = clean_city(raw.get("HOME_CITY", ""), 20)
     data["HOME_STATE"]       = clean_state_province(raw.get("HOME_STATE", ""), 20)
     data["HOME_POSTAL_CODE"] = clean_postal_code(raw.get("HOME_POSTAL_CODE", ""))
