@@ -4741,26 +4741,39 @@ def fill_present_occupation_section(wait, driver, data):
         """Açıklama textarea'sını doldurur."""
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
         try:
+            # visibility_of_element_located — postback sonrası DOM'a ekleniyor
             el = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.ID, textarea_id))
+                EC.visibility_of_element_located((By.ID, textarea_id))
             )
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+            time.sleep(1.0)  # postback bitmesini bekle
+
+            # Önce JS ile yaz
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = arguments[1];
+                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+            """, el, expl_text)
             time.sleep(0.5)
-            driver.execute_script("arguments[0].value = '';", el)
-            time.sleep(0.2)
-            el.click()
-            time.sleep(0.3)
-            el.send_keys(Keys.CONTROL + "a")
-            time.sleep(0.1)
-            el.send_keys(Keys.DELETE)
-            time.sleep(0.1)
-            el.send_keys(expl_text)
-            time.sleep(0.5)
+
             current = (el.get_attribute("value") or "").strip()
+
+            # JS çalışmadıysa send_keys dene
+            if not current:
+                el.click()
+                time.sleep(0.3)
+                el.send_keys(Keys.CONTROL + "a")
+                el.send_keys(Keys.DELETE)
+                el.send_keys(expl_text)
+                time.sleep(0.3)
+                current = (el.get_attribute("value") or "").strip()
+
             print(f"✍️ Explain girildi: '{current}'")
+
         except Exception as e:
             print(f"⚠️ Explain textarea hatası: {e}")
-
     # ── RETIRED / HOMEMAKER ───────────────────────────────────
     if occ in ("RETIRED", "HOMEMAKER"):
         print(f"ℹ️ {occ} → Ekstra alan yok.")
@@ -4802,6 +4815,10 @@ def fill_present_occupation_section(wait, driver, data):
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
         print(f"⚠️ İşveren/Okul bilgileri doldurulamadı: {e}")
+
+
+
+
 def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
 
