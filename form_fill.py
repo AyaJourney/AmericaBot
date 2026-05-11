@@ -5805,8 +5805,8 @@ def fill_military_service(wait, driver, data):
         return
 
     mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
-    mil_branch    = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
-    mil_rank      = data.get("MIL_RANK",      "INFANTRY")
+    mil_branch    = data.get("MIL_BRANCH",    "ARMY - LAND FORCES")
+    mil_rank      = data.get("MIL_RANK",      "PRIVATE")
     mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
     mil_from      = data.get("MIL_FROM",      "")
     mil_to        = data.get("MIL_TO",        "")

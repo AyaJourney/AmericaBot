@@ -246,8 +246,8 @@ def enrich_data_with_fallbacks(data: dict) -> dict:
     fb("LANGUAGES", "Turkish")
 
     fb("MIL_COUNTRY",   "TURKEY")
-    fb("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
-    fb("MIL_RANK",      "INFANTRY")
+    fb("MIL_BRANCH",    "ARMY - LAND FORCES")
+    fb("MIL_RANK",      "PRIVATE")
     fb("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
 
     fb("TRAVEL_LOS_UNIT",    "D")
@@ -535,8 +535,8 @@ def _fill_additional_work_education_resume(driver, wait, data):
 
     if mil == "YES":
         mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
-        mil_branch    = data.get("MIL_BRANCH",    "COMPULSORY MILITARY SERVICE")
-        mil_rank      = data.get("MIL_RANK",      "INFANTRY")
+        mil_branch    = data.get("MIL_BRANCH",    "ARMY - LAND FORCES")
+        mil_rank      = data.get("MIL_RANK",      "PRIVATE")
         mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
         mil_from      = data.get("MIL_FROM",      "")
         mil_to        = data.get("MIL_TO",        "")
