@@ -130,22 +130,42 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
     time.sleep(0.1)
 
-    select_other_names(wait, driver, data.get("OTHER_NAME"))
+    _has_other_name = (
+        data.get("OTHER_NAME", "NO").upper() == "YES" or
+        bool(data.get("OTHER_SURNAME_1", "").strip())
+    )
 
-    if OTHER_NAMES == "Y":
+    select_other_names(wait, driver, "YES" if _has_other_name else "NO")
+
+    if _has_other_name:
         other_names_list = []
         i = 1
         while True:
-            s = data.get(f"OTHER_SURNAME_{i}")
-            g = data.get(f"OTHER_GIVEN_NAME_{i}")
-            if s and g:
-                other_names_list.append({"surname": s, "given": g})
-                i += 1
-            else:
+            s = data.get(f"OTHER_SURNAME_{i}", "").strip()
+            g = data.get(f"OTHER_GIVEN_NAME_{i}", "").strip()
+
+            if not s and not g:
                 break
+
+            # Soyad boşsa asıl soyadı kullan
+            if not s:
+                s = data.get("SURNAME", "").strip()
+                print(f"ℹ️ OTHER_SURNAME_{i} boş → asıl soyad kullanıldı: {s}")
+
+            # İsim boşsa asıl ismi kullan
+            if not g:
+                g = data.get("GIVEN_NAME", "").strip()
+                print(f"ℹ️ OTHER_GIVEN_NAME_{i} boş → asıl isim kullanıldı: {g}")
+
+            if s or g:
+                other_names_list.append({"surname": s, "given": g})
+            i += 1
+
         if other_names_list:
             fill_other_names(wait, driver, other_names_list)
-
+            print(f"✅ Other Names dolduruldu: {other_names_list}")
+        else:
+            print("⚠️ OTHER_NAME=YES ama liste boş")
     select_telecode_no(wait, driver)
 
     if data.get("GENDER"):

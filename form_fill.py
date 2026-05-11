@@ -562,6 +562,9 @@ def fill_other_names(wait, driver, other_names):
             )
             wait.until(EC.presence_of_element_located((By.ID, next_surname_id)))
             time.sleep(0.1)
+
+
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
