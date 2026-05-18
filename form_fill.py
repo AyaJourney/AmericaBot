@@ -4590,85 +4590,120 @@ PRESENT_OCCUPATION_MAP = {
 def select_present_occupation(wait, driver, data):
     print("🧑‍💼 Present Occupation seçiliyor")
 
-    occ = data.get("PRESENT_OCCUPATION", "NOT_EMPLOYED").strip().upper()
+    occ_raw = data.get("PRESENT_OCCUPATION", "NOT_EMPLOYED")
+    print(f"DEBUG PRESENT_OCCUPATION raw: '{occ_raw}'")
+
+    occ = str(occ_raw).strip().upper()
+
     if occ not in PRESENT_OCCUPATION_MAP:
         print(f"⚠️ Geçersiz PRESENT_OCCUPATION: {occ}, NOT_EMPLOYED olarak ayarlanıyor")
         occ = "NOT_EMPLOYED"
 
     ddl_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation"
     target_value = PRESENT_OCCUPATION_MAP[occ]
+    print(f"DEBUG target_value: '{target_value}'")
 
-    # Dropdown'ı bul ve seç
-    ddl = wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))
-    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", ddl)
-    time.sleep(0.3)
+    # 3 kez dene
+    for attempt in range(3):
+        try:
+            ddl_el = wait.until(EC.presence_of_element_located((By.ID, ddl_id)))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", ddl_el)
+            time.sleep(0.5)
 
-    # Önce JS ile seç (daha güvenilir)
-    driver.execute_script("""
-        var sel = arguments[0];
-        var val = arguments[1];
-        sel.value = val;
-        sel.dispatchEvent(new Event('change', {bubbles: true}));
-    """, ddl, target_value)
-    time.sleep(0.5)
+            # Mevcut değeri kontrol et
+            current = Select(ddl_el).first_selected_option.get_attribute("value")
+            print(f"DEBUG mevcut değer: '{current}'")
 
-    # Selenium ile de seç (double confirm)
-    try:
-        Select(wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))).select_by_value(target_value)
-    except Exception as e:
-        print(f"⚠️ Selenium select hatası: {e}")
+            if current == target_value:
+                print(f"ℹ️ Zaten seçili: {target_value}, postback tetikleniyor")
+                driver.execute_script(
+                    "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+                )
+            else:
+                # Selenium ile seç
+                try:
+                    Select(wait.until(
+                        EC.element_to_be_clickable((By.ID, ddl_id))
+                    )).select_by_value(target_value)
+                    time.sleep(0.5)
+                    print(f"✅ Selenium select başarılı: {target_value}")
+                except Exception:
+                    # JS ile seç
+                    driver.execute_script("""
+                        var sel = arguments[0];
+                        var val = arguments[1];
+                        for (var i=0; i<sel.options.length; i++) {
+                            if (sel.options[i].value === val) {
+                                sel.options[i].selected = true;
+                                break;
+                            }
+                        }
+                        sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    """, ddl_el, target_value)
+                    time.sleep(0.5)
+                    print(f"✅ JS select başarılı: {target_value}")
 
-    # JS postback tetikle
-    driver.execute_script(
-        "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
-    )
+                # Postback tetikle
+                driver.execute_script(
+                    "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+                )
 
-    print(f"✅ Present Occupation seçildi: {occ} → {target_value}")
+            # Postback bitmesini bekle
+            time.sleep(2)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            time.sleep(1)
 
-    occ_needs_employer = occ not in ("NOT_EMPLOYED", "RETIRED", "HOMEMAKER")
+            # Seçim doğrula
+            current_after = Select(
+                driver.find_element(By.ID, ddl_id)
+            ).first_selected_option.get_attribute("value")
+            print(f"DEBUG seçim sonrası: '{current_after}'")
+
+            if current_after == target_value:
+                print(f"✅ Present Occupation doğrulandı: {occ} → {target_value}")
+                break
+            else:
+                print(f"⚠️ Seçim doğrulanamadı (attempt {attempt+1}/3): {current_after} != {target_value}")
+                time.sleep(1)
+
+        except Exception as e:
+            print(f"⚠️ select_present_occupation attempt {attempt+1}/3 hatası: {e}")
+            time.sleep(1)
+
+    # Employer alanları gerekiyorsa bekle
+    occ_needs_employer = occ not in ("NOT_EMPLOYED", "RETIRED", "HOMEMAKER", "OTHER")
 
     if occ_needs_employer:
-        try:
-            WebDriverWait(driver, 15).until(
-                EC.visibility_of_element_located(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
-                )
-            )
-            print("✅ Employer alanları açıldı")
-        except TimeoutException:
-            print("⚠️ Employer alanları açılmadı, tekrar deneniyor...")
-            driver.execute_script(
-                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
-            )
-            time.sleep(3)
+        for attempt in range(3):
             try:
                 WebDriverWait(driver, 10).until(
                     EC.visibility_of_element_located(
                         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName")
                     )
                 )
-                print("✅ Employer alanları ikinci denemede açıldı")
-            except Exception:
-                print("⚠️ Employer alanları hâlâ açılmadı, devam ediliyor")
+                print("✅ Employer alanları açıldı")
+                break
+            except TimeoutException:
+                print(f"⚠️ Employer alanları açılmadı, retry {attempt+1}/3")
+                driver.execute_script(
+                    "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
+                )
+                time.sleep(3)
+                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    elif occ == "OTHER":
+        # OTHER için explain textarea'yı bekle
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation")
+                )
+            )
+            print("✅ OTHER explain alanı açıldı")
+        except Exception:
+            print("⚠️ OTHER explain alanı açılmadı")
     else:
         time.sleep(2)
         wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-
-    # Seçimin gerçekten yapıldığını doğrula
-    try:
-        current = Select(driver.find_element(By.ID, ddl_id)).first_selected_option.get_attribute("value")
-        if current != target_value:
-            print(f"⚠️ Seçim doğrulanamadı ({current} != {target_value}), tekrar deneniyor...")
-            Select(wait.until(EC.element_to_be_clickable((By.ID, ddl_id)))).select_by_value(target_value)
-            driver.execute_script(
-                "__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$ddlPresentOccupation', '');"
-            )
-            time.sleep(2)
-        else:
-            print(f"✅ Seçim doğrulandı: {current}")
-    except Exception as e:
-        print(f"⚠️ Seçim doğrulama hatası: {e}")
-
 def fill_present_occupation_explain(wait, driver, data):
     expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "NOT EMPLOYED"
 
