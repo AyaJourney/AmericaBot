@@ -129,7 +129,20 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
     fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
     time.sleep(0.1)
-
+    import json
+    _raw = data.get("raw_data", {})
+    if isinstance(_raw, str):
+        try:
+            _raw = json.loads(_raw)
+        except Exception:
+            _raw = {}
+    if isinstance(_raw, dict):
+        for _k, _v in _raw.items():
+            if _k.startswith("OTHER_") and (not data.get(_k) or data.get(_k) == "NO"):
+                data[_k] = _v
+    if data.get("OTHER_SURNAME_1", "").strip():
+        data["OTHER_NAME"] = "YES"
+        print(f"ℹ️ OTHER_SURNAME_1 mevcut → OTHER_NAME YES yapıldı")
     _has_other_name = (
         data.get("OTHER_NAME", "NO").upper() == "YES" or
         bool(data.get("OTHER_SURNAME_1", "").strip())
