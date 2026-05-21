@@ -326,11 +326,17 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
             data["PRESENT_OCCUPATION_EXPLAIN"] = "XXXXXXXXXX"
             print("ℹ️ PRESENT_OCCUPATION_EXPLAIN boş, XXXXXXXXXX yazıldı")
 
+    time.sleep(2)
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
+    ...
+
     try:
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located(
+        WebDriverWait(driver, 15).until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPresentOccupation")
         ))
-        print("✅ Occupation sayfası bulundu, dolduruluyor...")
+        print(f"✅ Occupation sayfası bulundu: '{data.get('PRESENT_OCCUPATION')}'")
         fill_present_occupation_section(wait, driver, data)
         click_save(wait, driver)
         click_continue_applications(wait, driver)
