@@ -189,7 +189,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
     time.sleep(1)
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-    fill_date_of_birth(_wait, driver, data["BIRTH_DAY"], data["BIRTH_MONTH"], data["BIRTH_YEAR"])
+    fill_date_of_birth(wait, driver, data["BIRTH_DAY"], data["BIRTH_MONTH"], data["BIRTH_YEAR"])
     fill_place_of_birth(wait, driver, data["BIRTH_CITY"])
     select_birth_country(wait, driver, data["BIRTH_COUNTRY"])
     fill_birth_state(wait, driver, data.get("BIRTH_STATE"))
