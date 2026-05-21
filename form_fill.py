@@ -657,71 +657,44 @@ import time
 
 
 def fill_date_of_birth(wait, driver, day, month, year):
-    print(f"DEBUG DOB: day='{day}' month='{month}' year='{year}'")
-    
-    for attempt in range(3):
-        try:
-            # YEAR
-            year_input = wait.until(EC.element_to_be_clickable(
-                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear")
-            ))
-            driver.execute_script("""
-                arguments[0].removeAttribute('disabled');
-                arguments[0].removeAttribute('readonly');
-                arguments[0].value = '';
-            """, year_input)
-            year_input.send_keys(str(year))
-            time.sleep(0.3)
+    # YEAR
+    year_input = wait.until(EC.element_to_be_clickable(
+        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear")
+    ))
+    driver.execute_script("""
+        arguments[0].removeAttribute('disabled');
+        arguments[0].removeAttribute('readonly');
+        arguments[0].value = '';
+    """, year_input)
+    year_input.send_keys(str(year))
+    time.sleep(0.4)
 
-            actual_year = year_input.get_attribute("value").strip()
-            print(f"DEBUG year actual: '{actual_year}'")
+    # DAY
+    Select(wait.until(
+        EC.element_to_be_clickable(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
+        )
+    )).select_by_value(str(day).zfill(2))
+    time.sleep(0.4)
 
-            # DAY — hem zfill hem sıfırsız dene
-            day_str = str(day).strip().lstrip("0") or "1"
-            day_padded = str(day).strip().zfill(2)
-            print(f"DEBUG day_str='{day_str}' day_padded='{day_padded}'")
+    # MONTH
+    month_key = str(month).strip().upper()
+    month_text = MONTH_TEXT.get(month_key)
 
-            day_sel = Select(wait.until(
-                EC.element_to_be_clickable(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
-                )
-            ))
-            # Mevcut option'ları logla
-            opts = [o.get_attribute("value") for o in day_sel.options]
-            print(f"DEBUG day options (ilk 5): {opts[:6]}")
+    if not month_text:
+        raise Exception(f"❌ Geçersiz ay: {month}")
 
-            try:
-                day_sel.select_by_value(day_padded)
-            except Exception:
-                try:
-                    day_sel.select_by_value(day_str)
-                except Exception as e:
-                    print(f"⚠️ Day seçilemedi: {e}")
+    Select(wait.until(
+        EC.element_to_be_clickable(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth")
+        )
+    )).select_by_visible_text(month_text)
 
-            time.sleep(0.3)
+    driver.find_element(By.TAG_NAME, "body").click()
+    time.sleep(1.2)
 
-            # MONTH
-            month_key = str(month).strip().upper()
-            month_text = MONTH_TEXT.get(month_key)
-            print(f"DEBUG month_key='{month_key}' month_text='{month_text}'")
+    print(f"✅ DOB girildi: {day}-{month_text}-{year}")
 
-            if not month_text:
-                raise Exception(f"❌ Geçersiz ay: {month}")
-
-            Select(wait.until(
-                EC.element_to_be_clickable(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth")
-                )
-            )).select_by_visible_text(month_text)
-
-            driver.find_element(By.TAG_NAME, "body").click()
-            time.sleep(0.5)
-            print(f"✅ DOB girildi: {day}-{month_text}-{year}")
-            return
-
-        except Exception as e:
-            print(f"⚠️ fill_date_of_birth retry {attempt+1}/3: {e}")
-            time.sleep(0.5)
 
 def fill_place_of_birth(wait, driver, city, state=None):
     # CITY
