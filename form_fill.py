@@ -657,43 +657,70 @@ import time
 
 
 def fill_date_of_birth(wait, driver, day, month, year):
-    # YEAR
-    year_input = wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear")
-    ))
-    driver.execute_script("""
-        arguments[0].removeAttribute('disabled');
-        arguments[0].removeAttribute('readonly');
-        arguments[0].value = '';
-    """, year_input)
-    year_input.send_keys(str(year))
-    time.sleep(0.4)
+    for attempt in range(3):
+        try:
+            # YEAR
+            year_input = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear")
+            ))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, year_input)
+            year_input.send_keys(str(year))
+            time.sleep(0.3)
 
-    # DAY
-    Select(wait.until(
-        EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
-        )
-    )).select_by_value(str(day).zfill(2))
-    time.sleep(0.4)
+            # Yıl doğrula
+            actual_year = year_input.get_attribute("value").strip()
+            if actual_year != str(year):
+                print(f"⚠️ Yıl doğrulanamadı: '{actual_year}' != '{year}', retry {attempt+1}/3")
+                driver.execute_script("arguments[0].value = '';", year_input)
+                year_input.clear()
+                year_input.send_keys(str(year))
+                time.sleep(0.3)
 
-    # MONTH
-    month_key = str(month).strip().upper()
-    month_text = MONTH_TEXT.get(month_key)
+            # DAY
+            Select(wait.until(
+                EC.element_to_be_clickable(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
+                )
+            )).select_by_value(str(day).zfill(2))
+            time.sleep(0.3)
 
-    if not month_text:
-        raise Exception(f"❌ Geçersiz ay: {month}")
+            # MONTH
+            month_key = str(month).strip().upper()
+            month_text = MONTH_TEXT.get(month_key)
+            if not month_text:
+                raise Exception(f"❌ Geçersiz ay: {month}")
 
-    Select(wait.until(
-        EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth")
-        )
-    )).select_by_visible_text(month_text)
+            Select(wait.until(
+                EC.element_to_be_clickable(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth")
+                )
+            )).select_by_visible_text(month_text)
 
-    driver.find_element(By.TAG_NAME, "body").click()
-    time.sleep(1.2)
+            driver.find_element(By.TAG_NAME, "body").click()
+            time.sleep(0.5)
 
-    print(f"✅ DOB girildi: {day}-{month_text}-{year}")
+            # Son doğrulama
+            final_year = driver.find_element(
+                By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear"
+            ).get_attribute("value").strip()
+
+            if final_year == str(year):
+                print(f"✅ DOB girildi: {day}-{month_text}-{year}")
+                return
+            else:
+                print(f"⚠️ Final yıl doğrulanamadı: '{final_year}', retry {attempt+1}/3")
+                time.sleep(0.5)
+
+        except Exception as e:
+            print(f"⚠️ fill_date_of_birth retry {attempt+1}/3: {e}")
+            time.sleep(0.5)
+
+    print(f"⚠️ DOB 3 denemede tamamlanamadı: {day}/{month}/{year}")
+
 def fill_place_of_birth(wait, driver, city, state=None):
     # CITY
     city_input = wait.until(EC.presence_of_element_located(
