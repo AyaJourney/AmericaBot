@@ -746,13 +746,22 @@ def clean_passport_number(raw: str) -> str:
 # 8. E-POSTA
 # ══════════════════════════════════════════════
 
-def clean_email(raw: str) -> str:
-    """
-    Email: boşluk kaldır, küçük harf kabul (DS-160 büyük/küçük duyarsız)
-    """
-    if not raw:
+def clean_email(email_raw):
+    if not email_raw:
         return ""
-    return raw.strip().lower()[:100]
+    email = str(email_raw).strip().lower()
+    # Format kontrolü
+    if "@" not in email or "." not in email.split("@")[-1]:
+        print(f"⚠️ Geçersiz email: '{email}' → noreply@example.com")
+        return "noreply@example.com"
+    # Sahte içerik kontrolü
+    fake = ["xxxx", "xxx", "test@test", "example@example", "1111", "0000",
+            "deneme@deneme", "aaaa", "bbbb", "noreply@noreply", "x@x"]
+    for kw in fake:
+        if kw in email:
+            print(f"⚠️ Sahte email: '{email}' → noreply@example.com")
+            return "noreply@example.com"
+    return email[:50]
 
 
 # ══════════════════════════════════════════════
@@ -1279,6 +1288,11 @@ def clean_all(raw: dict) -> dict:
     data["EMAIL"]               = (raw.get("EMAIL","") or "").strip().lower()[:50]
     data["HAS_ADDITIONAL_EMAIL"]= clean_yes_no(raw.get("HAS_ADDITIONAL_EMAIL", "NO"))
     data["ADDITIONAL_EMAIL1"]   = (raw.get("ADDITIONAL_EMAIL1","") or "").strip().lower()[:50]
+    data["EMAIL"]               = clean_email(raw.get("EMAIL", ""))
+    data["ADDITIONAL_EMAIL1"]   = clean_email(raw.get("ADDITIONAL_EMAIL1", ""))
+    data["PAYER_EMAIL"]         = clean_email(raw.get("PAYER_EMAIL", ""))
+    data["PAYER_COMPANY_EMAIL"] = clean_email(raw.get("PAYER_COMPANY_EMAIL", ""))
+    data["US_POC_EMAIL"]        = clean_email(raw.get("US_POC_EMAIL", ""))
 
     # ── SOSYAL MEDYA ──────────────────────────────────────
     _SM_MAP = {
