@@ -1767,11 +1767,18 @@ def clean_all(raw: dict) -> dict:
     langs_raw = raw.get("LANGUAGES", ["TURKISH"])
     if isinstance(langs_raw, str):
         langs_raw = [l.strip() for l in langs_raw.split(",") if l.strip()]
-    data["LANGUAGES"] = [to_ascii_upper(l)[:66] for l in langs_raw if l.strip()]
+    data["LANGUAGES"] = ",".join([to_ascii_upper(l)[:66] for l in langs_raw if l.strip()])
     if not data["LANGUAGES"]:
         data["LANGUAGES"] = ["TURKISH"]
 
-    data["COUNTRIES_VISITED"] = clean_yes_no(raw.get("COUNTRIES_VISITED", "NO"))
+    _cv_raw = str(raw.get("COUNTRIES_VISITED", "")).strip()
+    _skip_phrases = ["I HAVE NOT TRAVELLED", "I HAVE NOT TRAVELED", "NO TRAVEL"]
+    if _cv_raw and _cv_raw.upper() not in ("NO", "NONE", "YES", "") and not any(p in _cv_raw.upper() for p in _skip_phrases):
+        # Ülke listesi olarak gelmiş: "BELGIUM,NETHERLANDS"
+        data["COUNTRIES_VISITED"] = _cv_raw
+    else:
+        data["COUNTRIES_VISITED"] = clean_yes_no(_cv_raw or "NO")
+
     vis_raw = raw.get("VISITED_COUNTRIES", [])
     if isinstance(vis_raw, str):
         vis_raw = [c.strip() for c in vis_raw.split(",") if c.strip()]
