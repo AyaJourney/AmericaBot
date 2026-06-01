@@ -2335,10 +2335,7 @@ def fill_travel_companions(wait, driver, data):
 def fill_single_us_visit(wait, driver, data, index=1):
     date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
     length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
-
-    if not date or not length:
-        print(f"⚠️ VISIT{index} verisi eksik, atlanıyor")
-        return
+    unit_raw = str(data.get(f"VISIT{index}_STAY_UNIT", "M")).strip().upper()
 
     unit_map = {
         "YEAR": "Y", "YEARS": "Y", "Y": "Y",
@@ -2346,7 +2343,19 @@ def fill_single_us_visit(wait, driver, data, index=1):
         "WEEK": "W", "WEEKS": "W", "W": "W",
         "DAY": "D", "DAYS": "D", "D": "D",
     }
-    unit = unit_map.get(str(data.get(f"VISIT{index}_STAY_UNIT", "D")).strip().upper(), "D")
+    unit = unit_map.get(unit_raw, "M")
+
+    # Length boşsa fallback
+    if not length:
+        length = "1"
+        print(f"⚠️ VISIT{index} stay length boş → 1 yazıldı")
+
+    # Tarih boşsa fallback — geçmiş bir tarih yaz
+    if not date:
+        from datetime import date as dt, timedelta
+        fallback = dt.today() - timedelta(days=365)
+        date = f"{fallback.day:02d}-{['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][fallback.month-1]}-{fallback.year}"
+        print(f"⚠️ VISIT{index} tarih boş → fallback: {date}")
 
     parts = date.split("-")
     if len(parts) != 3:
@@ -2362,15 +2371,13 @@ def fill_single_us_visit(wait, driver, data, index=1):
         "05": "5", "06": "6", "07": "7", "08": "8",
         "09": "9", "10": "10", "11": "11", "12": "12",
         "1": "1", "2": "2", "3": "3", "4": "4",
-        "5": "5", "6": "6", "7": "7", "8": "8",
-        "9": "9",
+        "5": "5", "6": "6", "7": "7", "8": "8", "9": "9",
     }
 
     if month.upper() not in month_map:
         print(f"⚠️ VISIT{index} ay değeri tanımsız: {month}, atlanıyor")
         return
 
-    # index'e göre ctl ID — ilk: ctl00, ikinci: ctl01...
     ctl = f"ctl{str(index - 1).zfill(2)}"
 
     Select(wait.until(EC.element_to_be_clickable(
@@ -2405,8 +2412,7 @@ def fill_single_us_visit(wait, driver, data, index=1):
         (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_LOS_CD")
     ))).select_by_value(unit)
 
-    print(f"✅ US Visit {index} girildi ({ctl})")
-
+    print(f"✅ US Visit {index} girildi ({ctl}): {date}, {length} {unit}")
 
 def fill_previous_us_travel(wait, driver, data):
     prev = data.get("PREV_US_TRAVEL", "NO").strip().upper()
@@ -2426,15 +2432,24 @@ def fill_previous_us_travel(wait, driver, data):
     if prev == "NO":
         return
 
-    actual_visits = 0
-    while data.get(f"VISIT{actual_visits + 1}_ARRIVAL_DATE"):
-        actual_visits += 1
+    # ── Ziyaret sayısını hesapla ──────────────────────────
+    requested = int(data.get("PREV_US_VISITS", 1) or 1)
 
-    requested = int(data.get("PREV_US_VISITS", 1))
-    visits = min(requested, actual_visits) if actual_visits > 0 else 1
+    # Tarih VEYA stay length varsa say — tarih boş olsa bile
+    actual_visits = 0
+    for i in range(1, requested + 1):
+        has_date   = bool(data.get(f"VISIT{i}_ARRIVAL_DATE", "").strip())
+        has_length = bool(data.get(f"VISIT{i}_STAY_LENGTH", "").strip())
+        if has_date or has_length:
+            actual_visits = i
+        else:
+            break
+
+    # Hiç veri yoksa bile 1 tane doldur
+    visits = max(actual_visits, 1) if requested >= 1 else 1
     print(f"ℹ️ PREV_US_VISITS={requested}, gerçek veri={actual_visits}, kullanılan={visits}")
 
-    # Sayfada kaç satır mevcut?
+    # ── Sayfada kaç satır mevcut? ─────────────────────────
     existing_rows = 0
     while True:
         ctl = f"ctl{str(existing_rows).zfill(2)}"
@@ -2447,7 +2462,7 @@ def fill_previous_us_travel(wait, driver, data):
         existing_rows += 1
     print(f"ℹ️ Sayfada {existing_rows} mevcut satır, {visits} gerekli")
 
-    # Eksik kadar Insert'e tıkla
+    # ── Eksik kadar Insert'e tıkla ────────────────────────
     for i in range(existing_rows, visits):
         ctl = f"ctl{str(i - 1).zfill(2)}"
         wait.until(EC.element_to_be_clickable((By.ID,
@@ -2456,11 +2471,11 @@ def fill_previous_us_travel(wait, driver, data):
         print(f"✅ Visit satırı {i + 1} eklendi")
         time.sleep(2)
 
-    # Hepsini doldur
+    # ── Hepsini doldur ────────────────────────────────────
     for i in range(1, visits + 1):
         fill_single_us_visit(wait, driver, data, index=i)
 
-    # Public school sorusu (varsa — F vizesiyle ilgili)
+    # ── Public school sorusu (F vizesi için) ──────────────
     try:
         public_school_no = WebDriverWait(driver, 3).until(
             EC.element_to_be_clickable((By.ID,
@@ -2473,9 +2488,10 @@ def fill_previous_us_travel(wait, driver, data):
     except Exception:
         print("ℹ️ Public School sorusu yok, atlanıyor")
 
+    # ── US Driver License ─────────────────────────────────
     dl = data.get("US_DRIVER_LICENSE", "NO").strip().upper()
     if dl not in ("YES", "NO"):
-        raise Exception("❌ US_DRIVER_LICENSE YES veya NO olmalı")
+        dl = "NO"
 
     dl_radio = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_US_DRIVER_LIC_IND_0"
@@ -2488,7 +2504,6 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
-
 def fill_us_driver_license(wait, driver, data):
 
     lic_no = data.get("US_DRIVER_LICENSE_NUMBER", "NA").strip().upper()
