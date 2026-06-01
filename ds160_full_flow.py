@@ -1,4 +1,4 @@
-
+import json
 import time
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -124,12 +124,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     GIVEN_NAME       = data.get("GIVEN_NAME", "")
     FULL_NAME_NATIVE = data.get("FULL_NAME_NATIVE", "")
 
-    _other_name_raw = (data.get("OTHER_NAME") or data.get("OTHER_NAMES") or "NO").strip().upper()
-    OTHER_NAMES = "Y" if _other_name_raw in ("YES", "Y") else "N"
-
-    fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
-    time.sleep(0.1)
-    import json
+    # raw_data'dan OTHER_ alanlarını üst seviyeye taşı
     _raw = data.get("raw_data", {})
     if isinstance(_raw, str):
         try:
@@ -140,13 +135,19 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         for _k, _v in _raw.items():
             if _k.startswith("OTHER_") and (not data.get(_k) or data.get(_k) == "NO"):
                 data[_k] = _v
+
+    # OTHER_SURNAME_1 varsa OTHER_NAME YES yap
     if data.get("OTHER_SURNAME_1", "").strip():
         data["OTHER_NAME"] = "YES"
         print(f"ℹ️ OTHER_SURNAME_1 mevcut → OTHER_NAME YES yapıldı")
+
     _has_other_name = (
         data.get("OTHER_NAME", "NO").upper() == "YES" or
         bool(data.get("OTHER_SURNAME_1", "").strip())
     )
+
+    fill_basic_identity_form(wait, driver, SURNAME, GIVEN_NAME, FULL_NAME_NATIVE)
+    time.sleep(0.1)
 
     select_other_names(wait, driver, "YES" if _has_other_name else "NO")
 
@@ -156,20 +157,14 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         while True:
             s = data.get(f"OTHER_SURNAME_{i}", "").strip()
             g = data.get(f"OTHER_GIVEN_NAME_{i}", "").strip()
-
             if not s and not g:
                 break
-
-            # Soyad boşsa asıl soyadı kullan
             if not s:
                 s = data.get("SURNAME", "").strip()
-                print(f"ℹ️ OTHER_SURNAME_{i} boş → asıl soyad kullanıldı: {s}")
-
-            # İsim boşsa asıl ismi kullan
+                print(f"ℹ️ OTHER_SURNAME_{i} boş → asıl soyad: {s}")
             if not g:
                 g = data.get("GIVEN_NAME", "").strip()
-                print(f"ℹ️ OTHER_GIVEN_NAME_{i} boş → asıl isim kullanıldı: {g}")
-
+                print(f"ℹ️ OTHER_GIVEN_NAME_{i} boş → asıl isim: {g}")
             if s or g:
                 other_names_list.append({"surname": s, "given": g})
             i += 1
@@ -179,6 +174,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
             print(f"✅ Other Names dolduruldu: {other_names_list}")
         else:
             print("⚠️ OTHER_NAME=YES ama liste boş")
+
     select_telecode_no(wait, driver)
 
     if data.get("GENDER"):
@@ -307,6 +303,7 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
         _save_continue_next(wait, driver, label="Occupation")
 
     else:
+        # SINGLE veya diğer
         print(f"ℹ️ {marital_status} — spouse sayfası kontrol ediliyor")
         try:
             WebDriverWait(driver, 5).until(
@@ -315,11 +312,13 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
                     "ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseSurname"
                 ))
             )
-            print("ℹ️ Spouse sayfası mevcut (SINGLE) — Next ile geçiliyor")
+            # Spouse sayfası var ama SINGLE — sadece geç
+            print("ℹ️ Spouse sayfası var (SINGLE) — geçiliyor")
             _save_continue_next(wait, driver, label="Occupation")
         except TimeoutException:
-            print("ℹ️ Spouse sayfası yok — Occupation'a geçiliyor")
-            _save_continue_next(wait, driver, label="Occupation")
+            # Spouse sayfası yok — sistem zaten sonraki sayfaya geçmiş
+            # Hiçbir şey yapma, occupation bloğu halleder
+            print("ℹ️ Spouse sayfası yok — sistem otomatik geçti")
 
     # ─── Present Occupation ───────────────────────────────────
     occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
@@ -330,9 +329,6 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
 
     time.sleep(2)
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-
-    occ = data.get("PRESENT_OCCUPATION", "").strip().upper()
-    ...
 
     try:
         WebDriverWait(driver, 15).until(EC.presence_of_element_located(
