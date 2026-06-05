@@ -206,7 +206,17 @@ class VisaFormData:
     # --- Step 1: Kisisel Bilgiler ---
     @property
     def full_name(self):
-        return self.step1.get("fullName", "").strip()
+        # Birden fazla key dene
+        for key in ["fullName", "full_name", "name", "ad_soyad"]:
+            val = self.step1.get(key, "").strip()
+            if val:
+                return val
+        # Ust seviyede var mi?
+        for key in ["fullName", "full_name", "name"]:
+            val = self.raw.get(key, "").strip()
+            if val:
+                return val
+        return ""
 
     @property
     def first_name(self):
@@ -228,11 +238,19 @@ class VisaFormData:
 
     @property
     def gender(self):
-        return self.step1.get("gender", "").strip()
+        for key in ["gender", "cinsiyet"]:
+            val = self.step1.get(key, "").strip()
+            if val:
+                return val
+        return self.raw.get("gender", "").strip()
 
     @property
     def birth_date(self):
-        return self.step1.get("birthDate", "")
+        for key in ["birthDate", "birth_date", "dogum_tarihi"]:
+            val = self.step1.get(key, "").strip()
+            if val:
+                return val
+        return self.raw.get("birthDate", "").strip()
 
     @property
     def birth_place(self):
@@ -463,11 +481,19 @@ class VisaFormData:
 
     @property
     def work_name(self):
-        return self.step4.get("work_name", "").strip()
+        for key in ["work_name", "company_name", "employer", "sirket"]:
+            val = self.step4.get(key, "").strip()
+            if val:
+                return val
+        return ""
 
     @property
     def work_title(self):
-        return self.step4.get("worker_title", "").strip()
+        for key in ["worker_title", "job_title", "work_title", "unvan"]:
+            val = self.step4.get(key, "").strip()
+            if val:
+                return val
+        return ""
 
     @property
     def work_phone(self):
@@ -498,10 +524,10 @@ class VisaFormData:
         savings_val = self.step4.get("savings", "").strip()
         if savings_val.upper() == "VAR":
             return True
-        # Eger rakam ise ve > 0 ise birikimi var demek
         try:
-            amount = int(savings_val.replace(".", "").replace(",", ""))
-            return amount > 0
+            import re
+            digits = re.sub(r'[^\d]', '', savings_val)
+            return int(digits) > 0 if digits else False
         except:
             return False
 
@@ -509,7 +535,9 @@ class VisaFormData:
     def savings_amount(self):
         savings_val = self.step4.get("savings", "").strip()
         try:
-            return int(savings_val.replace(".", "").replace(",", ""))
+            import re
+            digits = re.sub(r'[^\d]', '', savings_val)
+            return int(digits) if digits else 0
         except:
             return 0
 
@@ -1272,12 +1300,16 @@ def detect_current_page(driver):
         "standardtelephonedetailslist": "phone",
         "addtelephonenumber": "phone",
         "contactpreference": "contact_preference",
+        "standardcontactingyoubytelephone": "contact_preference",
         "applicantname": "name",
         "standardapplicantname": "name",
         "applicant.0.name": "name",
+        "identitynameforleavetoenter": "name",
         "othernames": "other_names",
         "othername": "other_names",
         "genderandrelationship": "gender_marital",
+        "standardgenderrelationshipooc": "gender_marital",
+        "standardgenderrelationship": "gender_marital",
         "partner": "partner",
         "standardaddressooc": "address",
         "outofcountryaddress": "address",
@@ -1313,6 +1345,7 @@ def detect_current_page(driver):
         "purposeofbusinessvisit": "visit_sub_purpose",
         "businessdetails": "visit_sub_purpose",
         "aboutvisit": "about_visit",
+        "aboutyourvisit": "about_visit",
         "hasdependants": "has_dependants",
         "dependantslist": "dependant_detail",
         "parentonedetails": "parent_one",
@@ -1510,6 +1543,15 @@ def clean_phone(phone_str):
     if digits.startswith("0") and len(digits) > 10:
         digits = digits[1:]
     return digits
+
+
+def clean_money(val_str):
+    """Para degerini temizle - ₺, TL, TRY, GBP, £, $, bosluk, nokta, virgul kaldir. Sadece rakam dondur."""
+    if not val_str:
+        return 0
+    import re
+    digits = re.sub(r'[^\d]', '', str(val_str))
+    return int(digits) if digits else 0
 
 
 def fill_form(driver, wait, form: VisaFormData, start_from=None):
@@ -2477,7 +2519,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
         # Fallback: parse edilemediyse veya sacma bir tarih geldiyse
         age = (datetime.now() - dob).days // 365
-        if age < 18 or age > 100:
+        if age < 0 or age > 120:
             print(f"[UYARI] Yas gecersiz ({age}), varsayilan 1985-01-15 kullanilacak")
             dob = datetime(1985, 1, 15)
             age = (datetime.now() - dob).days // 365
@@ -2659,16 +2701,19 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         work_status = form.step4.get("boolean_work", "").strip().upper()
         is_own = form.step4.get("own_work", "").strip().upper() == "EVET"
         worker_title = form.work_title.upper()
+        combined_check = work_status + " " + worker_title
 
         if work_status == "CALISIYOR":
             if is_own:
                 cb_id = "status_self-employed"
             else:
                 cb_id = "status_employed"
-        elif "EMEKLI" in worker_title or "RETIRED" in worker_title:
+        elif "EMEKLI" in combined_check or "RETIRED" in combined_check:
             cb_id = "status_retired"
-        elif "OGRENCI" in worker_title or "STUDENT" in worker_title:
+        elif "OGRENCI" in combined_check or "STUDENT" in combined_check:
             cb_id = "status_student"
+        elif work_status in ("CALISMIYOR", "ISSIZ", "UNEMPLOYED"):
+            cb_id = "status_unemployed"
         else:
             cb_id = "status_employed"  # varsayilan
 
@@ -2677,7 +2722,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             var cb = document.getElementById('{cb_id}');
             if (cb && !cb.checked) {{ cb.scrollIntoView({{block:'center'}}); cb.click(); }}
         """)
-        print(f"[FORM-16] Secildi: {cb_id}")
+        print(f"[FORM-16] Secildi: {cb_id} (work_status={work_status})")
         time.sleep(0.5)
 
         click_submit(driver, wait)
@@ -2755,7 +2800,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             set_select(driver, "income_currencyRef", "TRY")
             monthly = form.monthly_income if form.monthly_income else form.monthly_salary
             try:
-                yearly = int(str(monthly).replace(".", "").replace(",", "").strip()) * 12
+                yearly = clean_money(monthly) * 12
             except:
                 yearly = 300000
             if yearly < 1:
@@ -2797,7 +2842,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
             monthly = form.monthly_income if form.monthly_income else form.monthly_salary
             try:
-                monthly_val = int(str(monthly).replace(".", "").replace(",", "").strip())
+                monthly_val = clean_money(monthly)
                 if monthly_val < 1: monthly_val = 25000
             except:
                 monthly_val = 25000
@@ -2843,13 +2888,13 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             expenditure = form.monthly_expenses
             if expenditure:
                 try:
-                    outgoing_val = int(str(expenditure).replace(".", "").replace(",", "").strip())
+                    outgoing_val = clean_money(expenditure)
                 except:
                     outgoing_val = 15000
             else:
                 monthly = form.monthly_income if form.monthly_income else form.monthly_salary
                 try:
-                    outgoing_val = int(int(str(monthly).replace(".", "").replace(",", "").strip()) * 0.6)
+                    outgoing_val = int(clean_money(monthly) * 0.6)
                 except:
                     outgoing_val = 15000
             if outgoing_val < 1:
@@ -2933,7 +2978,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             # Yillik ek gelir hesapla
             income_source = monthly_income if monthly_income else monthly_salary
             try:
-                monthly_val = int(str(income_source).replace(".", "").replace(",", "").strip())
+                monthly_val = clean_money(income_source)
                 yearly_extra = monthly_val * 12
             except:
                 yearly_extra = 100000
@@ -2973,7 +3018,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             else:
                 income_source = monthly_income if monthly_income else monthly_salary
                 try:
-                    monthly_val = int(str(income_source).replace(".", "").replace(",", "").strip())
+                    monthly_val = clean_money(income_source)
                     savings_gbp = int(monthly_val * 6 / 30)  # Kabaca TRY->GBP
                 except:
                     savings_gbp = 5000
@@ -3283,7 +3328,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
                 spend = form.spend_pounds
                 try:
-                    amount_val = int(str(spend).replace(".", "").replace(",", "").replace("£", "").replace("GBP", "").strip())
+                    amount_val = clean_money(spend)
                 except:
                     amount_val = 1000
 
@@ -4068,6 +4113,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     # Schengen secildiyse ulke dropdown doldur
                     if matched_radio == "countryRef_schengen":
                         unhide_toggled(driver, "countryRef_schengen")
+                        time.sleep(1)
                         # Schengen ulke kodunu bul
                         schengen_map = {"germany":"DEU","france":"FRA","spain":"ESP","italy":"ITA","netherlands":"NLD",
                             "greece":"GRC","portugal":"PRT","austria":"AUT","belgium":"BEL","sweden":"SWE",
@@ -4080,7 +4126,38 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             if key in country:
                                 code = val
                                 break
-                        set_select(driver, "schengenCountry", code)
+                        # Birden fazla select ID dene
+                        driver.execute_script(f"""
+                            var ids = ['schengenCountry', 'schengenCountryRef', 'countryRef_schengen_country'];
+                            for (var i = 0; i < ids.length; i++) {{
+                                var s = document.getElementById(ids[i]);
+                                if (s && s.tagName === 'SELECT') {{
+                                    s.value = '{code}';
+                                    var opt = s.querySelector('option[value="{code}"]');
+                                    if (opt) opt.selected = true;
+                                    s.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                    var ui = document.getElementById(ids[i] + '_ui');
+                                    if (ui && opt) ui.value = opt.textContent.trim();
+                                    break;
+                                }}
+                            }}
+                            // Fallback: sayfadaki ilk hidden select'i bul (schengen icin)
+                            var indented = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                            if (indented) {{
+                                var sel = indented.querySelector('select');
+                                if (sel && !sel.value) {{
+                                    sel.value = '{code}';
+                                    sel.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                    var ui2 = document.getElementById(sel.id + '_ui');
+                                    if (ui2) {{
+                                        var opt2 = sel.querySelector('option[value="{code}"]');
+                                        if (opt2) ui2.value = opt2.textContent.trim();
+                                    }}
+                                }}
+                            }}
+                        """)
+                        print(f"[FORM-34] Schengen ulke: {country} -> {code}")
+                        time.sleep(0.5)
 
                     # Sebep
                     reason_map = {"tourist":"tourist","turist":"tourist","is":"business","business":"business",
