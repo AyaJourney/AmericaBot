@@ -2333,6 +2333,8 @@ def fill_travel_companions(wait, driver, data):
     print("🟢 Travel Companions TAMAMLANDI")
 
 def fill_single_us_visit(wait, driver, data, index=1):
+    from datetime import date as dt, timedelta
+
     date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
     length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
     unit_raw = str(data.get(f"VISIT{index}_STAY_UNIT", "M")).strip().upper()
@@ -2350,12 +2352,36 @@ def fill_single_us_visit(wait, driver, data, index=1):
         length = "1"
         print(f"⚠️ VISIT{index} stay length boş → 1 yazıldı")
 
-    # Tarih boşsa fallback — geçmiş bir tarih yaz
+    MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    def to_ds160_date(d):
+        return f"{d.day:02d}-{MONTHS[d.month-1]}-{d.year}"
+
+    def parse_ds160_date(s):
+        """DD-MMM-YYYY → date objesi"""
+        try:
+            parts = s.split("-")
+            if len(parts) != 3:
+                return None
+            day = int(parts[0])
+            month = MONTHS.index(parts[1].upper()) + 1
+            year = int(parts[2])
+            return dt(year, month, day)
+        except Exception:
+            return None
+
+    # Tarih boşsa → 1 yıl önce
     if not date:
-        from datetime import date as dt, timedelta
         fallback = dt.today() - timedelta(days=365)
-        date = f"{fallback.day:02d}-{['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][fallback.month-1]}-{fallback.year}"
+        date = to_ds160_date(fallback)
         print(f"⚠️ VISIT{index} tarih boş → fallback: {date}")
+    else:
+        # Tarih bugün veya gelecekteyse → dün yaz
+        parsed = parse_ds160_date(date)
+        if parsed and parsed >= dt.today():
+            yesterday = dt.today() - timedelta(days=1)
+            print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({date}) → {to_ds160_date(yesterday)}")
+            date = to_ds160_date(yesterday)
 
     parts = date.split("-")
     if len(parts) != 3:
@@ -2413,7 +2439,6 @@ def fill_single_us_visit(wait, driver, data, index=1):
     ))).select_by_value(unit)
 
     print(f"✅ US Visit {index} girildi ({ctl}): {date}, {length} {unit}")
-
 def fill_previous_us_travel(wait, driver, data):
     prev = data.get("PREV_US_TRAVEL", "NO").strip().upper()
 
