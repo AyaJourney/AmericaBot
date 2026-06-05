@@ -4855,11 +4855,29 @@ def fill_employer_or_school_info(wait, driver, data):
         data["EMP_SCH_COUNTRY"]
     )
 
-    if data.get("EMP_SCH_PHONE"):
-        js_fill(
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL",
-            data["EMP_SCH_PHONE"]
-        )
+    def clean_emp_phone(raw):
+        if not raw:
+            return "5555555555"
+        # Sadece rakam ve + al
+        digits = re.sub(r"\D", "", str(raw))
+        # + ile başlıyorsa koru
+        result = ("+" + digits) if str(raw).strip().startswith("+") else digits
+        # 7 haneden azsa geçersiz
+        if len(digits) < 7:
+            print(f"⚠️ EMP_SCH_PHONE geçersiz: '{raw}' → 5555555555")
+            return "5555555555"
+        # Tekrarlı rakamlar (1111111)
+        if len(set(digits)) <= 2:
+            print(f"⚠️ EMP_SCH_PHONE tekrarlı: '{raw}' → 5555555555")
+            return "5555555555"
+        # Max 15 karakter
+        return result[:15]
+
+    emp_phone = clean_emp_phone(data.get("EMP_SCH_PHONE", ""))
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL",
+        emp_phone
+    )
 
     fill_date_dd_mmm_yyyy(
         wait, driver,
@@ -4906,17 +4924,16 @@ def fill_present_occupation_section(wait, driver, data):
     print(f"🧑‍💼 Occupation: {occ}")
 
     def fill_explain_textarea(expl_text):
-        """Açıklama textarea'sını doldurur."""
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
         try:
-            # visibility_of_element_located — postback sonrası DOM'a ekleniyor
-            el = WebDriverWait(driver, 15).until(
+            # Postback sonrası textarea DOM'a ekleniyor — önce visible bekle
+            el = WebDriverWait(driver, 20).until(
                 EC.visibility_of_element_located((By.ID, textarea_id))
             )
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            time.sleep(1.0)  # postback bitmesini bekle
+            time.sleep(1.5)  # postback bitmesini bekle
 
-            # Önce JS ile yaz
+            # JS ile yaz
             driver.execute_script("""
                 arguments[0].removeAttribute('disabled');
                 arguments[0].removeAttribute('readonly');
@@ -4928,7 +4945,7 @@ def fill_present_occupation_section(wait, driver, data):
 
             current = (el.get_attribute("value") or "").strip()
 
-            # JS çalışmadıysa send_keys dene
+            # JS çalışmadıysa send_keys ile dene
             if not current:
                 el.click()
                 time.sleep(0.3)
@@ -4942,6 +4959,7 @@ def fill_present_occupation_section(wait, driver, data):
 
         except Exception as e:
             print(f"⚠️ Explain textarea hatası: {e}")
+    
     # ── RETIRED / HOMEMAKER ───────────────────────────────────
     if occ in ("RETIRED", "HOMEMAKER"):
         print(f"ℹ️ {occ} → Ekstra alan yok.")

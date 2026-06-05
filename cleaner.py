@@ -18,6 +18,7 @@ Desteklenen ham formatlar:
 import re
 import unicodedata
 from typing import Optional
+from unittest import result
 
 
 # ══════════════════════════════════════════════
@@ -1261,23 +1262,26 @@ def clean_all(raw: dict) -> dict:
         result = ("+" + digits) if has_plus else digits
         result = result[:15]
 
-        # Geçersiz telefon kontrolü
         pure_digits = re.sub(r"\D", "", result)
-        # Tüm rakamlar aynıysa (111, 000, 123 gibi) veya çok kısaysa geçersiz
-        if len(pure_digits) < 5:
-            print(f"⚠️ Geçersiz telefon: '{raw_p}' → 5555555555")
+
+    # 7 haneden azsa geçersiz
+        if len(pure_digits) < 7:
+            print(f"⚠️ Geçersiz telefon (kısa): '{raw_p}' → 5555555555")
             return "5555555555"
-        if len(set(pure_digits)) <= 2:  # max 2 farklı rakam varsa (111, 1212 gibi)
+
+    # Sadece tek rakamdan oluşuyorsa geçersiz (1111111, 0000000)
+        if len(set(pure_digits)) == 1:
             print(f"⚠️ Geçersiz telefon (tekrarlı): '{raw_p}' → 5555555555")
             return "5555555555"
+
+    # Bilinen sahte numaralar
         if pure_digits in ("1234567890", "0987654321", "1111111111",
                         "2222222222", "3333333333", "0000000000",
-                        "1234567", "123456789"):
-            print(f"⚠️ Geçersiz telefon (sıralı): '{raw_p}' → 5555555555")
+                        "1234567", "123456789", "9999999999"):
+            print(f"⚠️ Geçersiz telefon (sahte): '{raw_p}' → 5555555555")
             return "5555555555"
 
         return result
-
     data["PRIMARY_PHONE"]       = _clean_phone_15(raw.get("PRIMARY_PHONE", ""))
     data["MOBILE_PHONE"]        = _clean_phone_15(raw.get("MOBILE_PHONE", ""))
     data["WORK_PHONE"]          = _clean_phone_15(raw.get("WORK_PHONE", ""))
