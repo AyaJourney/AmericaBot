@@ -4926,12 +4926,16 @@ def fill_present_occupation_section(wait, driver, data):
     def fill_explain_textarea(expl_text):
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
         try:
-            # Postback sonrası textarea DOM'a ekleniyor — önce visible bekle
+            # Postback bitmesini bekle
+            time.sleep(2)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+            # Textarea visible olana kadar bekle
             el = WebDriverWait(driver, 20).until(
                 EC.visibility_of_element_located((By.ID, textarea_id))
             )
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            time.sleep(1.5)  # postback bitmesini bekle
+            time.sleep(1.0)
 
             # JS ile yaz
             driver.execute_script("""
@@ -4959,7 +4963,7 @@ def fill_present_occupation_section(wait, driver, data):
 
         except Exception as e:
             print(f"⚠️ Explain textarea hatası: {e}")
-    
+
     # ── RETIRED / HOMEMAKER ───────────────────────────────────
     if occ in ("RETIRED", "HOMEMAKER"):
         print(f"ℹ️ {occ} → Ekstra alan yok.")
@@ -4976,7 +4980,7 @@ def fill_present_occupation_section(wait, driver, data):
         expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
         fill_explain_textarea(expl)
 
-        # OTHER'da işveren/okul bilgileri de dolduruluyor
+        # Employer alanları açılmış olabilir
         try:
             WebDriverWait(driver, 25).until(
                 EC.visibility_of_element_located(
@@ -5001,7 +5005,6 @@ def fill_present_occupation_section(wait, driver, data):
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
         print(f"⚠️ İşveren/Okul bilgileri doldurulamadı: {e}")
-
 
 
 
