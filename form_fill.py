@@ -1880,6 +1880,81 @@ def fill_payer_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ {element_id} doldurulamadı, atlanıyor: {e}")
 
+    def get_address_with_fallback(addr_key1, addr_key2=None):
+        """Adres varsa onu kullan, yoksa ev adresini kullan"""
+        addr = (
+            data.get(addr_key1, "").strip() or
+            (data.get(addr_key2, "").strip() if addr_key2 else "") or ""
+        )
+        if not addr or addr in ("XXXXXXXXXX", "X", "XX"):
+            addr = data.get("HOME_ADDRESS", "XXXXXXXXXX")
+            city    = clean_address(data.get("HOME_CITY", "XXXXXXXXXX"))
+            state   = data.get("HOME_STATE", "")
+            zip_c   = data.get("HOME_POSTAL_CODE", "")
+            country = data.get("HOME_COUNTRY", "TURKEY")
+            print("ℹ️ Payer adresi yok → ev adresi kullanıldı")
+        else:
+            city    = clean_address(data.get("PAYER_COMPANY_CITY") or data.get("PAYER_CITY") or "XXXXXXXXXX")
+            state   = data.get("PAYER_STATE", "").strip()
+            zip_c   = data.get("PAYER_ZIP", "").strip()
+            country = data.get("PAYER_COMPANY_COUNTRY") or data.get("PAYER_COUNTRY") or "TURKEY"
+        return clean_address(addr), city, state, zip_c, country
+
+    def fill_address_fields(raw_addr, city, state, zip_code, country):
+        addr1, addr2_overflow = split_address(raw_addr, max_len=40)
+        addr2_final = addr2_overflow or clean_address(data.get("PAYER_ADDRESS2", "") or data.get("PAYER_COMPANY_ADDRESS2", ""))
+
+        print(f"📍 PAYER addr1: '{addr1}' ({len(addr1)} kar)")
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
+
+        if addr2_final:
+            print(f"📍 PAYER addr2: '{addr2_final}' ({len(addr2_final)} kar)")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", addr2_final)
+
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
+
+        if state:
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStateProvince", state)
+        else:
+            try:
+                state_cb = driver.find_element(
+                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince"
+                )
+                if not state_cb.is_selected():
+                    driver.execute_script("arguments[0].click();", state_cb)
+                    time.sleep(1)
+                print("✅ Payer State: Does Not Apply")
+            except Exception:
+                pass
+
+        if zip_code:
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPostalZIPCode", zip_code)
+        else:
+            try:
+                zip_cb = driver.find_element(
+                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode"
+                )
+                if not zip_cb.is_selected():
+                    driver.execute_script("arguments[0].click();", zip_cb)
+                    time.sleep(1)
+                print("✅ Payer ZIP: Does Not Apply")
+            except Exception:
+                pass
+
+        try:
+            select_ds160_country(
+                wait,
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
+                country
+            )
+            print(f"✅ Payer Country: {country}")
+        except Exception as e:
+            print(f"⚠️ Payer country seçilemedi: {e}")
+
+        driver.find_element(By.TAG_NAME, "body").click()
+        time.sleep(0.5)
+
+    # ── PAYER TYPE SEÇ ────────────────────────────────────────
     payer_type = (data.get("PAYER_TYPE") or "SELF").strip().upper()
 
     if payer_type not in PAYER_MAP:
@@ -1894,16 +1969,21 @@ def fill_payer_info(wait, driver, data):
     time.sleep(1.5)
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
+    # ── SELF ──────────────────────────────────────────────────
     if payer_type == "SELF":
         print("ℹ️ SELF → işlem yok")
         return
 
+    # ── OTHER PERSON ──────────────────────────────────────────
     if payer_type == "OTHER":
         print("👤 OTHER PERSON")
 
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerSurname",   data.get("PAYER_SURNAME", "XXXXXXXXXX"))
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerGivenName", data.get("PAYER_GIVEN_NAME", "XXXXXXXXXX"))
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone",     data.get("PAYER_PHONE", "5555555555"))
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerSurname",
+                data.get("PAYER_SURNAME", "XXXXXXXXXX"))
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerGivenName",
+                data.get("PAYER_GIVEN_NAME", "XXXXXXXXXX"))
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPhone",
+                data.get("PAYER_PHONE", "5555555555"))
 
         payer_email = data.get("PAYER_EMAIL", "").strip()
         if payer_email:
@@ -1924,69 +2004,15 @@ def fill_payer_info(wait, driver, data):
         time.sleep(0.4)
 
         if same == "NO":
-            raw_addr = clean_address(
-                data.get("PAYER_COMPANY_ADDRESS1") or
-                data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
+            raw_addr, city, state, zip_code, country = get_address_with_fallback(
+                "PAYER_ADDRESS1", "PAYER_COMPANY_ADDRESS1"
             )
-            addr1, addr2_overflow = split_address(raw_addr, max_len=40)
-            addr2_data  = clean_address(data.get("PAYER_ADDRESS2", ""))
-            addr2_final = addr2_overflow or addr2_data
-
-            city    = clean_address(data.get("PAYER_COMPANY_CITY") or data.get("PAYER_CITY") or "XXXXXXXXXX")
-            country = data.get("PAYER_COUNTRY", "TURKEY") or "TURKEY"
-
-            print(f"📍 PAYER addr1: '{addr1}' ({len(addr1)} kar)")
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", addr1)
-
-            if addr2_final:
-                print(f"📍 PAYER addr2: '{addr2_final}' ({len(addr2_final)} kar)")
-                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", addr2_final)
-
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
-
-            state = data.get("PAYER_STATE", "").strip()
-            if state:
-                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStateProvince", state)
-            else:
-                try:
-                    state_cb = driver.find_element(
-                        By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince"
-                    )
-                    if not state_cb.is_selected():
-                        driver.execute_script("arguments[0].click();", state_cb)
-                        time.sleep(1)
-                except Exception:
-                    pass
-
-            zip_code = data.get("PAYER_ZIP", "").strip()
-            if zip_code:
-                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerPostalZIPCode", zip_code)
-            else:
-                try:
-                    zip_cb = driver.find_element(
-                        By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode"
-                    )
-                    if not zip_cb.is_selected():
-                        driver.execute_script("arguments[0].click();", zip_cb)
-                        time.sleep(1)
-                except Exception:
-                    pass
-
-            try:
-                select_ds160_country(
-                    wait,
-                    "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
-                    country
-                )
-            except Exception as e:
-                print(f"⚠️ Payer country seçilemedi: {e}")
-
-            driver.find_element(By.TAG_NAME, "body").click()
-            time.sleep(0.5)
+            fill_address_fields(raw_addr, city, state, zip_code, country)
 
         print("✅ OTHER PERSON tamamlandı")
         return
 
+    # ── COMPANY / EMPLOYER ────────────────────────────────────
     if payer_type in ("COMPANY", "EMPLOYER", "US_EMPLOYER"):
         print("🏢 COMPANY / EMPLOYER alanları dolduruluyor...")
         time.sleep(2)
@@ -2020,69 +2046,16 @@ def fill_payer_info(wait, driver, data):
                 except Exception:
                     print("ℹ️ Company Payer Email alanı bulunamadı, geçiliyor.")
 
-            # COMPANY ADDRESS — split_address
-            raw_company_addr = clean_address(
-                data.get("PAYER_COMPANY_ADDRESS1") or
-                data.get("PAYER_ADDRESS1") or "XXXXXXXXXX"
+            raw_addr, city, state, zip_code, country = get_address_with_fallback(
+                "PAYER_COMPANY_ADDRESS1", "PAYER_ADDRESS1"
             )
-            company_addr1, company_addr2_overflow = split_address(raw_company_addr, max_len=40)
-            company_addr2_data  = clean_address(data.get("PAYER_COMPANY_ADDRESS2", ""))
-            company_addr2_final = company_addr2_overflow or company_addr2_data
+            fill_address_fields(raw_addr, city, state, zip_code, country)
 
-            city    = clean_address(data.get("PAYER_COMPANY_CITY") or data.get("PAYER_CITY") or "XXXXXXXXXX")
-            country = data.get("PAYER_COMPANY_COUNTRY") or data.get("PAYER_COUNTRY") or "TURKEY"
-
-            print(f"📍 COMPANY addr1: '{company_addr1}' ({len(company_addr1)} kar)")
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress1", company_addr1)
-
-            if company_addr2_final:
-                print(f"📍 COMPANY addr2: '{company_addr2_final}' ({len(company_addr2_final)} kar)")
-                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerStreetAddress2", company_addr2_final)
-
-            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPayerCity", city)
-
-            # State — Does Not Apply
-            try:
-                state_cb = driver.find_element(
-                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerStateProvince"
-                )
-                if not state_cb.is_selected():
-                    driver.execute_script("arguments[0].click();", state_cb)
-                    time.sleep(1)
-                print("✅ Payer State: Does Not Apply")
-            except Exception:
-                pass
-
-            # ZIP — Does Not Apply
-            try:
-                zip_cb = driver.find_element(
-                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPayerPostalZIPCode"
-                )
-                if not zip_cb.is_selected():
-                    driver.execute_script("arguments[0].click();", zip_cb)
-                    time.sleep(1)
-                print("✅ Payer ZIP: Does Not Apply")
-            except Exception:
-                pass
-
-            try:
-                select_ds160_country(
-                    wait,
-                    "ctl00_SiteContentPlaceHolder_FormView1_ddlPayerCountry",
-                    country
-                )
-                print(f"✅ Payer Country: {country}")
-            except Exception as e:
-                print(f"⚠️ Payer country seçilemedi: {e}")
-
-            driver.find_element(By.TAG_NAME, "body").click()
-            time.sleep(0.5)
             print("✅ COMPANY bilgileri tamamlandı")
 
         except Exception as e:
             print(f"❌ COMPANY bilgileri doldurulamadı: {e}")
             raise
-
 def click_save(wait, driver):
     save_btn_id = "ctl00_SiteContentPlaceHolder_UpdateButton2"
 
