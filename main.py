@@ -330,6 +330,50 @@ def make_driver():
     ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
     options.add_argument(f"--user-agent={ua}")
 
+    # ── Proxy ─────────────────────────────────────────────────
+    PROXY_HOST = "191.96.254.138"
+    PROXY_PORT = "6185"
+    PROXY_USER = "jotooekm"
+    PROXY_PASS = "kkj4n7etun7f"
+
+    import zipfile
+    manifest_json = """{"version":"1.0.0","manifest_version":2,"name":"proxy","permissions":["proxy","tabs","unlimitedStorage","storage","<all_urls>","webRequest","webRequestBlocking"],"background":{"scripts":["background.js"]},"minimum_chrome_version":"22.0.0"}"""
+
+    background_js = f"""
+var config = {{
+    mode: "fixed_servers",
+    rules: {{
+        singleProxy: {{
+            scheme: "http",
+            host: "{PROXY_HOST}",
+            port: parseInt({PROXY_PORT})
+        }},
+        bypassList: ["localhost"]
+    }}
+}};
+chrome.proxy.settings.set({{value: config, scope: "regular"}}, function() {{}});
+function callbackFn(details) {{
+    return {{
+        authCredentials: {{
+            username: "{PROXY_USER}",
+            password: "{PROXY_PASS}"
+        }}
+    }};
+}}
+chrome.webRequest.onAuthRequired.addListener(
+    callbackFn,
+    {{urls: ["<all_urls>"]}},
+    ['blocking']
+);
+"""
+
+    pluginfile = f"/tmp/proxy_auth_bot{BOT_ID}.zip"
+    with zipfile.ZipFile(pluginfile, 'w') as zp:
+        zp.writestr("manifest.json", manifest_json)
+        zp.writestr("background.js", background_js)
+    options.add_extension(pluginfile)
+    # ──────────────────────────────────────────────────────────
+
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
         options=options,
@@ -341,7 +385,6 @@ def make_driver():
     })
 
     return driver
-
 
 # =====================================================
 # DS-160 FLOW
