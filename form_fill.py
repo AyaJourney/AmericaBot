@@ -1154,9 +1154,21 @@ def fill_national_id(wait, driver, data):
 
 
 def normalize_ssn(raw):
+    if not raw:
+        return None, None, None
+    
+    raw = str(raw).strip()
+    
+    # Geçersiz değerler
+    if raw.upper() in ("", "NA", "N/A", "NONE", "YOK", "0", "000000000"):
+        return None, None, None
+    
     digits = "".join(c for c in raw if c.isdigit())
+    
     if len(digits) != 9:
-        raise ValueError("❌ SSN 9 haneli olmalı")
+        print(f"⚠️ SSN geçersiz: '{raw}' → Does Not Apply")
+        return None, None, None
+    
     return digits[:3], digits[3:5], digits[5:]
 
 
@@ -1170,18 +1182,20 @@ def fill_ssn(wait, driver, data):
 
     na_cb = wait.until(EC.presence_of_element_located((By.ID, na_checkbox_id)))
 
-    if raw.upper() in ("", "NA", "N/A", "NONE"):
+    p1, p2, p3 = normalize_ssn(raw)
+
+    if p1 is None:
+        # Does Not Apply işaretle
         if not na_cb.is_selected():
-            na_cb.click()
-            time.sleep(0.2)
+            driver.execute_script("arguments[0].click();", na_cb)
+            time.sleep(0.3)
         print("✅ SSN: Does Not Apply")
         return
 
+    # SSN var — checkbox kaldır
     if na_cb.is_selected():
-        na_cb.click()
-        time.sleep(0.2)
-
-    p1, p2, p3 = normalize_ssn(raw)
+        driver.execute_script("arguments[0].click();", na_cb)
+        time.sleep(0.3)
 
     for fid, val in [(ssn1_id, p1), (ssn2_id, p2), (ssn3_id, p3)]:
         el = wait.until(EC.presence_of_element_located((By.ID, fid)))
@@ -1193,7 +1207,6 @@ def fill_ssn(wait, driver, data):
         el.send_keys(val)
 
     print("✅ SSN girildi:", f"{p1}-{p2}-{p3}")
-
 
 def fill_tax_id(wait, driver, data):
     raw = (data.get("TAX_ID") or "").strip()
