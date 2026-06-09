@@ -6025,17 +6025,14 @@ def fill_military_service(wait, driver, data):
     if val != "YES":
         return
 
-    mil_country   = data.get("MIL_COUNTRY",   "TURKEY")
-    mil_branch    = data.get("MIL_BRANCH",    "ARMY - LAND FORCES")
-    mil_rank      = data.get("MIL_RANK",      "PRIVATE")
-    mil_specialty = data.get("MIL_SPECIALTY", "COMPULSORY MILITARY SERVICE")
-    mil_from      = data.get("MIL_FROM",      "")
-    mil_to        = data.get("MIL_TO",        "")
+    mil_country   = (data.get("MIL_COUNTRY", "TURKEY") or "TURKEY").strip().upper()
+    mil_branch    = "ARMY - LAND FORCES"
+    mil_rank      = "PRIVATE"
+    mil_specialty = "COMPULSORY MILITARY SERVICE"
+    mil_from      = data.get("MIL_FROM", "")
+    mil_to        = data.get("MIL_TO",   "")
 
     print(f"DEBUG mil_country={mil_country}")
-    print(f"DEBUG mil_branch={mil_branch}")
-    print(f"DEBUG mil_rank={mil_rank}")
-    print(f"DEBUG mil_specialty={mil_specialty}")
     print(f"DEBUG mil_from={mil_from}")
     print(f"DEBUG mil_to={mil_to}")
 
@@ -6056,32 +6053,71 @@ def fill_military_service(wait, driver, data):
         "GEORGIA": "GEO",
         "ARMENIA": "ARM",
         "UKRAINE": "UKR",
+        "KAZAKHSTAN": "KAZ",
+        "UZBEKISTAN": "UZB",
+        "PAKISTAN": "PKST",
+        "AFGHANISTAN": "AFGH",
+        "SAUDI ARABIA": "SARB",
+        "ISRAEL": "ISRL",
+        "JORDAN": "JORD",
+        "EGYPT": "EGYP",
+        "LIBYA": "LBYA",
+        "ALGERIA": "ALGR",
+        "MOROCCO": "MORO",
+        "TUNISIA": "TNSA",
+        "GREECE": "GRC",
+        "BULGARIA": "BULG",
+        "ROMANIA": "ROM",
+        "SERBIA": "SBA",
+        "KOSOVO": "KSV",
+        "ALBANIA": "ALB",
+        "NORTH MACEDONIA": "MKD",
+        "BOSNIA-HERZEGOVINA": "BIH",
+        "CROATIA": "HRV",
+        "SLOVENIA": "SVN",
+        "HUNGARY": "HUNG",
+        "POLAND": "POL",
+        "CZECH REPUBLIC": "CZEC",
+        "SLOVAKIA": "SVK",
+        "AUSTRIA": "AUST",
+        "SWITZERLAND": "SWTZ",
+        "ITALY": "ITLY",
+        "SPAIN": "SPN",
+        "PORTUGAL": "PORT",
+        "NETHERLANDS": "NETH",
+        "BELGIUM": "BELG",
+        "SWEDEN": "SWDN",
+        "NORWAY": "NORW",
+        "FINLAND": "FIN",
+        "DENMARK": "DEN",
+        "INDIA": "IND",
+        "JAPAN": "JPN",
+        "SOUTH KOREA": "KOR",
+        "NORTH KOREA": "PRK",
+        "INDONESIA": "IDSA",
+        "MALAYSIA": "MLAS",
+        "THAILAND": "THAI",
+        "VIETNAM": "VTNM",
+        "PHILIPPINES": "PHIL",
     }
-    country_val = country_value_map.get(mil_country.upper(), "TRKY")
+    country_val = country_value_map.get(mil_country, "TRKY")
 
     # Ülke seç
-    print(f"DEBUG: Ülke seçiliyor... value={country_val}")
     try:
         Select(wait.until(EC.element_to_be_clickable((
             By.ID, "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_ddlMILITARY_SVC_CNTRY"
         )))).select_by_value(country_val)
-        print(f"✅ MIL_COUNTRY seçildi: {mil_country}")
+        print(f"✅ MIL_COUNTRY seçildi: {mil_country} ({country_val})")
     except Exception as e:
         print(f"⚠️ MIL_COUNTRY seçilemedi: {e}")
 
-    # Postback bekle
-    print("DEBUG: Postback bekleniyor (2s)...")
     time.sleep(2)
-    print("DEBUG: Postback beklendi")
 
     def js_fill(element_id, value):
         if not value:
-            print(f"DEBUG js_fill: value boş, atlanıyor → {element_id}")
             return
-        print(f"DEBUG js_fill: element aranıyor → {element_id}")
         try:
             el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
-            print(f"DEBUG js_fill: element bulundu, value yazılıyor → {value}")
             driver.execute_script("""
                 var el = arguments[0];
                 el.removeAttribute('disabled');
@@ -6090,28 +6126,22 @@ def fill_military_service(wait, driver, data):
                 el.dispatchEvent(new Event('change', {bubbles: true}));
                 el.dispatchEvent(new Event('input', {bubbles: true}));
             """, el, str(value))
-            print(f"✅ js_fill tamamlandı → {element_id} = {value}")
+            print(f"✅ {element_id} = {value}")
         except Exception as e:
             print(f"⚠️ js_fill hata → {element_id}: {e}")
 
-    # Branch
-    print("DEBUG: Branch dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
         mil_branch
     )
     time.sleep(0.3)
 
-    # Rank
-    print("DEBUG: Rank dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
         mil_rank
     )
     time.sleep(0.3)
 
-    # Specialty
-    print("DEBUG: Specialty dolduruluyor...")
     js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
         mil_specialty
@@ -6119,7 +6149,6 @@ def fill_military_service(wait, driver, data):
     time.sleep(0.3)
 
     # From tarihi
-    print(f"DEBUG: MIL_FROM dolduruluyor... ({mil_from})")
     if mil_from:
         try:
             fill_date_dd_mmm_yyyy(wait, driver,
@@ -6135,7 +6164,6 @@ def fill_military_service(wait, driver, data):
         print("ℹ️ MIL_FROM boş, atlanıyor")
 
     # To tarihi
-    print(f"DEBUG: MIL_TO dolduruluyor... ({mil_to})")
     if mil_to:
         try:
             fill_date_dd_mmm_yyyy(wait, driver,
@@ -6151,7 +6179,6 @@ def fill_military_service(wait, driver, data):
         print("ℹ️ MIL_TO boş, atlanıyor")
 
     print("✅ Military Service dolduruldu")
-
 def fill_insurgent_organization(wait, driver, data):
     print("🟥 Insurgent / Paramilitary Organization bölümü")
 
