@@ -1198,7 +1198,7 @@ def click_submit(driver, wait, max_retries=3):
 
 def navigate_to_form(driver, wait):
     print("[1] gov.uk sayfasina gidiliyor...")
-    driver.get("https://www.gov.uk/apply-to-come-to-the-uk")
+    driver.get("https://www.gov.uk/standard-visitor")
     time.sleep(3)
 
     print("[2] 'Standard Visitor visa' tiklaniyor...")
