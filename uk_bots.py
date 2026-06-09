@@ -1316,6 +1316,8 @@ def detect_current_page(driver):
         "addressooc": "address",
         "correspondenceaddress": "correspondence",
         "homeliving": "home_duration",
+        "standardaboutyourhomeooc": "home_duration",
+        "aboutyourhome": "home_duration",
         "previousaddress": "previous_address",
         "addresshistory": "previous_address",
         "traveldocument": "passport",
