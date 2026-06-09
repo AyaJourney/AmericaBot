@@ -2005,10 +2005,36 @@ def fill_payer_info(wait, driver, data):
                 js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPAYER_EMAIL_ADDR", payer_email)
             except Exception:
                 print("ℹ️ Payer Email alanı bulunamadı, geçiliyor.")
+        else:
+            # Email yoksa Does Not Apply işaretle
+            try:
+                email_cb = driver.find_element(
+                    By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxDNAPAYER_EMAIL_ADDR_NA"
+                )
+                if not email_cb.is_selected():
+                    driver.execute_script("arguments[0].click();", email_cb)
+                    time.sleep(0.5)
+                print("✅ Payer Email: Does Not Apply")
+            except Exception:
+                pass
 
         select_payer_relationship(wait, data.get("PAYER_RELATIONSHIP", "O"))
 
-        same = (data.get("PAYER_ADDRESS_SAME") or "YES").upper()
+        # Adres var mı kontrol et — yoksa YES işaretle
+        payer_addr = (
+            data.get("PAYER_ADDRESS1", "").strip() or
+            data.get("PAYER_COMPANY_ADDRESS1", "").strip()
+        )
+        has_addr = bool(payer_addr) and payer_addr not in ("XXXXXXXXXX", "X", "XX", "")
+
+        same_val = (data.get("PAYER_ADDRESS_SAME") or "").upper()
+
+        # Adres yoksa veya PAYER_ADDRESS_SAME açıkça NO değilse → YES
+        if not has_addr or same_val != "NO":
+            same = "YES"
+        else:
+            same = "NO"
+
         radio_id = (
             "ctl00_SiteContentPlaceHolder_FormView1_rblPayerAddrSameAsInd_0"
             if same == "YES"
@@ -2025,7 +2051,6 @@ def fill_payer_info(wait, driver, data):
 
         print("✅ OTHER PERSON tamamlandı")
         return
-
     # ── COMPANY / EMPLOYER ────────────────────────────────────
     if payer_type in ("COMPANY", "EMPLOYER", "US_EMPLOYER"):
         print("🏢 COMPANY / EMPLOYER alanları dolduruluyor...")
