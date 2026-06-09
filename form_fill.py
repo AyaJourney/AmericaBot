@@ -1211,22 +1211,25 @@ def fill_ssn(wait, driver, data):
 def fill_tax_id(wait, driver, data):
     raw = (data.get("TAX_ID") or "").strip()
 
-    input_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_TAX_ID"
+    input_id      = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_TAX_ID"
     na_checkbox_id = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_TAX_ID_NA"
 
-    na_cb = wait.until(EC.presence_of_element_located((By.ID, na_checkbox_id)))
+    na_cb    = wait.until(EC.presence_of_element_located((By.ID, na_checkbox_id)))
     input_el = wait.until(EC.presence_of_element_located((By.ID, input_id)))
 
-    if raw.upper() in ("", "NA", "N/A", "NONE"):
+    # Geçersiz değerler → Does Not Apply
+    invalid = ("", "NA", "N/A", "NONE", "YOK", "0", "NULL")
+    if not raw or raw.upper() in invalid:
         if not na_cb.is_selected():
-            na_cb.click()
-            time.sleep(0.2)
+            driver.execute_script("arguments[0].click();", na_cb)
+            time.sleep(0.3)
         print("✅ Tax ID: Does Not Apply")
         return
 
+    # Geçerli — checkbox kaldır
     if na_cb.is_selected():
-        na_cb.click()
-        time.sleep(0.2)
+        driver.execute_script("arguments[0].click();", na_cb)
+        time.sleep(0.3)
 
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
@@ -1235,8 +1238,6 @@ def fill_tax_id(wait, driver, data):
     """, input_el)
     input_el.send_keys(raw)
     print("✅ Tax ID girildi:", raw)
-
-
 def fill_personal2_ids(wait, driver, data):
     fill_national_id(wait, driver, data)
     time.sleep(0.1)
