@@ -1198,7 +1198,7 @@ def click_submit(driver, wait, max_retries=3):
 
 def navigate_to_form(driver, wait):
     print("[1] gov.uk sayfasina gidiliyor...")
-    driver.get("https://www.gov.uk/standard-visitor")
+    driver.get("$ https://www.gov.uk/standard-visitor")
     time.sleep(3)
 
     # print("[2] 'Standard Visitor visa' tiklaniyor...")
@@ -2155,12 +2155,60 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             months_input.send_keys(str(months))
             time.sleep(0.3)
 
-        # Ev sahipligi - daima Other + sabit metin
-        set_radio(driver, "ownershipCategory_other")
-        time.sleep(1)
-        unhide_toggled(driver, "ownershipCategory_other")
-        set_input(driver, "otherCategoryDetails", "THE PROPERTY BELONGS TO MY FAMILY", wait)
-        print("[FORM-11c] Ev sahipligi: Other - THE PROPERTY BELONGS TO MY FAMILY")
+        # Ev sahipligi - CRM verisine gore sec
+        owner_status = form.home_owner.upper()
+        print(f"[FORM-11c] CRM home_owner: '{owner_status}'")
+        
+        if owner_status in ("KENDISI", "KENDİSİ", "SAHIP", "OWN"):
+            # Ev kendisinin - once "own" radio'larini dene
+            owned = driver.execute_script("""
+                var ids = ['ownershipCategory_ownOutright', 'ownershipCategory_own', 'ownershipCategory_ownWithMortgage'];
+                for (var i = 0; i < ids.length; i++) {
+                    var el = document.getElementById(ids[i]);
+                    if (el) { el.scrollIntoView({block:'center'}); el.checked = true; el.click(); el.dispatchEvent(new Event('change',{bubbles:true})); return ids[i]; }
+                }
+                return null;
+            """)
+            if owned:
+                print(f"[FORM-11c] Ev sahipligi: {owned} (kendisinin)")
+            else:
+                # Bulunamadiysa Other + aciklama
+                set_radio(driver, "ownershipCategory_other")
+                time.sleep(1)
+                unhide_toggled(driver, "ownershipCategory_other")
+                set_input(driver, "otherCategoryDetails", "I OWN THE PROPERTY", wait)
+                print("[FORM-11c] Ev sahipligi: Other - I OWN THE PROPERTY")
+        
+        elif owner_status in ("KIRA", "KİRA", "RENT", "RENTING"):
+            rented = driver.execute_script("""
+                var ids = ['ownershipCategory_renting', 'ownershipCategory_rent'];
+                for (var i = 0; i < ids.length; i++) {
+                    var el = document.getElementById(ids[i]);
+                    if (el) { el.scrollIntoView({block:'center'}); el.checked = true; el.click(); el.dispatchEvent(new Event('change',{bubbles:true})); return ids[i]; }
+                }
+                return null;
+            """)
+            if rented:
+                print(f"[FORM-11c] Ev sahipligi: {rented} (kira)")
+            else:
+                set_radio(driver, "ownershipCategory_other")
+                time.sleep(1)
+                unhide_toggled(driver, "ownershipCategory_other")
+                set_input(driver, "otherCategoryDetails", "I AM RENTING THE PROPERTY", wait)
+                print("[FORM-11c] Ev sahipligi: Other - I AM RENTING THE PROPERTY")
+        
+        else:
+            # DIGER veya bos - Other + aciklama
+            set_radio(driver, "ownershipCategory_other")
+            time.sleep(1)
+            unhide_toggled(driver, "ownershipCategory_other")
+            # CRM'den aciklama varsa onu kullan, yoksa sabit metin
+            owner_info = form.step1.get("home_owner_info", "").strip()
+            if not owner_info:
+                owner_info = "THE PROPERTY BELONGS TO MY FAMILY"
+            set_input(driver, "otherCategoryDetails", owner_info[:255], wait)
+            print(f"[FORM-11c] Ev sahipligi: Other - {owner_info[:50]}")
+        
         time.sleep(0.3)
 
         click_submit(driver, wait)
