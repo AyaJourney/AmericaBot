@@ -14,10 +14,10 @@ from selenium.webdriver.common.keys import Keys
 # ============================================================
 
 # --- PRODUCTION (deploy sonrasi bunu ac) ---
-# CRM_BASE = "https://crm.ayajourney.com/api/internal"
+CRM_BASE = "https://crm.ayajourney.com/api/internal"
 
 # --- LOCAL TEST ---
-CRM_BASE = "http://localhost:3000/api/internal"
+# CRM_BASE = "http://localhost:3000/api/internal"
 
 QUEUE_URL    = f"{CRM_BASE}/queue/uk-visa/start"
 STATUS_URL   = f"{CRM_BASE}/job/uk-visa/status"
@@ -25,7 +25,7 @@ COMPLETE_URL = f"{CRM_BASE}/job/uk-visa/complete"
 ERROR_URL    = f"{CRM_BASE}/job/uk-visa/error"
 SAVE_LINK_URL = f"{CRM_BASE}/job/uk-visa/save-link"
 
-POLL_INTERVAL             = 3
+POLL_INTERVAL             = 30
 SELENIUM_PAGELOAD_TIMEOUT = 120
 
 # ============================================================
