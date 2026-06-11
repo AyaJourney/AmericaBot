@@ -4926,7 +4926,6 @@ def fill_employer_or_school_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
-
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
 
@@ -4946,44 +4945,67 @@ def fill_present_occupation_section(wait, driver, data):
 
     def fill_explain_textarea(expl_text):
         textarea_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
-        try:
-            # Postback bitmesini bekle
-            time.sleep(2)
-            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-            # Textarea visible olana kadar bekle
-            el = WebDriverWait(driver, 20).until(
-                EC.visibility_of_element_located((By.ID, textarea_id))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            time.sleep(1.0)
+        for attempt in range(3):
+            try:
+                # Önce DOM'a gelmesini bekle
+                WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.ID, textarea_id))
+                )
+                # Sonra visible olmasını bekle
+                el = WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.ID, textarea_id))
+                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                time.sleep(1.0)  # postback tam bitsin
 
-            # JS ile yaz
-            driver.execute_script("""
-                arguments[0].removeAttribute('disabled');
-                arguments[0].removeAttribute('readonly');
-                arguments[0].value = arguments[1];
-                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
-                arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
-            """, el, expl_text)
-            time.sleep(0.5)
-
-            current = (el.get_attribute("value") or "").strip()
-
-            # JS çalışmadıysa send_keys ile dene
-            if not current:
+                # Temizle ve send_keys ile yaz
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                """, el)
                 el.click()
-                time.sleep(0.3)
-                el.send_keys(Keys.CONTROL + "a")
-                el.send_keys(Keys.DELETE)
+                time.sleep(0.2)
                 el.send_keys(expl_text)
                 time.sleep(0.3)
+
                 current = (el.get_attribute("value") or "").strip()
 
-            print(f"✍️ Explain girildi: '{current}'")
+                # send_keys çalışmadıysa JS ile dene
+                if not current:
+                    driver.execute_script("""
+                        arguments[0].value = arguments[1];
+                        arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                        arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                    """, el, expl_text)
+                    time.sleep(0.3)
+                    current = (el.get_attribute("value") or "").strip()
 
+                if current:
+                    print(f"✍️ Explain girildi: '{current}'")
+                    return
+                else:
+                    print(f"⚠️ Explain boş kaldı, retry {attempt+1}/3")
+                    time.sleep(0.5)
+
+            except StaleElementReferenceException:
+                print(f"⚠️ Explain stale retry {attempt+1}/3")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ Explain textarea hatası: {e}, retry {attempt+1}/3")
+                time.sleep(0.5)
+
+        # Son çare — JS ile direkt yaz
+        try:
+            el = driver.find_element(By.ID, textarea_id)
+            driver.execute_script("""
+                arguments[0].value = arguments[1];
+                arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+            """, el, expl_text)
+            print(f"✍️ Explain JS fallback: '{expl_text}'")
         except Exception as e:
-            print(f"⚠️ Explain textarea hatası: {e}")
+            print(f"❌ Explain tamamen doldurulamadı: {e}")
 
     # ── RETIRED / HOMEMAKER ───────────────────────────────────
     if occ in ("RETIRED", "HOMEMAKER"):
@@ -4991,14 +5013,34 @@ def fill_present_occupation_section(wait, driver, data):
         return
 
     # ── NOT_EMPLOYED ──────────────────────────────────────────
-    if occ == "NOT_EMPLOYED":
+    if occ in ("NOT_EMPLOYED", "N"):
         expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
         fill_explain_textarea(expl)
         return
 
     # ── OTHER ─────────────────────────────────────────────────
-    if occ == "OTHER":
+    if occ in ("OTHER", "O"):
         expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
+
+        # Textarea'nın gelmesini bekle — postback sonrası DOM'a ekleniyor
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+                ))
+            )
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+                ))
+            )
+            time.sleep(1)
+            print("✅ Explain textarea görünür")
+        except Exception as e:
+            print(f"⚠️ Explain textarea beklenemedi: {e}")
+
         fill_explain_textarea(expl)
 
         # Employer alanları açılmış olabilir
@@ -5026,8 +5068,6 @@ def fill_present_occupation_section(wait, driver, data):
         print("✅ İşveren/Okul bilgileri dolduruldu.")
     except Exception as e:
         print(f"⚠️ İşveren/Okul bilgileri doldurulamadı: {e}")
-
-
 
 def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
