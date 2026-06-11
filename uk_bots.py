@@ -1198,12 +1198,12 @@ def click_submit(driver, wait, max_retries=3):
 
 def navigate_to_form(driver, wait):
     print("[1] gov.uk sayfasina gidiliyor...")
-    driver.get("$ https://www.gov.uk/standard-visitor")
+    driver.get("https://www.gov.uk/standard-visitor")
     time.sleep(3)
 
-    # print("[2] 'Standard Visitor visa' tiklaniyor...")
-    # safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
-    # time.sleep(3)
+    print("[2] 'Standard Visitor visa' tiklaniyor...")
+    safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
+    time.sleep(3)
 
     print("[3] 'Apply for a Standard Visitor visa' tiklaniyor...")
     safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor/apply-standard-visitor-visa']"))))
@@ -1755,19 +1755,74 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         if not form.first_name:
             print(f"[FORM-6] UYARI: first_name bos! full_name='{form.full_name}' step1 fullName='{form.step1.get('fullName', 'YOK')}'")
 
-        given_name = wait.until(EC.presence_of_element_located((By.ID, "givenName")))
-        given_name.clear()
-        name_val = form.first_name if form.first_name else form.full_name.split()[0] if form.full_name else "UNKNOWN"
-        given_name.send_keys(name_val)
-        print(f"[FORM-6a] Isim girildi: {name_val}")
-        time.sleep(0.5)
+        name_val = form.first_name if form.first_name else (form.full_name.split()[0] if form.full_name else "")
+        surname_val = form.last_name if form.last_name else (" ".join(form.full_name.split()[1:]) if len(form.full_name.split()) > 1 else "")
 
-        family_name = wait.until(EC.presence_of_element_located((By.ID, "familyName")))
-        family_name.clear()
-        surname_val = form.last_name if form.last_name else (" ".join(form.full_name.split()[1:]) if len(form.full_name.split()) > 1 else "UNKNOWN")
-        family_name.send_keys(surname_val)
-        print(f"[FORM-6b] Soyisim girildi: {surname_val}")
-        time.sleep(0.5)
+        # Mevcut degerleri oku
+        current_given = driver.execute_script("return document.getElementById('givenName').value;") or ""
+        current_family = driver.execute_script("return document.getElementById('familyName').value;") or ""
+        print(f"[FORM-6] Mevcut: given='{current_given}' family='{current_family}'")
+
+        # Sadece bos veya UNKNOWN ise doldur, zaten dogru dolu ise dokunma
+        if not current_given.strip() or current_given.strip() == "UNKNOWN":
+            if name_val:
+                driver.execute_script(f"""
+                    var el = document.getElementById('givenName');
+                    el.value = '';
+                    el.focus();
+                """)
+                time.sleep(0.2)
+                given_name = driver.find_element(By.ID, "givenName")
+                given_name.send_keys(name_val)
+                print(f"[FORM-6a] Isim yazildi: {name_val}")
+            else:
+                print("[FORM-6a] Isim bos, mevcut deger korunuyor")
+        else:
+            print(f"[FORM-6a] Isim zaten dolu: '{current_given}', dokunulmadi")
+
+        time.sleep(0.3)
+
+        if not current_family.strip() or current_family.strip() == "UNKNOWN":
+            if surname_val:
+                driver.execute_script(f"""
+                    var el = document.getElementById('familyName');
+                    el.value = '';
+                    el.focus();
+                """)
+                time.sleep(0.2)
+                family_name = driver.find_element(By.ID, "familyName")
+                family_name.send_keys(surname_val)
+                print(f"[FORM-6b] Soyisim yazildi: {surname_val}")
+            else:
+                print("[FORM-6b] Soyisim bos, mevcut deger korunuyor")
+        else:
+            print(f"[FORM-6b] Soyisim zaten dolu: '{current_family}', dokunulmadi")
+
+        time.sleep(0.3)
+
+        # Son dogrulama - hala bos ise JS ile yaz
+        final_given = driver.execute_script("return document.getElementById('givenName').value;") or ""
+        final_family = driver.execute_script("return document.getElementById('familyName').value;") or ""
+        if not final_given.strip():
+            fallback = name_val or current_given or "UNKNOWN"
+            driver.execute_script(f"""
+                var el = document.getElementById('givenName');
+                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(el, '{fallback}');
+                el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                el.dispatchEvent(new Event('change', {{bubbles: true}}));
+            """)
+            print(f"[FORM-6a] JS fallback: {fallback}")
+        if not final_family.strip():
+            fallback = surname_val or current_family or "UNKNOWN"
+            driver.execute_script(f"""
+                var el = document.getElementById('familyName');
+                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                setter.call(el, '{fallback}');
+                el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                el.dispatchEvent(new Event('change', {{bubbles: true}}));
+            """)
+            print(f"[FORM-6b] JS fallback: {fallback}")
 
         click_submit(driver, wait)
         time.sleep(3)
