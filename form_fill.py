@@ -970,23 +970,32 @@ def select_other_nationality(wait, driver, answer):
         time.sleep(0.1)
         wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-
+from selenium.common.exceptions import (
+    TimeoutException, NoSuchElementException, 
+    StaleElementReferenceException
+)
 def select_other_nationality_yes(wait, driver):
-    yes_radio = wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblAPP_OTH_NATL_IND_0")
-    ))
-    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", yes_radio)
-    time.sleep(0.1)
+    for attempt in range(3):
+        try:
+            yes_radio = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblAPP_OTH_NATL_IND_0")
+            ))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", yes_radio)
+            time.sleep(0.2)
 
-    if not yes_radio.is_selected():
-        yes_radio.click()
-        print("✅ Other Nationality: YES")
-    else:
-        print("ℹ Other Nationality zaten YES")
+            if not yes_radio.is_selected():
+                driver.execute_script("arguments[0].click();", yes_radio)
+                print("✅ Other Nationality: YES")
+            else:
+                print("ℹ️ Other Nationality zaten YES")
 
-    time.sleep(0.1)
-    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            time.sleep(0.5)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            return
 
+        except StaleElementReferenceException:
+            print(f"⚠️ Other Nationality stale retry {attempt+1}/3")
+            time.sleep(0.5)
 
 def fill_single_other_nationality(wait, driver, country_name, has_passport, passport_number=None):
     country_name = country_name.strip().upper()
