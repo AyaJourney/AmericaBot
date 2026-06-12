@@ -4259,50 +4259,90 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     if matched_radio == "countryRef_schengen":
                         unhide_toggled(driver, "countryRef_schengen")
                         time.sleep(1)
-                        # Schengen ulke kodunu bul
-                        schengen_map = {"germany":"DEU","france":"FRA","spain":"ESP","italy":"ITA","netherlands":"NLD",
-                            "greece":"GRC","portugal":"PRT","austria":"AUT","belgium":"BEL","sweden":"SWE",
-                            "norway":"NOR","denmark":"DNK","finland":"FIN","poland":"POL","czech":"CZE",
-                            "hungary":"HUN","romania":"ROU","croatia":"HRV","bulgaria":"BGR","switzerland":"CHE",
-                            "ireland":"IRL","iceland":"ISL","slovakia":"SVK","slovenia":"SVN","estonia":"EST",
-                            "latvia":"LVA","lithuania":"LTU","luxembourg":"LUX","malta":"MLT","cyprus":"CYP"}
-                        code = "DEU"  # varsayilan Germany
-                        for key, val in schengen_map.items():
+                        # Schengen ulke kodunu ve ismini bul
+                        schengen_map = {"germany":("DEU","Germany"),"france":("FRA","France"),"spain":("ESP","Spain"),
+                            "italy":("ITA","Italy"),"netherlands":("NLD","Netherlands"),"greece":("GRC","Greece"),
+                            "portugal":("PRT","Portugal"),"austria":("AUT","Austria"),"belgium":("BEL","Belgium"),
+                            "sweden":("SWE","Sweden"),"norway":("NOR","Norway"),"denmark":("DNK","Denmark"),
+                            "finland":("FIN","Finland"),"poland":("POL","Poland"),"czech":("CZE","Czech"),
+                            "hungary":("HUN","Hungary"),"romania":("ROU","Romania"),"croatia":("HRV","Croatia"),
+                            "bulgaria":("BGR","Bulgaria"),"switzerland":("CHE","Switzerland"),
+                            "ireland":("IRL","Ireland"),"iceland":("ISL","Iceland"),"slovakia":("SVK","Slovakia"),
+                            "slovenia":("SVN","Slovenia"),"estonia":("EST","Estonia"),"latvia":("LVA","Latvia"),
+                            "lithuania":("LTU","Lithuania"),"luxembourg":("LUX","Luxembourg"),
+                            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus")}
+                        code = "DEU"
+                        name = "Germany"
+                        for key, (c, n) in schengen_map.items():
                             if key in country:
-                                code = val
+                                code = c
+                                name = n
                                 break
-                        # Birden fazla select ID dene
-                        driver.execute_script(f"""
-                            var ids = ['schengenCountry', 'schengenCountryRef', 'countryRef_schengen_country'];
-                            for (var i = 0; i < ids.length; i++) {{
-                                var s = document.getElementById(ids[i]);
-                                if (s && s.tagName === 'SELECT') {{
-                                    s.value = '{code}';
-                                    var opt = s.querySelector('option[value="{code}"]');
-                                    if (opt) opt.selected = true;
-                                    s.dispatchEvent(new Event('change', {{bubbles: true}}));
-                                    var ui = document.getElementById(ids[i] + '_ui');
-                                    if (ui && opt) ui.value = opt.textContent.trim();
-                                    break;
-                                }}
+                        
+                        # Schengen ulke secimi - UI autocomplete input'u bul ve yaz
+                        schengen_set = driver.execute_script(f"""
+                            // Oncelikle hidden content icindeki select'i bul
+                            var container = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                            if (!container) return 'no_container';
+                            
+                            var sel = container.querySelector('select');
+                            if (!sel) return 'no_select';
+                            
+                            var selId = sel.id;
+                            
+                            // Hidden select'e value ata
+                            sel.value = '{code}';
+                            var opt = sel.querySelector('option[value="{code}"]');
+                            if (opt) {{ opt.selected = true; opt.setAttribute('selected', 'selected'); }}
+                            sel.dispatchEvent(new Event('change', {{bubbles: true}}));
+                            
+                            // UI input'u bul ve doldur
+                            var ui = document.getElementById(selId + '_ui');
+                            if (ui) {{
+                                var optText = opt ? opt.textContent.trim() : '{name}';
+                                ui.value = optText;
+                                ui.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                ui.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                return 'ok:' + selId + '=' + sel.value + ' ui=' + ui.value;
                             }}
-                            // Fallback: sayfadaki ilk hidden select'i bul (schengen icin)
-                            var indented = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                            if (indented) {{
-                                var sel = indented.querySelector('select');
-                                if (sel && !sel.value) {{
-                                    sel.value = '{code}';
-                                    sel.dispatchEvent(new Event('change', {{bubbles: true}}));
-                                    var ui2 = document.getElementById(sel.id + '_ui');
-                                    if (ui2) {{
-                                        var opt2 = sel.querySelector('option[value="{code}"]');
-                                        if (opt2) ui2.value = opt2.textContent.trim();
-                                    }}
-                                }}
-                            }}
+                            
+                            return 'no_ui:' + selId + '=' + sel.value;
                         """)
-                        print(f"[FORM-34] Schengen ulke: {country} -> {code}")
+                        print(f"[FORM-34] Schengen JS sonuc: {schengen_set}")
+                        
+                        # JS ile secilemadiyse send_keys ile dene
+                        if not schengen_set or 'no_' in str(schengen_set):
+                            print(f"[FORM-34] JS basarisiz, send_keys deneniyor...")
+                            try:
+                                # Container icindeki autocomplete input'u bul
+                                ui_inputs = driver.execute_script("""
+                                    var container = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                                    if (!container) return [];
+                                    var inputs = container.querySelectorAll('input.ui-autocomplete-input, input[type="text"]');
+                                    return Array.from(inputs).map(function(i) { return i.id; });
+                                """)
+                                if ui_inputs:
+                                    ui_el = driver.find_element(By.ID, ui_inputs[0])
+                                    safe_click(driver, ui_el)
+                                    time.sleep(0.3)
+                                    ui_el.clear()
+                                    ui_el.send_keys(name)
+                                    time.sleep(1.5)
+                                    # Autocomplete'den sec
+                                    try:
+                                        autocomplete_item = wait.until(EC.element_to_be_clickable(
+                                            (By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
+                                        safe_click(driver, autocomplete_item)
+                                    except:
+                                        ui_el.send_keys(Keys.ARROW_DOWN)
+                                        time.sleep(0.3)
+                                        ui_el.send_keys(Keys.ENTER)
+                                    print(f"[FORM-34] send_keys ile secildi: {name}")
+                            except Exception as e:
+                                print(f"[FORM-34] send_keys hatasi: {e}")
+                        
                         time.sleep(0.5)
+                        print(f"[FORM-34] Schengen ulke: {country} -> {code} ({name})")
 
                     # Sebep
                     reason_map = {"tourist":"tourist","turist":"tourist","is":"business","business":"business",
