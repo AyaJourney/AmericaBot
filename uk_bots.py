@@ -1201,9 +1201,9 @@ def navigate_to_form(driver, wait):
     driver.get("https://www.gov.uk/standard-visitor")
     time.sleep(3)
 
-    print("[2] 'Standard Visitor visa' tiklaniyor...")
-    safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
-    time.sleep(3)
+    # print("[2] 'Standard Visitor visa' tiklaniyor...")
+    # safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
+    # time.sleep(3)
 
     print("[3] 'Apply for a Standard Visitor visa' tiklaniyor...")
     safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor/apply-standard-visitor-visa']"))))
