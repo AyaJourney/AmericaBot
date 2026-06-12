@@ -8,6 +8,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+
+# ChromeDriver otomatik yonetimi
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+    CHROMEDRIVER_AUTO = True
+    print("[INIT] webdriver-manager yuklendi, ChromeDriver otomatik indirilecek")
+except ImportError:
+    CHROMEDRIVER_AUTO = False
+    print("[INIT] webdriver-manager yok, sistem chromedriver kullanilacak")
 
 # ============================================================
 # CRM API YAPILANDIRMASI
@@ -25,7 +35,7 @@ COMPLETE_URL = f"{CRM_BASE}/job/uk-visa/complete"
 ERROR_URL    = f"{CRM_BASE}/job/uk-visa/error"
 SAVE_LINK_URL = f"{CRM_BASE}/job/uk-visa/save-link"
 
-POLL_INTERVAL             = 30
+POLL_INTERVAL             = 3
 SELENIUM_PAGELOAD_TIMEOUT = 120
 
 # ============================================================
@@ -669,11 +679,28 @@ class VisaFormData:
 def create_driver():
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
-    driver = webdriver.Chrome(options=options)
+    
+    if CHROMEDRIVER_AUTO:
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+    else:
+        driver = webdriver.Chrome(options=options)
+    
     driver.set_page_load_timeout(SELENIUM_PAGELOAD_TIMEOUT)
+    
+    # Bot tespitini engelle
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": """
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        """
+    })
+    
     return driver
 
 
@@ -1197,9 +1224,22 @@ def click_submit(driver, wait, max_retries=3):
 # ============================================================
 
 def navigate_to_form(driver, wait):
-    print("[1] gov.uk sayfasina gidiliyor...")
-    driver.get("https://www.gov.uk/standard-visitor")
-    time.sleep(3)
+    # Ilk sayfaya git - retry ile
+    for attempt in range(3):
+        try:
+            print(f"[1] gov.uk sayfasina gidiliyor... (deneme {attempt+1})")
+            driver.get("https://www.gov.uk/standard-visitor")
+            time.sleep(3)
+            # Sayfa yuklendi mi kontrol et
+            if "gov.uk" in driver.current_url:
+                break
+        except Exception as e:
+            print(f"[1] Sayfa yuklenemedi: {e}")
+            if attempt < 2:
+                print(f"[1] {5*(attempt+1)}s sonra tekrar denenecek...")
+                time.sleep(5 * (attempt + 1))
+            else:
+                raise Exception(f"gov.uk sayfasi 3 denemede yuklenemedi: {e}")
 
     # print("[2] 'Standard Visitor visa' tiklaniyor...")
     # safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
