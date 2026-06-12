@@ -1054,6 +1054,9 @@ def click_submit(driver, wait, max_retries=3):
                     var type = inp.type;
                     var val = '';
                     
+                    // givenName ve familyName'e UNKNOWN yazma - handler doldurmali
+                    if (id === 'givenname' || id === 'familyname' || id === 'singlename') return;
+                    
                     if (type === 'number') {
                         if (id === 'yearslived') val = '5';
                         else if (id === 'monthslived') val = '0';
@@ -1241,9 +1244,9 @@ def navigate_to_form(driver, wait):
             else:
                 raise Exception(f"gov.uk sayfasi 3 denemede yuklenemedi: {e}")
 
-    # print("[2] 'Standard Visitor visa' tiklaniyor...")
-    # safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
-    # time.sleep(3)
+    print("[2] 'Standard Visitor visa' tiklaniyor...")
+    safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor-visa']"))))
+    time.sleep(3)
 
     print("[3] 'Apply for a Standard Visitor visa' tiklaniyor...")
     safe_click(driver, wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='/standard-visitor/apply-standard-visitor-visa']"))))
@@ -1806,15 +1809,15 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         # Sadece bos veya UNKNOWN ise doldur, zaten dogru dolu ise dokunma
         if not current_given.strip() or current_given.strip() == "UNKNOWN":
             if name_val:
+                # JS ile yaz (send_keys'den daha guvenilir)
                 driver.execute_script(f"""
                     var el = document.getElementById('givenName');
-                    el.value = '';
-                    el.focus();
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, '{name_val.replace("'", "")}');
+                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
                 """)
-                time.sleep(0.2)
-                given_name = driver.find_element(By.ID, "givenName")
-                given_name.send_keys(name_val)
-                print(f"[FORM-6a] Isim yazildi: {name_val}")
+                print(f"[FORM-6a] Isim yazildi (JS): {name_val}")
             else:
                 print("[FORM-6a] Isim bos, mevcut deger korunuyor")
         else:
@@ -1826,13 +1829,12 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             if surname_val:
                 driver.execute_script(f"""
                     var el = document.getElementById('familyName');
-                    el.value = '';
-                    el.focus();
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, '{surname_val.replace("'", "")}');
+                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
                 """)
-                time.sleep(0.2)
-                family_name = driver.find_element(By.ID, "familyName")
-                family_name.send_keys(surname_val)
-                print(f"[FORM-6b] Soyisim yazildi: {surname_val}")
+                print(f"[FORM-6b] Soyisim yazildi (JS): {surname_val}")
             else:
                 print("[FORM-6b] Soyisim bos, mevcut deger korunuyor")
         else:
