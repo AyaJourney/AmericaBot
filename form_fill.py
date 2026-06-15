@@ -7839,7 +7839,202 @@ def safe_fill_page(driver, wait, data):
         pass
 
     print("🛡️ safe_fill_page tamamlandı")
+# form_fill.py içine ekle
 
+DS160_FIELD_FALLBACKS = {
+    # Adres alanları
+    "tbxAPP_ADDR_LN1":              "123 MAIN STREET",
+    "tbxAPP_ADDR_LN2":              "",
+    "tbxAPP_ADDR_CITY":             "ISTANBUL",
+    "tbxAPP_ADDR_STATE":            "ISTANBUL",
+    "tbxAPP_ADDR_POSTAL_CD":        "34000",
+    "tbxMAILING_ADDR_LN1":         "123 MAIN STREET",
+    "tbxMAILING_ADDR_LN2":         "",
+    "tbxMAILING_ADDR_CITY":        "ISTANBUL",
+    "tbxMAILING_ADDR_STATE":       "ISTANBUL",
+    "tbxMAILING_ADDR_POSTAL_CD":   "34000",
+
+    # Employer / School adresi
+    "tbxEmpSchAddr1":               "123 MAIN STREET",
+    "tbxEmpSchAddr2":               "",
+    "tbxEmpSchCity":                "ISTANBUL",
+    "tbxWORK_EDUC_ADDR_STATE":     "ISTANBUL",
+    "tbxWORK_EDUC_ADDR_POSTAL_CD": "34000",
+    "tbxEmpSchName":                "PRIVATE COMPANY",
+    "tbxDescribeDuties":            "GENERAL DUTIES",
+    "tbxCURR_MONTHLY_SALARY":       "0",
+
+    # Telefon
+    "tbxAPP_HOME_TEL":              "5555555555",
+    "tbxAPP_MOBILE_TEL":            "5555555555",
+    "tbxAPP_BUS_TEL":               "5555555555",
+    "tbxWORK_EDUC_TEL":            "5555555555",
+    "tbxUS_POC_HOME_TEL":          "5555555555",
+    "tbxPayerPhone":               "5555555555",
+
+    # Email
+    "tbxAPP_EMAIL_ADDR":            "applicant@mail.com",
+    "tbxUS_POC_EMAIL_ADDR":        "contact@mail.com",
+    "tbxPAYER_EMAIL_ADDR":         "payer@mail.com",
+
+    # Pasaport
+    "tbxPPT_NUM":                   "A00000000",
+    "tbxPPT_BOOK_NUM":             "A00000000",
+    "tbxPPT_ISSUED_IN_CITY":       "ISTANBUL",
+    "tbxPPT_ISSUED_IN_STATE":      "ISTANBUL",
+
+    # US Point of Contact
+    "tbxUS_POC_SURNAME":           "UNKNOWN",
+    "tbxUS_POC_GIVEN_NAME":        "UNKNOWN",
+    "tbxUS_POC_ADDR_LN1":          "123 MAIN STREET",
+    "tbxUS_POC_ADDR_LN2":          "",
+    "tbxUS_POC_ADDR_CITY":         "NEW YORK",
+    "tbxUS_POC_ADDR_POSTAL_CD":    "10001",
+    "tbxUS_POC_ORGANIZATION":      "HOTEL OR BUSINESS",
+
+    # US Adres
+    "tbxStreetAddress1":            "123 MAIN STREET",
+    "tbxStreetAddress2":            "",
+    "tbxCity":                      "NEW YORK",
+    "tbZIPCode":                    "10001",
+
+    # Payer
+    "tbxPayerSurname":             "UNKNOWN",
+    "tbxPayerGivenName":           "UNKNOWN",
+    "tbxPayerStreetAddress1":      "123 MAIN STREET",
+    "tbxPayerStreetAddress2":      "",
+    "tbxPayerCity":                "ISTANBUL",
+    "tbxPayerStateProvince":       "ISTANBUL",
+    "tbxPayerPostalZIPCode":       "34000",
+    "tbxPayingCompany":            "PRIVATE COMPANY",
+    "tbxCompanyRelation":          "EMPLOYER",
+
+    # Kişisel
+    "tbxAPP_SURNAME":               "UNKNOWN",
+    "tbxAPP_GIVEN_NAME":            "UNKNOWN",
+    "tbxAPP_FULL_NAME_NATIVE":      "UNKNOWN",
+    "tbxAPP_NATIONAL_ID":           "00000000000",
+    "tbxAPP_SSN1":                  "000",
+    "tbxAPP_SSN2":                  "00",
+    "tbxAPP_SSN3":                  "0000",
+    "tbxAPP_TAX_ID":                "000000000",
+    "tbxAPP_POB_CITY":              "ISTANBUL",
+    "tbxAPP_POB_ST_PROVINCE":       "ISTANBUL",
+
+    # Aile
+    "tbxFATHER_SURNAME":            "UNKNOWN",
+    "tbxFATHER_GIVEN_NAME":         "UNKNOWN",
+    "tbxMOTHER_SURNAME":            "UNKNOWN",
+    "tbxMOTHER_GIVEN_NAME":         "UNKNOWN",
+    "tbxSpouseSurname":             "UNKNOWN",
+    "tbxSpouseGivenName":           "UNKNOWN",
+    "tbxSpousePOBCity":             "ISTANBUL",
+
+    # Eğitim
+    "tbxSchoolName":                "UNIVERSITY",
+    "tbxSchoolAddr1":               "123 UNIVERSITY STREET",
+    "tbxSchoolAddr2":               "",
+    "tbxSchoolCity":                "ISTANBUL",
+    "tbxEDUC_INST_ADDR_STATE":     "ISTANBUL",
+    "tbxEDUC_INST_POSTAL_CD":      "34000",
+    "tbxSchoolCourseOfStudy":       "ACADEMIC",
+
+    # Previous Employment
+    "tbEmployerName":               "PRIVATE COMPANY",
+    "tbEmployerStreetAddress1":     "123 MAIN STREET",
+    "tbEmployerStreetAddress2":     "",
+    "tbEmployerCity":               "ISTANBUL",
+    "tbxPREV_EMPL_ADDR_STATE":     "ISTANBUL",
+    "tbxPREV_EMPL_ADDR_POSTAL_CD": "34000",
+    "tbEmployerPhone":              "5555555555",
+    "tbJobTitle":                   "EMPLOYEE",
+    "tbSupervisorSurname":          "UNKNOWN",
+    "tbSupervisorGivenName":        "UNKNOWN",
+    "tbDescribeDuties":             "GENERAL DUTIES",
+
+    # Vize
+    "tbxPREV_VISA_FOIL_NUMBER":    "A0000000",
+    "tbxPREV_VISA_LOST_YEAR":      "2000",
+    "tbxPREV_VISA_LOST_EXPL":      "VISA WAS LOST",
+    "tbxPREV_VISA_CANCELLED_EXPL": "VISA WAS CANCELLED",
+    "tbxPREV_VISA_REFUSED_EXPL":   "PREVIOUSLY REFUSED. STRONG TIES TO HOME COUNTRY.",
+
+    # Military
+    "tbxMILITARY_SVC_BRANCH":      "COMPULSORY MILITARY",
+    "tbxMILITARY_SVC_RANK":        "PRIVATE",
+    "tbxMILITARY_SVC_SPECIALTY":   "COMPULSORY MILITARY",
+
+    # Açıklama alanları
+    "tbxExplainOtherPresentOccupation": "NOT EMPLOYED",
+    "tbxIV_PETITION_EXPL":         "PETITION WAS FILED PREVIOUSLY",
+    "tbxINSURGENT_ORG_EXPL":       "NO INVOLVEMENT",
+    "tbxPptOtherExpl":             "OTHER TRAVEL DOCUMENT",
+    "tbxLOST_PPT_EXPL":            "PASSPORT WAS LOST",
+
+    # Seyahat
+    "tbxArriveCity":                "NEW YORK",
+    "tbxDepartCity":                "NEW YORK",
+    "tbxTRAVEL_LOS":               "7",
+    "dtlTravelLoc_ctl00_tbxSPECTRAVEL_LOCATION": "NEW YORK",
+
+    # US Relatives
+    "tbxUS_REL_SURNAME":            "UNKNOWN",
+    "tbxUS_REL_GIVEN_NAME":         "UNKNOWN",
+
+    # Social Media
+    "tbxSocialMediaIdent":          "N/A",
+    "tbxAddSocialPlat":             "OTHER",
+    "tbxAddSocialHand":             "N/A",
+
+    # Additional Phone/Email
+    "tbxAddPhoneInfo":              "5555555555",
+    "tbxAddEmailInfo":              "applicant@mail.com",
+}
+
+
+def get_fallback_for_field(field_id):
+    """
+    Field ID'den suffix çıkarıp fallback değer döndür.
+    Bulunamazsa clean_for_ds160 ile temizlenmiş değer veya XXXXXXXXXX.
+    """
+    # Son kısım — ctl00_...._tbxEmpSchAddr1 → tbxEmpSchAddr1
+    suffix = field_id.split("_")[-1]
+
+    # Tam suffix eşleşmesi
+    if suffix in DS160_FIELD_FALLBACKS:
+        return DS160_FIELD_FALLBACKS[suffix]
+
+    # Kısmi eşleşme — suffix herhangi bir key'in sonundaysa
+    for key, val in DS160_FIELD_FALLBACKS.items():
+        if field_id.endswith(key):
+            return val
+
+    # Telefon içeren her şey
+    if any(x in field_id.lower() for x in ("tel", "phone", "fax")):
+        return "5555555555"
+
+    # Email içeren her şey
+    if "email" in field_id.lower():
+        return "applicant@mail.com"
+
+    # Adres içeren her şey
+    if any(x in field_id.lower() for x in ("addr", "address", "street")):
+        return "123 MAIN STREET"
+
+    # City içeren her şey
+    if "city" in field_id.lower():
+        return "ISTANBUL"
+
+    # Postal/zip içeren her şey
+    if any(x in field_id.lower() for x in ("postal", "zip")):
+        return "34000"
+
+    # Surname/given içeren her şey
+    if "surname" in field_id.lower() or "given" in field_id.lower():
+        return "UNKNOWN"
+
+    # Hiçbiri uymadı
+    return None
 def clean_for_ds160(text):
     """DS-160'ın kabul ettiği karakterlere göre temizle."""
     import re
@@ -7865,7 +8060,7 @@ def clean_for_ds160(text):
 def check_and_fix_validation_errors(wait, driver, max_attempts=3):
     """
     Save sonrası validation hatalarını kontrol eder,
-    hatalı alanları temizleyip tekrar save'e basar.
+    hatalı alanları fallback değerle düzeltip tekrar save'e basar.
     """
     for attempt in range(max_attempts):
         # Validation summary var mı?
@@ -7904,12 +8099,11 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
                     continue
 
                 span_id = span.get_attribute("id") or ""
-                # "csv" → "tbx" (field id'yi türet)
                 field_suffix = span_id.replace(
                     "ctl00_SiteContentPlaceHolder_FormView1_csv", ""
                 )
                 field_id = f"ctl00_SiteContentPlaceHolder_FormView1_{field_suffix}"
-                print(f"🔴 Hatalı field tespit edildi: {field_suffix}")
+                print(f"🔴 Hatalı field: {field_suffix}")
 
                 try:
                     field_el = driver.find_element(By.ID, field_id)
@@ -7922,18 +8116,31 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
 
                 # Sadece text/textarea düzelt
                 if tag not in ("input", "textarea") or field_type in ("radio", "checkbox", "hidden"):
-                    print(f"ℹ️ {field_suffix} input değil, atlanıyor")
+                    print(f"ℹ️ {field_suffix} text input değil, atlanıyor")
                     continue
 
                 current_val = (field_el.get_attribute("value") or "").strip()
                 print(f"   Mevcut değer: '{current_val}'")
 
-                cleaned = clean_for_ds160(current_val)
-                if not cleaned:
-                    cleaned = "XXXXXXXXXX"
+                # Önce fallback tablosuna bak
+                fallback = get_fallback_for_field(field_id)
 
-                print(f"   Temizlenmiş:  '{cleaned}'")
+                if fallback is not None:
+                    cleaned = fallback
+                    print(f"   Fallback değer: '{cleaned}'")
+                else:
+                    # Fallback yok — mevcut değeri temizle
+                    cleaned = clean_for_ds160(current_val)
+                    if not cleaned:
+                        cleaned = "XXXXXXXXXX"
+                    print(f"   Temizlenmiş: '{cleaned}'")
 
+                # Boş bırakılacak alanlar (addr2 gibi opsiyonel)
+                if cleaned == "":
+                    print(f"   ℹ️ Boş bırakılıyor (opsiyonel alan)")
+                    continue
+
+                # Field'a yaz
                 driver.execute_script("""
                     arguments[0].removeAttribute('disabled');
                     arguments[0].removeAttribute('readonly');
@@ -7943,14 +8150,36 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
                 time.sleep(0.2)
                 field_el.send_keys(cleaned)
                 time.sleep(0.3)
-                fixed_any = True
-                print(f"   ✅ Düzeltildi")
 
+                # Doğrula
+                written = (field_el.get_attribute("value") or "").strip()
+                if written:
+                    print(f"   ✅ Yazıldı: '{written}'")
+                    fixed_any = True
+                else:
+                    # send_keys çalışmadı — JS fallback
+                    driver.execute_script("""
+                        arguments[0].value = arguments[1];
+                        arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                        arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                    """, field_el, cleaned)
+                    time.sleep(0.2)
+                    written2 = (field_el.get_attribute("value") or "").strip()
+                    if written2:
+                        print(f"   ✅ JS ile yazıldı: '{written2}'")
+                        fixed_any = True
+                    else:
+                        print(f"   ❌ Yazılamadı: {field_id}")
+
+            except StaleElementReferenceException:
+                print(f"⚠️ Stale element, retry {attempt+1}")
+                time.sleep(0.5)
+                break
             except Exception as e:
-                print(f"⚠️ Field düzeltme hatası: {e}")
+                print(f"⚠️ Field düzeltme hatası ({field_suffix}): {e}")
 
         if not fixed_any:
-            print(f"❌ Düzeltilebilecek field bulunamadı")
+            print(f"❌ Düzeltilebilecek field bulunamadı (attempt {attempt+1})")
             return False
 
         # Tekrar save
@@ -7958,7 +8187,9 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
             save_btn = wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_UpdateButton2")
             ))
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", save_btn)
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block:'center'});", save_btn
+            )
             time.sleep(0.3)
             driver.execute_script("arguments[0].click();", save_btn)
             print(f"💾 Tekrar Save (attempt {attempt+1})")
