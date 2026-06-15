@@ -3129,16 +3129,42 @@ def fill_mailing_address(wait, driver, data):
     click_outside(driver)
     time.sleep(0.5)
 def clean_phone(phone: str) -> str:
-    """Telefon numarasından () - . boşluk vb karakterleri temizler, + başında kalır."""
+    """
+    Telefon numarasını DS-160 için temizler.
+    - Baştaki/aradaki tüm boşluk, parantez, tire, nokta vb kaldırır
+    - + varsa başta korur
+    - Min 7 hane zorunlu
+    - Tekrarlı rakam kontrolü
+    - Max 15 karakter
+    """
     if not phone:
         return ""
-    phone = phone.strip()
+
+    phone = str(phone).strip()
+
     # + varsa koru
     has_plus = phone.startswith("+")
+
     # Sadece rakamları al
     digits = "".join(c for c in phone if c.isdigit())
-    return ("+" + digits) if has_plus else digits
 
+    if not digits:
+        return ""
+
+    # Min 7 hane
+    if len(digits) < 7:
+        print(f"⚠️ Telefon çok kısa: '{phone}' → 5555555555")
+        return "5555555555"
+
+    # Tekrarlı rakam (0000000, 1111111)
+    if len(set(digits)) == 1:
+        print(f"⚠️ Telefon tekrarlı rakam: '{phone}' → 5555555555")
+        return "5555555555"
+
+    result = ("+" + digits) if has_plus else digits
+
+    # Max 15 karakter
+    return result[:15]
 
 def clean_address(addr: str) -> str:
     """Adres metninden noktalama işaretlerini temizler."""
@@ -3184,13 +3210,17 @@ def safe_phone_fill(wait, driver, input_id, checkbox_id, value):
 def fill_phone_numbers(wait, driver, data):
     print("📞 Phone bilgileri düzenleniyor...")
 
-    primary_raw  = data.get("PRIMARY_PHONE", "").strip()
-    mobile_raw   = data.get("MOBILE_PHONE", "").strip()
-    work_raw     = data.get("WORK_PHONE", "").strip()
+    primary_raw = data.get("PRIMARY_PHONE", "").strip()
+    mobile_raw  = data.get("MOBILE_PHONE", "").strip()
+    work_raw    = data.get("WORK_PHONE", "").strip()
 
-    primary = clean_phone(primary_raw)
+    primary = clean_phone(primary_raw) or "5555555555"
     mobile  = clean_phone(mobile_raw)
     work    = clean_phone(work_raw)
+
+    if not primary:
+        primary = "5555555555"
+        print("⚠️ PRIMARY_PHONE boş/geçersiz → 5555555555")
 
     # Primary — zorunlu
     p_field = wait.until(EC.visibility_of_element_located(
@@ -3201,28 +3231,27 @@ def fill_phone_numbers(wait, driver, data):
         arguments[0].removeAttribute('readonly');
         arguments[0].value = '';
     """, p_field)
-    p_field.send_keys(primary or "5555555555")
-    print(f"✅ Primary Phone: {primary or '5555555555'}")
+    p_field.send_keys(primary)
+    print(f"✅ Primary Phone: {primary}")
 
-    # Mobile — primary ile aynıysa veya boşsa NA işaretle
-    mobile_input_id  = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL"
-    mobile_na_id     = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_MOBILE_TEL_NA"
+    # Mobile
+    mobile_input_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_MOBILE_TEL"
+    mobile_na_id    = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_MOBILE_TEL_NA"
 
     if not mobile or mobile == primary:
-        # NA işaretle
         try:
             cb = driver.find_element(By.ID, mobile_na_id)
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
                 time.sleep(0.5)
-            print("ℹ️ Mobile Phone: Does Not Apply (boş veya primary ile aynı)")
+            print("ℹ️ Mobile Phone: Does Not Apply")
         except Exception as e:
             print(f"⚠️ Mobile NA checkbox: {e}")
     else:
         safe_phone_fill(wait, driver, mobile_input_id, mobile_na_id, mobile)
         print(f"✅ Mobile Phone: {mobile}")
 
-    # Work — primary ile aynıysa veya boşsa NA işaretle
+    # Work
     work_input_id = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_BUS_TEL"
     work_na_id    = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_BUS_TEL_NA"
 
@@ -3232,13 +3261,12 @@ def fill_phone_numbers(wait, driver, data):
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
                 time.sleep(0.5)
-            print("ℹ️ Work Phone: Does Not Apply (boş veya primary ile aynı)")
+            print("ℹ️ Work Phone: Does Not Apply")
         except Exception as e:
             print(f"⚠️ Work NA checkbox: {e}")
     else:
         safe_phone_fill(wait, driver, work_input_id, work_na_id, work)
         print(f"✅ Work Phone: {work}")
-
 def fill_additional_phone(wait, driver, data):
     print("📞 Additional Phone başlıyor")
 
