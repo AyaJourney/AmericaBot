@@ -6238,9 +6238,9 @@ def fill_military_service(wait, driver, data):
         return
 
     mil_country   = (data.get("MIL_COUNTRY", "TURKEY") or "TURKEY").strip().upper()
-    mil_branch    = "COMPULSORY MILITARY"
+    mil_branch    = "ARMY - LAND FORCES"
     mil_rank      = "PRIVATE"
-    mil_specialty = "COMPULSORY MILITARY"
+    mil_specialty = "COMPULSORY MILITARY SERVICE"
     mil_from      = data.get("MIL_FROM", "")
     mil_to        = data.get("MIL_TO",   "")
 
@@ -6248,6 +6248,7 @@ def fill_military_service(wait, driver, data):
     print(f"DEBUG mil_from={mil_from}")
     print(f"DEBUG mil_to={mil_to}")
 
+    # Ülke value map
     country_value_map = {
         "AFGHANISTAN": "AFGH",
         "ALBANIA": "ALB",
@@ -6491,36 +6492,36 @@ def fill_military_service(wait, driver, data):
 
     time.sleep(2)
 
-    # send_keys ile yaz — js_fill postback sonrası değeri siliyor
-    def fill_text_input(element_id, value):
+    def js_fill(element_id, value):
         if not value:
             return
         try:
-            el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
+            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
             driver.execute_script("""
-                arguments[0].removeAttribute('disabled');
-                arguments[0].removeAttribute('readonly');
-                arguments[0].value = '';
-            """, el)
-            el.click()
-            el.send_keys(str(value))
-            print(f"✅ {element_id.split('_')[-1]} = {value}")
+                var el = arguments[0];
+                el.removeAttribute('disabled');
+                el.removeAttribute('readonly');
+                el.value = arguments[1];
+                el.dispatchEvent(new Event('change', {bubbles: true}));
+                el.dispatchEvent(new Event('input', {bubbles: true}));
+            """, el, str(value))
+            print(f"✅ {element_id} = {value}")
         except Exception as e:
-            print(f"⚠️ fill_text_input hata → {element_id}: {e}")
+            print(f"⚠️ js_fill hata → {element_id}: {e}")
 
-    fill_text_input(
+    js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
         mil_branch
     )
     time.sleep(0.3)
 
-    fill_text_input(
+    js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
         mil_rank
     )
     time.sleep(0.3)
 
-    fill_text_input(
+    js_fill(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
         mil_specialty
     )
@@ -6557,8 +6558,6 @@ def fill_military_service(wait, driver, data):
         print("ℹ️ MIL_TO boş, atlanıyor")
 
     print("✅ Military Service dolduruldu")
-
-
 
 def fill_insurgent_organization(wait, driver, data):
     print("🟥 Insurgent / Paramilitary Organization bölümü")
