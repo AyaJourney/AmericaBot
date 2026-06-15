@@ -1653,18 +1653,29 @@ def fill_intended_arrival_date(wait, driver, data):
     mon_raw  = str(data.get("INTENDED_ARRIVAL_MONTH") or "").strip().upper()
     year_raw = (data.get("INTENDED_ARRIVAL_YEAR") or "").strip()
 
-    if not day_raw or not mon_raw or not year_raw:
-        raise Exception("❌ INTENDED_ARRIVAL_DAY / MONTH / YEAR boş olamaz")
-
     MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
                "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    # Geçersiz değerler — XXXXXXXXXX, boş, vs → 90 gün sonrası
+    invalid_vals = {"", "XXXXXXXXXX", "XX", "X", "NA", "N/A", "NONE", "0"}
+
+    def is_invalid(val):
+        return not val or val.upper() in invalid_vals or not any(c.isdigit() or c.isalpha() for c in val)
+
+    if is_invalid(day_raw) or is_invalid(mon_raw) or is_invalid(year_raw):
+        print(f"⚠️ Varış tarihi geçersiz ({day_raw}-{mon_raw}-{year_raw}) → 90 gün sonrası")
+        future  = datetime.now() + timedelta(days=90)
+        day_raw  = str(future.day)
+        mon_raw  = MON_STR[future.month - 1]
+        year_raw = str(future.year)
+        print(f"✅ Yeni varış tarihi: {day_raw}-{mon_raw}-{year_raw}")
 
     # Tarih geçmişte mi kontrol et
     try:
         if mon_raw.isdigit():
             mon_num = int(mon_raw)
         else:
-            mon_num = int(MONTH_MAP.get(mon_raw, "1"))
+            mon_num = MON_STR.index(mon_raw[:3]) + 1 if mon_raw[:3] in MON_STR else 1
         arrival = datetime(int(year_raw), mon_num, int(day_raw))
         today   = datetime.now()
 
@@ -1676,22 +1687,28 @@ def fill_intended_arrival_date(wait, driver, data):
             year_raw = str(future.year)
             print(f"✅ Yeni varış tarihi: {day_raw}-{mon_raw}-{year_raw}")
     except Exception as e:
-        print(f"⚠️ Tarih kontrol hatası: {e}")
+        print(f"⚠️ Tarih kontrol hatası: {e} → 90 gün sonrası kullanılıyor")
+        future   = datetime.now() + timedelta(days=90)
+        day_raw  = str(future.day)
+        mon_raw  = MON_STR[future.month - 1]
+        year_raw = str(future.year)
 
     try:
         day_val = str(int(day_raw))
     except Exception:
-        day_val = day_raw
+        day_val = "1"
 
     if mon_raw.isdigit():
         mon_val  = str(int(mon_raw))
         mon_text = None
     else:
-        mon_val  = MONTH_MAP.get(mon_raw)
-        mon_text = mon_raw
+        mon_val  = MONTH_MAP.get(mon_raw[:3], "1")
+        mon_text = mon_raw[:3]
 
     if not mon_val:
-        raise Exception(f"❌ Geçersiz ay: {mon_raw}")
+        future   = datetime.now() + timedelta(days=90)
+        mon_val  = str(future.month)
+        mon_text = MON_STR[future.month - 1]
 
     day_dd = Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlTRAVEL_DTEDay")
@@ -1729,6 +1746,7 @@ def fill_intended_arrival_date(wait, driver, data):
     driver.find_element(By.TAG_NAME, "body").click()
     time.sleep(0.6)
     print(f"✅ Intended Arrival Date: {day_val}-{mon_raw}-{year_raw}")
+
 def fill_intended_length_of_stay(wait, driver, data):
     raw_value = str(data.get("TRAVEL_LOS_VALUE", "")).strip()
     raw_unit = str(data.get("TRAVEL_LOS_UNIT", "")).strip().upper()
