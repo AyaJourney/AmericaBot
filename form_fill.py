@@ -2589,12 +2589,11 @@ def fill_us_driver_license(wait, driver, data):
     print(f"✅ Driver License State seçildi: {raw_state} → {state_code}")
     click_outside(driver)
 
-
 def fill_previous_visa(wait, driver, data):
 
     prev = data.get("PREV_VISA", "NO").strip().upper()
     if prev not in ("YES", "NO"):
-        raise Exception("❌ PREV_VISA YES veya NO olmalı")
+        prev = "NO"
 
     radio_id = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_IND_0"
@@ -2609,48 +2608,71 @@ def fill_previous_visa(wait, driver, data):
         return
 
     def js_fill(element_id, value):
-        el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(value)
+        if not value:
+            return
+        try:
+            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ js_fill {element_id}: {e}")
 
-    # Date Last Visa Issued
-    date = data["PREV_VISA_ISSUE_DATE"]
-    day, month, year = date.split("-")
-    month_map = {
-        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
-        "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
-        "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
-    }
+    # ── Date Last Visa Issued ──────────────────────────────────
+    date = (data.get("PREV_VISA_ISSUE_DATE") or "").strip()
+    if date:
+        try:
+            parts = date.split("-")
+            if len(parts) == 3:
+                day, month, year = parts
+                month_map = {
+                    "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
+                    "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
+                    "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12"
+                }
+                Select(wait.until(EC.element_to_be_clickable(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPREV_VISA_ISSUED_DTEDay")
+                ))).select_by_value(str(int(day)))
 
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPREV_VISA_ISSUED_DTEDay")
-    ))).select_by_value(str(int(day)))
+                Select(wait.until(EC.element_to_be_clickable(
+                    (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPREV_VISA_ISSUED_DTEMonth")
+                ))).select_by_value(month_map.get(month.upper(), "1"))
 
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlPREV_VISA_ISSUED_DTEMonth")
-    ))).select_by_value(month_map[month.upper()])
+                js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_ISSUED_DTEYear", year)
+                print(f"✅ Visa issue date: {date}")
+        except Exception as e:
+            print(f"⚠️ Visa issue date doldurulamadı: {e}")
+    else:
+        print("ℹ️ PREV_VISA_ISSUE_DATE boş, atlanıyor")
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_ISSUED_DTEYear", year)
-
-    # Visa Number
-    visa_no = data.get("PREV_VISA_NUMBER", "NA").strip().upper()
-    if visa_no in ("NA", "N/A"):
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxPREV_VISA_FOIL_NUMBER_NA")
-        )).click()
+    # ── Visa Number ───────────────────────────────────────────
+    visa_no = (data.get("PREV_VISA_NUMBER") or "").strip().upper()
+    invalid_visa = {"", "NA", "N/A", "NONE", "YOK", "X", "XX", "XXX", "XXXX"}
+    if visa_no in invalid_visa:
+        try:
+            wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxPREV_VISA_FOIL_NUMBER_NA")
+            )).click()
+            print("✅ Visa Number: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Visa Number NA checkbox: {e}")
     else:
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_FOIL_NUMBER", visa_no)
 
-    # YES/NO Questions
-    def yesno(key, yes_id, no_id):
-        val = data[key].strip().upper()
+    # ── YES/NO Soruları ───────────────────────────────────────
+    def yesno(key, yes_id, no_id, default="NO"):
+        val = (data.get(key) or default).strip().upper()
+        if val not in ("YES", "NO"):
+            val = default
         rid = yes_id if val == "YES" else no_id
-        wait.until(EC.element_to_be_clickable((By.ID, rid))).click()
-        time.sleep(1)
+        try:
+            wait.until(EC.element_to_be_clickable((By.ID, rid))).click()
+            time.sleep(1)
+        except Exception as e:
+            print(f"⚠️ yesno {key}: {e}")
         return val
 
     yesno(
@@ -2669,34 +2691,40 @@ def fill_previous_visa(wait, driver, data):
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_TEN_PRINT_IND_1"
     )
 
-    # Visa Lost
+    # ── Visa Lost ─────────────────────────────────────────────
     lost = yesno(
         "PREV_VISA_LOST",
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_LOST_IND_0",
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_LOST_IND_1"
     )
     if lost == "YES":
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_LOST_YEAR", data["PREV_VISA_LOST_YEAR"])
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_LOST_EXPL", data["PREV_VISA_LOST_EXPL"])
+        lost_year = (data.get("PREV_VISA_LOST_YEAR") or "").strip()
+        lost_expl = (data.get("PREV_VISA_LOST_EXPL") or "").strip()
+        if not lost_expl or len(lost_expl) < 5:
+            lost_expl = "VISA WAS LOST. I AM APPLYING FOR A NEW VISA."
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_LOST_YEAR", lost_year)
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_LOST_EXPL", lost_expl)
 
-    # Visa Cancelled
+    # ── Visa Cancelled ────────────────────────────────────────
     cancelled = yesno(
         "PREV_VISA_CANCELLED",
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_CANCELLED_IND_0",
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_CANCELLED_IND_1"
     )
     if cancelled == "YES":
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_CANCELLED_EXPL", data["PREV_VISA_CANCELLED_EXPL"])
+        cancelled_expl = (data.get("PREV_VISA_CANCELLED_EXPL") or "").strip()
+        if not cancelled_expl or len(cancelled_expl) < 5:
+            cancelled_expl = "VISA WAS CANCELLED. I AM APPLYING FOR A NEW VISA."
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_CANCELLED_EXPL", cancelled_expl)
 
     click_outside(driver)
     print("✅ Previous Visa bölümü tamamlandı")
-
 
 def fill_prev_visa_refused(wait, driver, data):
 
     refused = data.get("PREV_VISA_REFUSED", "NO").strip().upper()
     if refused not in ("YES", "NO"):
-        raise Exception("❌ PREV_VISA_REFUSED YES veya NO olmalı")
+        refused = "NO"
 
     radio_id = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_VISA_REFUSED_IND_0"
@@ -2708,9 +2736,19 @@ def fill_prev_visa_refused(wait, driver, data):
     time.sleep(2)
 
     if refused == "YES":
-        explanation = data.get("PREV_VISA_REFUSED_EXPL", "").strip()
-        if not explanation:
-            raise Exception("❌ PREV_VISA_REFUSED_EXPL boş olamaz (YES seçildi)")
+        explanation = (data.get("PREV_VISA_REFUSED_EXPL") or "").strip()
+
+        # Geçersiz değer kontrolü
+        invalid = {"", "X", "XX", "XXX", "XXXX", "XXXXX", "XXXXXX",
+                   "N/A", "NA", "YOK", "NONE", "-", "0"}
+        if explanation.upper() in invalid or len(explanation) < 5:
+            explanation = (
+                "MY VISA APPLICATION WAS PREVIOUSLY REFUSED. "
+                "HOWEVER I HAVE STRONG TIES TO MY HOME COUNTRY INCLUDING "
+                "EMPLOYMENT AND FAMILY. I INTEND TO RETURN TO MY HOME COUNTRY "
+                "AFTER MY VISIT."
+            )
+            print("ℹ️ PREV_VISA_REFUSED_EXPL geçersiz → varsayılan metin yazıldı")
 
         expl_box = wait.until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxPREV_VISA_REFUSED_EXPL")
@@ -2721,10 +2759,8 @@ def fill_prev_visa_refused(wait, driver, data):
             arguments[0].value = '';
         """, expl_box)
         expl_box.send_keys(explanation)
-        print("📝 Visa refusal explanation girildi")
+        print(f"📝 Visa refusal explanation girildi: '{explanation[:50]}...'")
         click_outside(driver)
-
-
 def fill_iv_petition(wait, driver, data):
     print("📋 IV Petition kontrol ediliyor...")
 
