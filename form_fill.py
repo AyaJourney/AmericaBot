@@ -5432,6 +5432,35 @@ def fill_other_education(wait, driver, data):
     print("🎓 Other Education bölümü başladı")
 
     from cleaner import translate_school_name
+    from datetime import date as dt, timedelta
+
+    def get_valid_to_date(raw_date):
+        """Bitiş tarihi bugün veya gelecekteyse dünü döndür."""
+        MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
+                  "JUL","AUG","SEP","OCT","NOV","DEC"]
+        today = dt.today()
+
+        if not raw_date or "-" not in raw_date:
+            yesterday = today - timedelta(days=1)
+            return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
+
+        try:
+            parts = raw_date.strip().split("-")
+            day   = int(parts[0])
+            month = MONTHS.index(parts[1].upper()) + 1
+            year  = int(parts[2])
+            parsed = dt(year, month, day)
+        except Exception:
+            yesterday = today - timedelta(days=1)
+            return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
+
+        if parsed >= today:
+            yesterday = today - timedelta(days=1)
+            result = f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
+            print(f"⚠️ Eğitim bitiş tarihi gelecekte ({raw_date}) → {result} yazıldı")
+            return result
+
+        return raw_date
 
     # Eğitim listesini topla
     educations_list = []
@@ -5481,13 +5510,16 @@ def fill_other_education(wait, driver, data):
     def js_fill(element_id, value):
         if not value:
             return
-        el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(str(value))
+        try:
+            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ js_fill {element_id}: {e}")
 
     for i, edu in enumerate(educations_list):
         print(f"➡️ Education #{i+1}: {edu['school_name']}")
@@ -5497,7 +5529,7 @@ def fill_other_education(wait, driver, data):
             By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
         )) > i)
 
-        # Okul adı — translate_school_name ile çevir
+        # Okul adı
         js_fill(educ_id(i, "tbxSchoolName"),
                 translate_school_name(edu["school_name"])[:75])
 
@@ -5573,7 +5605,7 @@ def fill_other_education(wait, driver, data):
         js_fill(educ_id(i, "tbxSchoolCourseOfStudy"),
                 edu["course"][:66] if edu["course"] else "ACADEMIC")
 
-        # DATES
+        # FROM DATE
         fill_date_dd_mmm_yyyy(wait, driver,
             educ_id(i, "ddlSchoolFromDay"),
             educ_id(i, "ddlSchoolFromMonth"),
@@ -5581,18 +5613,18 @@ def fill_other_education(wait, driver, data):
             edu["from"]
         )
 
+        # TO DATE — gelecekteyse dün yaz
         fill_date_dd_mmm_yyyy(wait, driver,
             educ_id(i, "ddlSchoolToDay"),
             educ_id(i, "ddlSchoolToMonth"),
             educ_id(i, "tbxSchoolToYear"),
-            edu["to"]
+            get_valid_to_date(edu["to"])
         )
 
         print(f"✅ Education #{i+1} dolduruldu")
 
         # Yeni satır ekle — sadece gerekiyorsa
         if i < len(educations_list) - 1:
-            # Zaten yeterli satır var mı?
             mevcut = len(driver.find_elements(
                 By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
             ))
@@ -5632,7 +5664,6 @@ def fill_other_education(wait, driver, data):
 
     click_outside(driver)
     print("🟢 Other Education TAMAMLANDI")
-
 def fill_clan_tribe(wait, driver, data):
     val = data.get("CLAN_TRIBE", "NO").upper()
 
