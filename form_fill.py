@@ -3569,13 +3569,15 @@ def fill_passport_info(wait, driver, data):
     print("🛂 Passport section başladı")
 
     def js_fill(element_id, value):
+        if not value:
+            return
         el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
         driver.execute_script("""
             arguments[0].removeAttribute('disabled');
             arguments[0].removeAttribute('readonly');
             arguments[0].value = '';
         """, el)
-        el.send_keys(value)
+        el.send_keys(str(value))
 
     passport_type = data.get("PASSPORT_TYPE", "REGULAR").strip().upper()
     type_value = PASSPORT_TYPE_MAP.get(passport_type)
@@ -3599,21 +3601,49 @@ def fill_passport_info(wait, driver, data):
             expl = "OTHER TRAVEL DOCUMENT"
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPptOtherExpl", expl)
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM", str(data.get("PASSPORT_NUMBER", "")).strip())
+    js_fill(
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_NUM",
+        str(data.get("PASSPORT_NUMBER", "")).strip()
+    )
 
+    # BOOK NUMBER
     book_num = data.get("PASSPORT_BOOK_NUMBER", "").strip().upper()
     if book_num in ("", "NA", "N/A", "DOES NOT APPLY"):
-        cb_book_na = wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbexPPT_BOOK_NUM_NA")
-        ))
-        if not cb_book_na.is_selected():
-            cb_book_na.click()
+        try:
+            cb_book_na = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbexPPT_BOOK_NUM_NA")
+            ))
+            if not cb_book_na.is_selected():
+                driver.execute_script("arguments[0].click();", cb_book_na)
+            print("ℹ️ Book Number: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Book Number NA: {e}")
     else:
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_BOOK_NUM", book_num)
 
-    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_CNTRY", data.get("PASSPORT_ISSUED_COUNTRY", "TURKEY"))
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_CITY", data.get("PASSPORT_ISSUED_CITY", ""))
+    # ISSUED COUNTRY
+    select_country_by_name(
+        wait,
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_CNTRY",
+        data.get("PASSPORT_ISSUED_COUNTRY", "TURKEY")
+    )
 
+    # ISSUED CITY — geçersiz değer gelirse XXXXXXX yaz
+    issued_city = data.get("PASSPORT_ISSUED_CITY", "").strip()
+    invalid_cities = {
+        "TURKIYE CUMHURIYETI", "TURKEY", "TURKIYE", "T.C.", "TC",
+        "TÜRKIYE", "TÜRKİYE", "CUMHURIYETI", "CUMHURIYETI",
+    }
+    if issued_city.upper() in invalid_cities:
+        print(f"⚠️ PASSPORT_ISSUED_CITY geçersiz: '{issued_city}' → XXXXXXX")
+        issued_city = "XXXXXXX"
+    elif not issued_city:
+        issued_city = "XXXXXXX"
+        print("⚠️ PASSPORT_ISSUED_CITY boş → XXXXXXX")
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUED_IN_CITY", issued_city)
+
+    # ISSUED STATE
     state = data.get("PASSPORT_ISSUED_STATE", "").strip()
     if state and state.upper() not in ("NA", "N/A"):
         try:
@@ -3621,8 +3651,14 @@ def fill_passport_info(wait, driver, data):
         except Exception:
             print("⚠️ State alanı bulunamadı, atlanıyor.")
 
-    select_country_by_name(wait, "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_IN_CNTRY", data.get("PASSPORT_ISSUED_IN_COUNTRY", "TURKEY"))
+    # ISSUED IN COUNTRY
+    select_country_by_name(
+        wait,
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_IN_CNTRY",
+        data.get("PASSPORT_ISSUED_IN_COUNTRY", "TURKEY")
+    )
 
+    # ISSUE DATE
     fill_date_dd_mmm_yyyy(
         wait, driver,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay",
@@ -3631,13 +3667,18 @@ def fill_passport_info(wait, driver, data):
         data.get("PASSPORT_ISSUE_DATE", "")
     )
 
+    # EXPIRY DATE
     exp_date = data.get("PASSPORT_EXPIRY_DATE", "").strip().upper()
     if exp_date in ("", "NA", "N/A"):
-        cb_exp_na = wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxPPT_EXPIRE_NA")
-        ))
-        if not cb_exp_na.is_selected():
-            cb_exp_na.click()
+        try:
+            cb_exp_na = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxPPT_EXPIRE_NA")
+            ))
+            if not cb_exp_na.is_selected():
+                driver.execute_script("arguments[0].click();", cb_exp_na)
+            print("ℹ️ Expiry Date: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Expiry NA: {e}")
     else:
         fill_date_dd_mmm_yyyy(
             wait, driver,
@@ -3648,7 +3689,6 @@ def fill_passport_info(wait, driver, data):
         )
 
     print("🟢 Passport section TAMAMLANDI")
-
 def fill_lost_passport(wait, driver, data):
     print("🟠 Lost Passport bölümü başladı")
 
@@ -4876,8 +4916,8 @@ def fill_employer_or_school_info(wait, driver, data):
         clean_address(data.get("EMP_SCH_CITY", ""))
     )
 
+    # STATE
     state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
-
     if not state_val or state_val in ("N/A", "NA", "NONE", "DOES NOT APPLY"):
         state_na_cb = wait.until(EC.presence_of_element_located(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_STATE_NA")
@@ -4896,72 +4936,98 @@ def fill_employer_or_school_info(wait, driver, data):
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_STATE", state_val)
         print(f"✅ State girildi: {state_val}")
 
+    # POSTAL
     if data.get("EMP_SCH_POSTAL"):
         js_fill(
             "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD",
             data["EMP_SCH_POSTAL"]
         )
     else:
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_POSTAL_CD_NA")
-        )).click()
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_POSTAL_CD_NA")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+            print("ℹ️ Postal → Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Postal NA: {e}")
 
+    # COUNTRY
     select_country_by_name(
         wait,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpSchCountry",
-        data["EMP_SCH_COUNTRY"]
+        data.get("EMP_SCH_COUNTRY", "TURKEY")
     )
 
+    # PHONE — temizle ve yaz
     def clean_emp_phone(raw):
         if not raw:
             return "5555555555"
-        # Sadece rakam ve + al
-        digits = re.sub(r"\D", "", str(raw))
-        # + ile başlıyorsa koru
-        result = ("+" + digits) if str(raw).strip().startswith("+") else digits
-        # 7 haneden azsa geçersiz
-        if len(digits) < 7:
-            print(f"⚠️ EMP_SCH_PHONE geçersiz: '{raw}' → 5555555555")
+        raw = str(raw).strip()
+        has_plus = raw.startswith("+")
+        digits = re.sub(r"\D", "", raw)
+        result = ("+" + digits) if has_plus else digits
+        result = result[:15]
+        pure = re.sub(r"\D", "", result)
+        if len(pure) < 7:
+            print(f"⚠️ EMP_SCH_PHONE geçersiz (kısa): '{raw}' → 5555555555")
             return "5555555555"
-        # Tekrarlı rakamlar (1111111)
-        if len(set(digits)) <= 2:
+        if len(set(pure)) == 1:
             print(f"⚠️ EMP_SCH_PHONE tekrarlı: '{raw}' → 5555555555")
             return "5555555555"
-        # Max 15 karakter
-        return result[:15]
+        return result
 
     emp_phone = clean_emp_phone(data.get("EMP_SCH_PHONE", ""))
-    js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL",
-        emp_phone
-    )
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL", emp_phone)
 
+    # START DATE
     fill_date_dd_mmm_yyyy(
         wait, driver,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromDay",
         "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromMonth",
         "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpDateFromYear",
-        data["EMP_SCH_START_DATE"]
+        data.get("EMP_SCH_START_DATE", "")
     )
 
-    if data.get("EMP_MONTHLY_SALARY"):
-        js_fill(
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY",
-            data["EMP_MONTHLY_SALARY"]
-        )
+    # MONTHLY SALARY — 0 gelince Does Not Apply
+    salary = str(data.get("EMP_MONTHLY_SALARY", "")).strip()
+    if salary and salary not in ("0", "N/A", "NA", ""):
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
+            ))
+            if cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+        except Exception:
+            pass
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxCURR_MONTHLY_SALARY", salary)
+        print(f"✅ Monthly Salary: {salary}")
     else:
-        wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
-        )).click()
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+            print("ℹ️ Monthly Salary: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Salary NA: {e}")
 
+    # DUTIES
     duties = data.get("EMP_DUTIES", "").strip()
     if not duties:
         duties = "XXXXXXXXXX"
-
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDescribeDuties", duties)
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
+
+
+
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
 
@@ -6111,9 +6177,9 @@ def fill_military_service(wait, driver, data):
         return
 
     mil_country   = (data.get("MIL_COUNTRY", "TURKEY") or "TURKEY").strip().upper()
-    mil_branch    = "ARMY - LAND FORCES"
+    mil_branch    = "COMPULSORY MILITARY"
     mil_rank      = "PRIVATE"
-    mil_specialty = "COMPULSORY MILITARY SERVICE"
+    mil_specialty = "COMPULSORY MILITARY"
     mil_from      = data.get("MIL_FROM", "")
     mil_to        = data.get("MIL_TO",   "")
 
@@ -6121,69 +6187,235 @@ def fill_military_service(wait, driver, data):
     print(f"DEBUG mil_from={mil_from}")
     print(f"DEBUG mil_to={mil_to}")
 
-    # Ülke value map
     country_value_map = {
-        "TURKEY": "TRKY",
-        "UNITED STATES": "USA",
-        "UNITED STATES OF AMERICA": "USA",
-        "GERMANY": "GER",
-        "FRANCE": "FRAN",
-        "UNITED KINGDOM": "GRBR",
-        "RUSSIA": "RUS",
+        "AFGHANISTAN": "AFGH",
+        "ALBANIA": "ALB",
+        "ALGERIA": "ALGR",
+        "ANDORRA": "ANDO",
+        "ANGOLA": "ANGL",
+        "ANGUILLA": "ANGU",
+        "ANTIGUA AND BARBUDA": "ANTI",
+        "ARGENTINA": "ARG",
+        "ARMENIA": "ARM",
+        "AUSTRALIA": "ASTL",
+        "AUSTRIA": "AUST",
+        "AZERBAIJAN": "AZR",
+        "BAHAMAS": "BAMA",
+        "BAHRAIN": "BAHR",
+        "BANGLADESH": "BANG",
+        "BARBADOS": "BRDO",
+        "BELARUS": "BYS",
+        "BELGIUM": "BELG",
+        "BELIZE": "BLZ",
+        "BENIN": "BENN",
+        "BERMUDA": "BERM",
+        "BHUTAN": "BHU",
+        "BOLIVIA": "BOL",
+        "BOSNIA-HERZEGOVINA": "BIH",
+        "BOTSWANA": "BOT",
+        "BRAZIL": "BRZL",
+        "BRUNEI": "BRNI",
+        "BULGARIA": "BULG",
+        "BURKINA FASO": "BURK",
+        "BURMA": "BURM",
+        "MYANMAR": "BURM",
+        "BURUNDI": "BRND",
+        "CAMBODIA": "CBDA",
+        "CAMEROON": "CMRN",
+        "CANADA": "CAN",
+        "CABO VERDE": "CAVI",
+        "CAPE VERDE": "CAVI",
+        "CAYMAN ISLANDS": "CAYI",
+        "CENTRAL AFRICAN REPUBLIC": "CAFR",
+        "CHAD": "CHAD",
+        "CHILE": "CHIL",
         "CHINA": "CHIN",
+        "COLOMBIA": "COL",
+        "COMOROS": "COMO",
+        "CONGO, DEMOCRATIC REPUBLIC OF THE": "COD",
+        "CONGO, REPUBLIC OF THE": "CONB",
+        "COSTA RICA": "CSTR",
+        "COTE D`IVOIRE": "IVCO",
+        "CROATIA": "HRV",
+        "CUBA": "CUBA",
+        "CYPRUS": "CYPR",
+        "CZECH REPUBLIC": "CZEC",
+        "DENMARK": "DEN",
+        "DJIBOUTI": "DJI",
+        "DOMINICA": "DOMN",
+        "DOMINICAN REPUBLIC": "DOMR",
+        "ECUADOR": "ECUA",
+        "EGYPT": "EGYP",
+        "EL SALVADOR": "ELSL",
+        "EQUATORIAL GUINEA": "EGN",
+        "ERITREA": "ERI",
+        "ESTONIA": "EST",
+        "ESWATINI": "SZLD",
+        "ETHIOPIA": "ETH",
+        "FIJI": "FIJI",
+        "FINLAND": "FIN",
+        "FRANCE": "FRAN",
+        "GABON": "GABN",
+        "GAMBIA, THE": "GAM",
+        "GAMBIA": "GAM",
+        "GEORGIA": "GEO",
+        "GERMANY": "GER",
+        "GHANA": "GHAN",
+        "GIBRALTAR": "GIB",
+        "GREECE": "GRC",
+        "GRENADA": "GREN",
+        "GUATEMALA": "GUAT",
+        "GUINEA": "GNEA",
+        "GUINEA - BISSAU": "GUIB",
+        "GUINEA BISSAU": "GUIB",
+        "GUYANA": "GUY",
+        "HAITI": "HAT",
+        "HOLY SEE (VATICAN CITY)": "VAT",
+        "VATICAN": "VAT",
+        "HONDURAS": "HOND",
+        "HONG KONG BNO": "HOKO",
+        "HONG KONG SAR": "HNK",
+        "HONG KONG": "HNK",
+        "HUNGARY": "HUNG",
+        "ICELAND": "ICLD",
+        "INDIA": "IND",
+        "INDONESIA": "IDSA",
         "IRAN": "IRAN",
         "IRAQ": "IRAQ",
-        "SYRIA": "SYR",
-        "AZERBAIJAN": "AZR",
-        "GEORGIA": "GEO",
-        "ARMENIA": "ARM",
-        "UKRAINE": "UKR",
-        "KAZAKHSTAN": "KAZ",
-        "UZBEKISTAN": "UZB",
-        "PAKISTAN": "PKST",
-        "AFGHANISTAN": "AFGH",
-        "SAUDI ARABIA": "SARB",
+        "IRELAND": "IRE",
         "ISRAEL": "ISRL",
-        "JORDAN": "JORD",
-        "EGYPT": "EGYP",
-        "LIBYA": "LBYA",
-        "ALGERIA": "ALGR",
-        "MOROCCO": "MORO",
-        "TUNISIA": "TNSA",
-        "GREECE": "GRC",
-        "BULGARIA": "BULG",
-        "ROMANIA": "ROM",
-        "SERBIA": "SBA",
-        "KOSOVO": "KSV",
-        "ALBANIA": "ALB",
-        "NORTH MACEDONIA": "MKD",
-        "BOSNIA-HERZEGOVINA": "BIH",
-        "CROATIA": "HRV",
-        "SLOVENIA": "SVN",
-        "HUNGARY": "HUNG",
-        "POLAND": "POL",
-        "CZECH REPUBLIC": "CZEC",
-        "SLOVAKIA": "SVK",
-        "AUSTRIA": "AUST",
-        "SWITZERLAND": "SWTZ",
         "ITALY": "ITLY",
-        "SPAIN": "SPN",
-        "PORTUGAL": "PORT",
-        "NETHERLANDS": "NETH",
-        "BELGIUM": "BELG",
-        "SWEDEN": "SWDN",
-        "NORWAY": "NORW",
-        "FINLAND": "FIN",
-        "DENMARK": "DEN",
-        "INDIA": "IND",
+        "JAMAICA": "JAM",
         "JAPAN": "JPN",
-        "SOUTH KOREA": "KOR",
+        "JORDAN": "JORD",
+        "KAZAKHSTAN": "KAZ",
+        "KENYA": "KENY",
+        "KIRIBATI": "KIRI",
+        "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)": "PRK",
         "NORTH KOREA": "PRK",
-        "INDONESIA": "IDSA",
+        "KOREA, REPUBLIC OF (SOUTH)": "KOR",
+        "SOUTH KOREA": "KOR",
+        "KOSOVO": "KSV",
+        "KUWAIT": "KUWT",
+        "KYRGYZSTAN": "KGZ",
+        "LAOS": "LAOS",
+        "LATVIA": "LATV",
+        "LEBANON": "LEBN",
+        "LESOTHO": "LES",
+        "LIBERIA": "LIBR",
+        "LIBYA": "LBYA",
+        "LIECHTENSTEIN": "LCHT",
+        "LITHUANIA": "LITH",
+        "LUXEMBOURG": "LXM",
+        "MACAU": "MAC",
+        "MACEDONIA, NORTH": "MKD",
+        "NORTH MACEDONIA": "MKD",
+        "MADAGASCAR": "MADG",
+        "MALAWI": "MALW",
         "MALAYSIA": "MLAS",
-        "THAILAND": "THAI",
-        "VIETNAM": "VTNM",
+        "MALDIVES": "MLDV",
+        "MALI": "MALI",
+        "MALTA": "MLTA",
+        "MARSHALL ISLANDS": "RMI",
+        "MAURITANIA": "MAUR",
+        "MAURITIUS": "MRTS",
+        "MEXICO": "MEX",
+        "MICRONESIA": "FSM",
+        "MOLDOVA": "MLD",
+        "MONACO": "MON",
+        "MONGOLIA": "MONG",
+        "MONTENEGRO": "MTG",
+        "MONTSERRAT": "MONT",
+        "MOROCCO": "MORO",
+        "MOZAMBIQUE": "MOZ",
+        "NAMIBIA": "NAMB",
+        "NAURU": "NAU",
+        "NEPAL": "NEP",
+        "NETHERLANDS": "NETH",
+        "NEW ZEALAND": "NZLD",
+        "NICARAGUA": "NIC",
+        "NIGER": "NIR",
+        "NIGERIA": "NRA",
+        "NORWAY": "NORW",
+        "OMAN": "OMAN",
+        "PAKISTAN": "PKST",
+        "PALAU": "PALA",
+        "PALESTINIAN AUTHORITY": "PAL",
+        "PALESTINE": "PAL",
+        "PANAMA": "PAN",
+        "PAPUA NEW GUINEA": "PNG",
+        "PARAGUAY": "PARA",
+        "PERU": "PERU",
         "PHILIPPINES": "PHIL",
+        "PITCAIRN ISLANDS": "PITC",
+        "POLAND": "POL",
+        "PORTUGAL": "PORT",
+        "QATAR": "QTAR",
+        "ROMANIA": "ROM",
+        "RUSSIA": "RUS",
+        "RWANDA": "RWND",
+        "SAMOA": "WSAM",
+        "SAN MARINO": "SMAR",
+        "SAO TOME AND PRINCIPE": "STPR",
+        "SAUDI ARABIA": "SARB",
+        "SENEGAL": "SENG",
+        "SERBIA": "SBA",
+        "SEYCHELLES": "SEYC",
+        "SIERRA LEONE": "SLEO",
+        "SINGAPORE": "SING",
+        "SLOVAKIA": "SVK",
+        "SLOVENIA": "SVN",
+        "SOLOMON ISLANDS": "SLMN",
+        "SOMALIA": "SOMA",
+        "SOUTH AFRICA": "SAFR",
+        "SOUTH SUDAN": "SSDN",
+        "SPAIN": "SPN",
+        "SRI LANKA": "SRL",
+        "ST. HELENA": "SHEL",
+        "ST. KITTS AND NEVIS": "STCN",
+        "ST. LUCIA": "SLCA",
+        "ST. VINCENT AND THE GRENADINES": "STVN",
+        "STATELESS": "XXX",
+        "SUDAN": "SUDA",
+        "SURINAME": "SURM",
+        "SWEDEN": "SWDN",
+        "SWITZERLAND": "SWTZ",
+        "SYRIA": "SYR",
+        "TAIWAN": "TWAN",
+        "TAJIKISTAN": "TJK",
+        "TANZANIA": "TAZN",
+        "THAILAND": "THAI",
+        "TIMOR-LESTE": "TMOR",
+        "EAST TIMOR": "TMOR",
+        "TOGO": "TOGO",
+        "TONGA": "TONG",
+        "TRINIDAD AND TOBAGO": "TRIN",
+        "TUNISIA": "TNSA",
+        "TURKEY": "TRKY",
+        "TURKMENISTAN": "TKM",
+        "TURKS AND CAICOS ISLANDS": "TCIS",
+        "TUVALU": "TUV",
+        "UGANDA": "UGAN",
+        "UKRAINE": "UKR",
+        "UNITED ARAB EMIRATES": "UAE",
+        "UAE": "UAE",
+        "UNITED KINGDOM": "GRBR",
+        "UK": "GRBR",
+        "ENGLAND": "GRBR",
+        "UNITED STATES OF AMERICA": "USA",
+        "UNITED STATES": "USA",
+        "USA": "USA",
+        "URUGUAY": "URU",
+        "UZBEKISTAN": "UZB",
+        "VANUATU": "VANU",
+        "VENEZUELA": "VENZ",
+        "VIETNAM": "VTNM",
+        "VIRGIN ISLANDS, BRITISH": "BRVI",
+        "WALLIS AND FUTUNA ISLANDS": "WAFT",
+        "WESTERN SAHARA": "SSAH",
+        "YEMEN": "YEM",
+        "ZAMBIA": "ZAMB",
+        "ZIMBABWE": "ZIMB",
     }
     country_val = country_value_map.get(mil_country, "TRKY")
 
@@ -6198,36 +6430,36 @@ def fill_military_service(wait, driver, data):
 
     time.sleep(2)
 
-    def js_fill(element_id, value):
+    # send_keys ile yaz — js_fill postback sonrası değeri siliyor
+    def fill_text_input(element_id, value):
         if not value:
             return
         try:
-            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
             driver.execute_script("""
-                var el = arguments[0];
-                el.removeAttribute('disabled');
-                el.removeAttribute('readonly');
-                el.value = arguments[1];
-                el.dispatchEvent(new Event('change', {bubbles: true}));
-                el.dispatchEvent(new Event('input', {bubbles: true}));
-            """, el, str(value))
-            print(f"✅ {element_id} = {value}")
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.click()
+            el.send_keys(str(value))
+            print(f"✅ {element_id.split('_')[-1]} = {value}")
         except Exception as e:
-            print(f"⚠️ js_fill hata → {element_id}: {e}")
+            print(f"⚠️ fill_text_input hata → {element_id}: {e}")
 
-    js_fill(
+    fill_text_input(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_BRANCH",
         mil_branch
     )
     time.sleep(0.3)
 
-    js_fill(
+    fill_text_input(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_RANK",
         mil_rank
     )
     time.sleep(0.3)
 
-    js_fill(
+    fill_text_input(
         "ctl00_SiteContentPlaceHolder_FormView1_dtlMILITARY_SERVICE_ctl00_tbxMILITARY_SVC_SPECIALTY",
         mil_specialty
     )
@@ -6264,6 +6496,9 @@ def fill_military_service(wait, driver, data):
         print("ℹ️ MIL_TO boş, atlanıyor")
 
     print("✅ Military Service dolduruldu")
+
+
+
 def fill_insurgent_organization(wait, driver, data):
     print("🟥 Insurgent / Paramilitary Organization bölümü")
 
