@@ -80,7 +80,10 @@ from form_fill import (
     fill_sevis_and_school_if_needed,
     upload_photo_by_fullname,
     check_and_fix_validation_errors, 
-    clean_for_ds160,                  
+    clean_for_ds160,
+    check_and_fix_validation_errors,
+    
+    get_fallback_for_field,                  
 )
 
 
@@ -220,6 +223,8 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     fill_permanent_resident_section(wait, driver, data)
     fill_personal2_ids(wait, driver, data)
     click_save_personal2(wait, driver)
+    time.sleep(2)
+    check_and_fix_validation_errors(wait, driver, max_attempts=3)
     click_continue_application(wait, driver)
     click_next_travel(wait, driver)
 

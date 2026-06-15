@@ -1220,19 +1220,30 @@ def fill_ssn(wait, driver, data):
 def fill_tax_id(wait, driver, data):
     raw = (data.get("TAX_ID") or "").strip()
 
-    input_id      = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_TAX_ID"
+    input_id       = "ctl00_SiteContentPlaceHolder_FormView1_tbxAPP_TAX_ID"
     na_checkbox_id = "ctl00_SiteContentPlaceHolder_FormView1_cbexAPP_TAX_ID_NA"
 
     na_cb    = wait.until(EC.presence_of_element_located((By.ID, na_checkbox_id)))
     input_el = wait.until(EC.presence_of_element_located((By.ID, input_id)))
 
     # Geçersiz değerler → Does Not Apply
-    invalid = ("", "NA", "N/A", "NONE", "YOK", "0", "NULL")
-    if not raw or raw.upper() in invalid:
+    invalid = ("", "NA", "N/A", "NONE", "YOK", "0", "NULL", "XXX", "XXXX",
+               "XXXXX", "XXXXXX", "XXXXXXX", "XXXXXXXX", "XXXXXXXXX")
+
+    # Sadece rakamlardan oluşmuyorsa veya geçersizse → Does Not Apply
+    digits_only = re.sub(r"\D", "", raw)
+    is_invalid = (
+        not raw or
+        raw.upper() in invalid or
+        len(digits_only) < 5 or        # çok kısa
+        len(set(digits_only)) == 1      # tekrarlı rakam (000000000)
+    )
+
+    if is_invalid:
         if not na_cb.is_selected():
             driver.execute_script("arguments[0].click();", na_cb)
             time.sleep(0.3)
-        print("✅ Tax ID: Does Not Apply")
+        print(f"✅ Tax ID: Does Not Apply (geçersiz değer: '{raw}')")
         return
 
     # Geçerli — checkbox kaldır
@@ -1246,7 +1257,8 @@ def fill_tax_id(wait, driver, data):
         arguments[0].value = '';
     """, input_el)
     input_el.send_keys(raw)
-    print("✅ Tax ID girildi:", raw)
+    print(f"✅ Tax ID girildi: {raw}")
+
 def fill_personal2_ids(wait, driver, data):
     fill_national_id(wait, driver, data)
     time.sleep(0.1)
