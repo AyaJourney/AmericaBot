@@ -7839,3 +7839,134 @@ def safe_fill_page(driver, wait, data):
         pass
 
     print("🛡️ safe_fill_page tamamlandı")
+
+def clean_for_ds160(text):
+    """DS-160'ın kabul ettiği karakterlere göre temizle."""
+    import re
+    import unicodedata
+    if not text:
+        return ""
+
+    # Türkçe karakterleri ASCII'ye çevir
+    tr_map = str.maketrans({
+        "Ç": "C", "Ğ": "G", "İ": "I", "Ö": "O", "Ş": "S", "Ü": "U",
+        "ç": "c", "ğ": "g", "ı": "i", "ö": "o", "ş": "s", "ü": "u",
+    })
+    text = text.translate(tr_map)
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii").upper()
+
+    # Geçersiz karakterleri kaldır — DS-160 sadece bunları kabul eder:
+    # A-Z 0-9 # $ * % & ( ) ! @ ^ ? > < . ' , - space
+    text = re.sub(r"[^A-Z0-9#$*%&()!@^?><.'',\- ]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def check_and_fix_validation_errors(wait, driver, max_attempts=3):
+    """
+    Save sonrası validation hatalarını kontrol eder,
+    hatalı alanları temizleyip tekrar save'e basar.
+    """
+    for attempt in range(max_attempts):
+        # Validation summary var mı?
+        try:
+            summary = driver.find_element(
+                By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ValidationSummary"
+            )
+            style = (summary.get_attribute("style") or "").replace(" ", "")
+            if "display:none" in style or "visibility:hidden" in style:
+                print("✅ Validation OK")
+                return True
+
+            error_text = summary.text.strip()
+            if not error_text:
+                print("✅ Validation OK (boş)")
+                return True
+
+            print(f"⚠️ Validation hatası (attempt {attempt+1}/{max_attempts}):")
+            print(f"   {error_text[:300]}")
+
+        except NoSuchElementException:
+            print("✅ ValidationSummary yok, sayfa temiz")
+            return True
+
+        # Hatalı field'ları bul — kırmızı csv span'ları
+        error_spans = driver.find_elements(
+            By.CSS_SELECTOR,
+            "span[id^='ctl00_SiteContentPlaceHolder_FormView1_csv']"
+        )
+
+        fixed_any = False
+        for span in error_spans:
+            try:
+                span_style = (span.get_attribute("style") or "").replace(" ", "")
+                if "visibility:hidden" in span_style or "display:none" in span_style:
+                    continue
+
+                span_id = span.get_attribute("id") or ""
+                # "csv" → "tbx" (field id'yi türet)
+                field_suffix = span_id.replace(
+                    "ctl00_SiteContentPlaceHolder_FormView1_csv", ""
+                )
+                field_id = f"ctl00_SiteContentPlaceHolder_FormView1_{field_suffix}"
+                print(f"🔴 Hatalı field tespit edildi: {field_suffix}")
+
+                try:
+                    field_el = driver.find_element(By.ID, field_id)
+                except NoSuchElementException:
+                    print(f"⚠️ Field bulunamadı: {field_id}")
+                    continue
+
+                tag = field_el.tag_name.lower()
+                field_type = (field_el.get_attribute("type") or "").lower()
+
+                # Sadece text/textarea düzelt
+                if tag not in ("input", "textarea") or field_type in ("radio", "checkbox", "hidden"):
+                    print(f"ℹ️ {field_suffix} input değil, atlanıyor")
+                    continue
+
+                current_val = (field_el.get_attribute("value") or "").strip()
+                print(f"   Mevcut değer: '{current_val}'")
+
+                cleaned = clean_for_ds160(current_val)
+                if not cleaned:
+                    cleaned = "XXXXXXXXXX"
+
+                print(f"   Temizlenmiş:  '{cleaned}'")
+
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                """, field_el)
+                field_el.click()
+                time.sleep(0.2)
+                field_el.send_keys(cleaned)
+                time.sleep(0.3)
+                fixed_any = True
+                print(f"   ✅ Düzeltildi")
+
+            except Exception as e:
+                print(f"⚠️ Field düzeltme hatası: {e}")
+
+        if not fixed_any:
+            print(f"❌ Düzeltilebilecek field bulunamadı")
+            return False
+
+        # Tekrar save
+        try:
+            save_btn = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_UpdateButton2")
+            ))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", save_btn)
+            time.sleep(0.3)
+            driver.execute_script("arguments[0].click();", save_btn)
+            print(f"💾 Tekrar Save (attempt {attempt+1})")
+            time.sleep(2)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        except Exception as e:
+            print(f"⚠️ Save tıklanamadı: {e}")
+            return False
+
+    print(f"❌ {max_attempts} denemede validation geçilemedi")
+    return False

@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
 from auto_fix import fix_country_select, fix_validation_errors, check_validation_errors
 from form_fill import (
     fill_basic_identity_form,
@@ -78,6 +79,8 @@ from form_fill import (
     fill_misc_immigration_violations_section,
     fill_sevis_and_school_if_needed,
     upload_photo_by_fullname,
+    check_and_fix_validation_errors, 
+    clean_for_ds160,                  
 )
 
 
@@ -90,23 +93,19 @@ def _check_photo_page(driver) -> bool:
 
 
 def _save_continue_next(wait, driver, label="next"):
-    from auto_fix import fix_validation_errors, check_validation_errors
+    from form_fill import check_and_fix_validation_errors
 
     click_save(wait, driver)
-    time.sleep(1.5)
+    time.sleep(2)
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
 
-    errors = check_validation_errors(driver)
-    if errors:
-        print(f"⚠️ {len(errors)} validation hatası, otomatik düzeltiliyor...")
-        fix_validation_errors(driver, wait, {})
-        time.sleep(1)
-        click_save(wait, driver)
-        time.sleep(1.5)
+    # Validation hatası var mı?
+    fixed = check_and_fix_validation_errors(wait, driver, max_attempts=3)
+    if not fixed:
+        print(f"⚠️ Validation düzeltilemedi ({label}), yine de devam ediliyor...")
 
     click_continue_applications(wait, driver)
     click_nexts(wait, driver, label=label)
-
-
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print(f"DEBUG PRESENT_OCCUPATION: {data.get('PRESENT_OCCUPATION')}")
     print(f"DEBUG PRESENT_OCCUPATION_EXPLAIN: {data.get('PRESENT_OCCUPATION_EXPLAIN')}")
