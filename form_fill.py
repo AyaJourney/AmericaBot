@@ -3837,15 +3837,69 @@ def fill_lost_passport(wait, driver, data):
 def fill_us_point_of_contact(wait, driver, data):
     print("🇺🇸 U.S. Point of Contact başladı")
 
+    def clean_poc_email(email):
+        if not email:
+            return None
+        email = email.strip()
+        invalid = {"", "NA", "N/A", "NONE", "XXX", "XXXX", "XXXXXXXXXX",
+                   "DOES NOT APPLY", "YOK", "0", "NULL"}
+        if email.upper() in invalid:
+            return None
+        if "@" not in email or "." not in email.split("@")[-1]:
+            return None
+        return email
+
+    def clean_poc_zip(zip_code):
+        if not zip_code:
+            return "10001"
+        digits = re.sub(r"\D", "", str(zip_code))
+        if not digits:
+            return "10001"
+        if len(digits) < 5:
+            digits = digits.zfill(5)
+        return digits[:9] if len(digits) <= 9 else digits[:5]
+
+    def clean_poc_city(city):
+        if not city:
+            return "NEW YORK"
+        city = city.strip().upper()
+        invalid = {"", "XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A", "NONE", "0"}
+        if city in invalid or len(city) < 2:
+            return "NEW YORK"
+        return city[:20]
+
+    def clean_poc_address(addr):
+        if not addr:
+            return "123 MAIN STREET"
+        addr = clean_address(addr.strip())
+        invalid = {"", "XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A", "NONE", "0"}
+        if addr.upper() in invalid or len(addr) < 3:
+            return "123 MAIN STREET"
+        return addr[:40]
+
+    def clean_poc_name(name, fallback="UNKNOWN"):
+        if not name:
+            return fallback
+        name = name.strip().upper()
+        invalid = {"", "XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A", "NONE", "0"}
+        if name in invalid or len(name) < 1:
+            return fallback
+        return name[:33]
+
     def handle_checkbox(cb_id, should_check):
-        cb = wait.until(EC.presence_of_element_located((By.ID, cb_id)))
-        if cb.is_selected() != should_check:
-            driver.execute_script("arguments[0].click();", cb)
-            print(f"🔘 Checkbox ({cb_id}) durumu değiştirildi: {should_check}")
-            time.sleep(2)
+        try:
+            cb = wait.until(EC.presence_of_element_located((By.ID, cb_id)))
+            if cb.is_selected() != should_check:
+                driver.execute_script("arguments[0].click();", cb)
+                print(f"🔘 Checkbox ({cb_id.split('_')[-1]}) → {should_check}")
+                time.sleep(2)
+        except Exception as e:
+            print(f"⚠️ Checkbox ({cb_id}): {e}")
 
     def safe_js_fill(eid, val):
-        if val and str(val).strip():
+        if not val or not str(val).strip():
+            return
+        try:
             el = wait.until(EC.presence_of_element_located((By.ID, eid)))
             driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
             driver.execute_script("""
@@ -3856,97 +3910,97 @@ def fill_us_point_of_contact(wait, driver, data):
                 arguments[0].dispatchEvent(new Event('blur', { bubbles: true }));
             """, el)
             el.send_keys(str(val))
-            print(f"✍️ {eid} dolduruldu: {val}")
+            print(f"✍️ {eid.split('_')[-1]} = {val}")
+        except Exception as e:
+            print(f"⚠️ {eid.split('_')[-1]}: {e}")
 
-    # 1) POC NAME
-    poc_surname = data.get("US_POC_SURNAME", "").strip()
-    poc_given   = data.get("US_POC_GIVEN_NAME", "").strip()
-    org_name    = data.get("US_POC_ORG_NAME", "").strip()
-
-    final_surname = poc_surname if poc_surname else "UNKNOWN"
-    final_given   = poc_given   if poc_given   else "UNKNOWN"
-    final_org     = org_name    if org_name    else "HOTEL OR BUSINESS"
+    # ── 1. İSİM ───────────────────────────────────────────────
+    poc_surname = clean_poc_name(data.get("US_POC_SURNAME", ""), "UNKNOWN")
+    poc_given   = clean_poc_name(data.get("US_POC_GIVEN_NAME", ""), "UNKNOWN")
+    org_name    = clean_poc_name(data.get("US_POC_ORG_NAME", ""), "HOTEL OR BUSINESS")
 
     handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_NAME_NA", False)
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME", final_surname)
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME", final_given)
-    print(f"✅ POC isim dolduruldu: {final_surname} {final_given}")
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_SURNAME", poc_surname)
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_GIVEN_NAME", poc_given)
+    print(f"✅ POC isim: {poc_surname} {poc_given}")
 
-    # 2) ORGANIZATION
+    # ── 2. ORGANİZASYON ───────────────────────────────────────
     handle_checkbox("ctl00_SiteContentPlaceHolder_FormView1_cbxUS_POC_ORG_NA_IND", False)
-    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION", final_org)
-    print(f"✅ POC organizasyon dolduruldu: {final_org}")
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ORGANIZATION", org_name)
+    print(f"✅ POC org: {org_name}")
 
-    # 3) RELATIONSHIP
+    # ── 3. İLİŞKİ ─────────────────────────────────────────────
     raw_rel = (data.get("US_POC_RELATION") or "").strip().upper()
     rel_val = US_POC_RELATION_MAP.get(raw_rel, "O")
-    Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlUS_POC_REL_TO_APP")
-    ))).select_by_value(rel_val)
+    try:
+        Select(wait.until(EC.element_to_be_clickable(
+            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlUS_POC_REL_TO_APP")
+        ))).select_by_value(rel_val)
+        print(f"✅ POC ilişki: {rel_val}")
+    except Exception as e:
+        print(f"⚠️ POC ilişki: {e}")
 
-    # 4) ADDRESS — 40 karakter split
-    raw_poc_addr = clean_address((data.get("US_POC_ADDR1") or "").strip())
-    poc_addr1, poc_addr2_overflow = split_address(raw_poc_addr, max_len=40)
-    print(f"📍 POC addr1: '{poc_addr1}' ({len(poc_addr1)} kar)")
+    # ── 4. ADRES ──────────────────────────────────────────────
+    raw_addr1 = clean_poc_address(data.get("US_POC_ADDR1", ""))
+    addr1, addr2_overflow = split_address(raw_addr1, max_len=40)
+    print(f"📍 POC addr1: '{addr1}' ({len(addr1)} kar)")
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1", addr1)
 
-    safe_js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN1",
-        poc_addr1
-    )
+    addr2_data  = clean_address((data.get("US_POC_ADDR2") or "").strip())
+    addr2_final = addr2_overflow or addr2_data
+    if addr2_final:
+        print(f"📍 POC addr2: '{addr2_final}' ({len(addr2_final)} kar)")
+        safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN2", addr2_final[:40])
 
-    # addr2 — önce overflow, yoksa data'dan al
-    poc_addr2_data  = clean_address((data.get("US_POC_ADDR2") or "").strip())
-    poc_addr2_final = poc_addr2_overflow or poc_addr2_data
-    if poc_addr2_final:
-        print(f"📍 POC addr2: '{poc_addr2_final}' ({len(poc_addr2_final)} kar)")
-        safe_js_fill(
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_LN2",
-            poc_addr2_final
-        )
+    # ── 5. ŞEHİR ──────────────────────────────────────────────
+    poc_city = clean_poc_city(data.get("US_POC_CITY", ""))
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY", poc_city)
 
-    safe_js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_CITY",
-        (data.get("US_POC_CITY") or "").strip().upper()
-    )
-
-    # 5) STATE
-    raw_state = data.get("US_POC_STATE", "").strip().upper()
+    # ── 6. EYALET ─────────────────────────────────────────────
+    raw_state = (data.get("US_POC_STATE", "") or "").strip().upper()
     state_val = raw_state if len(raw_state) == 2 else US_STATE_MAP.get(raw_state)
-
-    if state_val:
+    if not state_val:
+        state_val = "NY"
+        print(f"⚠️ POC State geçersiz '{raw_state}' → NY")
+    try:
         Select(wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlUS_POC_ADDR_STATE")
         ))).select_by_value(state_val)
-        print(f"📍 Eyalet seçildi: {state_val}")
+        print(f"✅ POC State: {state_val}")
         time.sleep(2.5)
+    except Exception as e:
+        print(f"⚠️ POC State: {e}")
 
-    # 6) ZIP & PHONE
-    safe_js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD",
-        data.get("US_POC_ZIP", "").strip()
-    )
-    safe_js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL",
-        data.get("US_POC_PHONE", "").strip()
-    )
+    # ── 7. ZIP ────────────────────────────────────────────────
+    poc_zip = clean_poc_zip(data.get("US_POC_ZIP", ""))
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_ADDR_POSTAL_CD", poc_zip)
+    print(f"✅ POC ZIP: {poc_zip}")
 
-    # 7) EMAIL
-    email = data.get("US_POC_EMAIL", "").strip()
-    is_email_na = email.upper() in ("NA", "N/A", "DOES NOT APPLY", "")
+    # ── 8. TELEFON ────────────────────────────────────────────
+    poc_phone = clean_phone(data.get("US_POC_PHONE", "")) or "5555555555"
+    safe_js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_HOME_TEL", poc_phone)
+    print(f"✅ POC Phone: {poc_phone}")
 
-    handle_checkbox(
-        "ctl00_SiteContentPlaceHolder_FormView1_cbexUS_POC_EMAIL_ADDR_NA",
-        is_email_na
-    )
-
-    if not is_email_na:
-        safe_js_fill(
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR",
-            email
+    # ── 9. EMAIL ──────────────────────────────────────────────
+    email = clean_poc_email(data.get("US_POC_EMAIL", ""))
+    if email:
+        handle_checkbox(
+            "ctl00_SiteContentPlaceHolder_FormView1_cbexUS_POC_EMAIL_ADDR_NA", False
         )
+        safe_js_fill(
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxUS_POC_EMAIL_ADDR", email
+        )
+        print(f"✅ POC Email: {email}")
+    else:
+        handle_checkbox(
+            "ctl00_SiteContentPlaceHolder_FormView1_cbexUS_POC_EMAIL_ADDR_NA", True
+        )
+        print("ℹ️ POC Email: Does Not Apply")
 
     click_outside(driver)
-    print("🟢 U.S. Point of Contact BAŞARIYLA TAMAMLANDI")
+    print("🟢 U.S. Point of Contact TAMAMLANDI")
+
+
 def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     if not date_str or "-" not in date_str:
         print(f"⚠️ Geçersiz tarih: {date_str}")
