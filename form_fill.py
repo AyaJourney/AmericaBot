@@ -844,25 +844,37 @@ def select_telecode_no(wait, driver):
 import time
 
 def force_continue_application(wait, driver):
-    """
-    Continue Application butonunu server-side postback ile tetikler
-    """
-
     print("▶ Continue Application (FORCE)")
 
-    driver.execute_script("""
-        needToConfirm = false;
-        __doPostBack('ctl00$btnContinueApp','');
-    """)
+    # Önce butona tıklamayı dene
+    for attempt in range(3):
+        try:
+            btn = wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_btnContinueApp")
+            ))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+            time.sleep(0.2)
+            btn.click()
+            print("✅ Continue Application butona tıklandı")
+            time.sleep(0.5)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            return
+        except Exception as e:
+            print(f"⚠️ Buton tıklama attempt {attempt+1}/3: {e}")
+            time.sleep(0.5)
 
-    # CEAC postback bekle
-    time.sleep(0.1)
+    # Fallback — JS click
+    try:
+        btn = driver.find_element(By.ID, "ctl00_btnContinueApp")
+        driver.execute_script("arguments[0].click();", btn)
+        print("✅ Continue Application JS click")
+        time.sleep(0.5)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    except Exception as e:
+        print(f"⚠️ Continue Application JS click de başarısız: {e}")
 
-    wait.until(
-        lambda d: d.execute_script("return document.readyState") == "complete"
-    )
+    print("✅ Continue Application tamamlandı")
 
-    print("✅ Continue Application postback gönderildi")
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
