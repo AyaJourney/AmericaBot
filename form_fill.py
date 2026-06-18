@@ -5009,23 +5009,47 @@ def fill_employer_or_school_info(wait, driver, data):
     def js_fill(element_id, value):
         if not value:
             return
-        el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(str(value))
+        try:
+            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ js_fill {element_id.split('_')[-1]}: {e}")
 
-    js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName",
-        translate_school_name(data.get("EMP_SCH_NAME", ""))[:75]
-    )
+    def clean_emp_phone(raw):
+        if not raw:
+            return "5555555555"
+        raw = str(raw).strip()
+        has_plus = raw.startswith("+")
+        digits = re.sub(r"\D", "", raw)
+        result = ("+" + digits) if has_plus else digits
+        result = result[:15]
+        pure = re.sub(r"\D", "", result)
+        if len(pure) < 7:
+            print(f"⚠️ EMP_SCH_PHONE kısa: '{raw}' → 5555555555")
+            return "5555555555"
+        if len(set(pure)) == 1:
+            print(f"⚠️ EMP_SCH_PHONE tekrarlı: '{raw}' → 5555555555")
+            return "5555555555"
+        return result
 
-    # ADDR1 — 40 karakter split
-    # ADDR1 — temizle + 40 karakter split
+    INVALID_VALS = {"", "X", "XX", "XXX", "XXXX", "XXXXX", "XXXXXXXXXX",
+                    "NA", "N/A", "NONE", "DOES NOT APPLY", "YOK", "0", "NULL"}
+
+    # ── İŞVEREN / OKUL ADI ────────────────────────────────────
+    emp_name = translate_school_name(data.get("EMP_SCH_NAME", "") or "")
+    if not emp_name or emp_name.upper() in INVALID_VALS:
+        emp_name = "PRIVATE COMPANY"
+        print("⚠️ EMP_SCH_NAME geçersiz → PRIVATE COMPANY")
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchName", emp_name[:75])
+
+    # ── ADDR1 — temizle + 40 karakter split ───────────────────
     raw_addr = clean_address(data.get("EMP_SCH_ADDR1", "") or "")
-    if not raw_addr or raw_addr.upper() in ("", "XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A"):
+    if not raw_addr or raw_addr.upper() in INVALID_VALS:
         raw_addr = "123 MAIN STREET"
         print("⚠️ EMP_SCH_ADDR1 geçersiz → 123 MAIN STREET")
 
@@ -5033,41 +5057,62 @@ def fill_employer_or_school_info(wait, driver, data):
     print(f"📍 EMP addr1: '{addr1}' ({len(addr1)} kar)")
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", addr1)
 
-    # ADDR2 — önce overflow, yoksa data'dan al
-    addr2_data  = clean_address(data.get("EMP_SCH_ADDR2", "") or "")
-    if addr2_data.upper() in ("XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A"):
+    # ── ADDR2 — önce overflow, yoksa data'dan al ──────────────
+    addr2_data = clean_address(data.get("EMP_SCH_ADDR2", "") or "")
+    if addr2_data.upper() in INVALID_VALS:
         addr2_data = ""
     addr2_final = addr2_overflow or addr2_data
     if addr2_final:
         print(f"📍 EMP addr2: '{addr2_final}' ({len(addr2_final)} kar)")
         js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", addr2_final[:40])
 
-    # STATE
-    state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
-    if not state_val or state_val in ("N/A", "NA", "NONE", "DOES NOT APPLY"):
-        state_na_cb = wait.until(EC.presence_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_STATE_NA")
-        ))
-        if not state_na_cb.is_selected():
-            driver.execute_script("arguments[0].click();", state_na_cb)
-            time.sleep(1)
-        print("ℹ️ State → Does Not Apply")
-    else:
-        state_na_cb = wait.until(EC.presence_of_element_located(
-            (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_STATE_NA")
-        ))
-        if state_na_cb.is_selected():
-            driver.execute_script("arguments[0].click();", state_na_cb)
-            time.sleep(1)
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_STATE", state_val)
-        print(f"✅ State girildi: {state_val}")
+    # ── CITY ──────────────────────────────────────────────────
+    emp_city = clean_address(data.get("EMP_SCH_CITY", "") or "")
+    if not emp_city or emp_city.upper() in INVALID_VALS:
+        emp_city = "ISTANBUL"
+        print("⚠️ EMP_SCH_CITY geçersiz → ISTANBUL")
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity", emp_city[:20])
 
-    # POSTAL
-    if data.get("EMP_SCH_POSTAL"):
-        js_fill(
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD",
-            data["EMP_SCH_POSTAL"]
-        )
+    # ── STATE ─────────────────────────────────────────────────
+    state_val = str(data.get("EMP_SCH_STATE", "") or "").strip().upper()
+    if not state_val or state_val in INVALID_VALS or state_val == "DOES NOT APPLY":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_STATE_NA")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+            print("ℹ️ State → Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ State NA: {e}")
+    else:
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_STATE_NA")
+            ))
+            if cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+        except Exception:
+            pass
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_STATE", state_val[:20])
+        print(f"✅ State: {state_val}")
+
+    # ── POSTAL ────────────────────────────────────────────────
+    postal = str(data.get("EMP_SCH_POSTAL", "") or "").strip()
+    if postal and postal.upper() not in INVALID_VALS:
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxWORK_EDUC_ADDR_POSTAL_CD_NA")
+            ))
+            if cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(0.5)
+        except Exception:
+            pass
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_ADDR_POSTAL_CD", postal[:10])
+        print(f"✅ Postal: {postal}")
     else:
         try:
             cb = wait.until(EC.presence_of_element_located(
@@ -5080,46 +5125,47 @@ def fill_employer_or_school_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Postal NA: {e}")
 
-    # COUNTRY
-    select_country_by_name(
-        wait,
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpSchCountry",
-        data.get("EMP_SCH_COUNTRY", "TURKEY")
-    )
+    # ── COUNTRY ───────────────────────────────────────────────
+    emp_country = (data.get("EMP_SCH_COUNTRY", "") or "TURKEY").strip()
+    if not emp_country or emp_country.upper() in INVALID_VALS:
+        emp_country = "TURKEY"
+    try:
+        select_country_by_name(
+            wait,
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpSchCountry",
+            emp_country
+        )
+        print(f"✅ Country: {emp_country}")
+    except Exception as e:
+        print(f"⚠️ Country seçilemedi: {e} → TURKEY deneniyor")
+        try:
+            Select(wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpSchCountry")
+            ))).select_by_value("TRKY")
+        except Exception:
+            pass
 
-    # PHONE — temizle ve yaz
-    def clean_emp_phone(raw):
-        if not raw:
-            return "5555555555"
-        raw = str(raw).strip()
-        has_plus = raw.startswith("+")
-        digits = re.sub(r"\D", "", raw)
-        result = ("+" + digits) if has_plus else digits
-        result = result[:15]
-        pure = re.sub(r"\D", "", result)
-        if len(pure) < 7:
-            print(f"⚠️ EMP_SCH_PHONE geçersiz (kısa): '{raw}' → 5555555555")
-            return "5555555555"
-        if len(set(pure)) == 1:
-            print(f"⚠️ EMP_SCH_PHONE tekrarlı: '{raw}' → 5555555555")
-            return "5555555555"
-        return result
-
+    # ── PHONE ─────────────────────────────────────────────────
     emp_phone = clean_emp_phone(data.get("EMP_SCH_PHONE", ""))
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL", emp_phone)
+    print(f"✅ Phone: {emp_phone}")
 
-    # START DATE
-    fill_date_dd_mmm_yyyy(
-        wait, driver,
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromDay",
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromMonth",
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpDateFromYear",
-        data.get("EMP_SCH_START_DATE", "")
-    )
+    # ── START DATE ────────────────────────────────────────────
+    start_date = (data.get("EMP_SCH_START_DATE", "") or "").strip()
+    if start_date and start_date.upper() not in INVALID_VALS:
+        fill_date_dd_mmm_yyyy(
+            wait, driver,
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromDay",
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromMonth",
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpDateFromYear",
+            start_date
+        )
+    else:
+        print("⚠️ EMP_SCH_START_DATE geçersiz, atlanıyor")
 
-    # MONTHLY SALARY — 0 gelince Does Not Apply
-    salary = str(data.get("EMP_MONTHLY_SALARY", "")).strip()
-    if salary and salary not in ("0", "N/A", "NA", ""):
+    # ── MONTHLY SALARY ────────────────────────────────────────
+    salary = str(data.get("EMP_MONTHLY_SALARY", "") or "").strip()
+    if salary and salary not in ("0", "N/A", "NA", "", "NULL") and salary.upper() not in INVALID_VALS:
         try:
             cb = wait.until(EC.presence_of_element_located(
                 (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxCURR_MONTHLY_SALARY_NA")
@@ -5143,15 +5189,15 @@ def fill_employer_or_school_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Salary NA: {e}")
 
-    # DUTIES
-    duties = data.get("EMP_DUTIES", "").strip()
-    if not duties:
-        duties = "XXXXXXXXXX"
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDescribeDuties", duties)
+    # ── DUTIES ────────────────────────────────────────────────
+    duties = (data.get("EMP_DUTIES", "") or "").strip()
+    if not duties or duties.upper() in INVALID_VALS:
+        duties = "GENERAL DUTIES"
+        print("⚠️ EMP_DUTIES geçersiz → GENERAL DUTIES")
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDescribeDuties", duties[:4000])
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
-
 
 
 def fill_present_occupation_section(wait, driver, data):
@@ -5321,6 +5367,9 @@ def fill_previous_employment(wait, driver, data):
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
     time.sleep(1)
 
+    INVALID_VALS = {"", "X", "XX", "XXX", "XXXX", "XXXXX", "XXXXXXXXXX",
+                    "NA", "N/A", "NONE", "DOES NOT APPLY", "YOK", "0", "NULL"}
+
     def split(key):
         val = data.get(key, "")
         if isinstance(val, list):
@@ -5358,34 +5407,54 @@ def fill_previous_employment(wait, driver, data):
     def js_fill(element_id, value):
         if not value:
             return
-        el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
-        driver.execute_script("""
-            arguments[0].removeAttribute('disabled');
-            arguments[0].removeAttribute('readonly');
-            arguments[0].value = '';
-        """, el)
-        el.send_keys(str(value))
+        try:
+            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            driver.execute_script("""
+                arguments[0].removeAttribute('disabled');
+                arguments[0].removeAttribute('readonly');
+                arguments[0].value = '';
+            """, el)
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ js_fill {element_id.split('_')[-1]}: {e}")
 
     for i in range(count):
         print(f"➡️ Employment #{i+1}")
 
-        # Satır hazır mı bekle
         wait.until(lambda d: len(d.find_elements(
             By.XPATH, "//input[contains(@id,'tbEmployerName')]"
         )) > i)
 
-        # İşveren adı — translate_school_name ile çevir
-        js_fill(fid(i, "tbEmployerName"), translate_school_name(names[i])[:75])
-        js_fill(fid(i, "tbEmployerStreetAddress1"), addr1[i][:40] if addr1[i] else "")
+        # İŞVEREN ADI
+        emp_name = translate_school_name(names[i]) if names[i] else ""
+        if not emp_name or emp_name.upper() in INVALID_VALS:
+            emp_name = "PRIVATE COMPANY"
+        js_fill(fid(i, "tbEmployerName"), emp_name[:75])
 
-        if addr2[i]:
-            js_fill(fid(i, "tbEmployerStreetAddress2"), addr2[i][:40])
+        # ADDR1 — 40 karakter split
+        raw_addr = clean_address(addr1[i] or "")
+        if not raw_addr or raw_addr.upper() in INVALID_VALS:
+            raw_addr = "123 MAIN STREET"
+        a1, a2_overflow = split_address(raw_addr, max_len=40)
+        js_fill(fid(i, "tbEmployerStreetAddress1"), a1)
 
-        js_fill(fid(i, "tbEmployerCity"), city[i][:20] if city[i] else "")
+        # ADDR2
+        a2_data = clean_address(addr2[i] or "")
+        if a2_data.upper() in INVALID_VALS:
+            a2_data = ""
+        a2_final = a2_overflow or a2_data
+        if a2_final:
+            js_fill(fid(i, "tbEmployerStreetAddress2"), a2_final[:40])
+
+        # CITY
+        city_val = clean_address(city[i] or "")
+        if not city_val or city_val.upper() in INVALID_VALS:
+            city_val = "ISTANBUL"
+        js_fill(fid(i, "tbEmployerCity"), city_val[:20])
 
         # STATE
         state_val = state[i].strip().upper() if i < len(state) else ""
-        if state_val and state_val not in ("NA", "N/A", "NONE", ""):
+        if state_val and state_val not in INVALID_VALS:
             try:
                 cb = driver.find_element(By.ID, fid(i, "cbxPREV_EMPL_ADDR_STATE_NA"))
                 if cb.is_selected():
@@ -5405,11 +5474,11 @@ def fill_previous_employment(wait, driver, data):
                     time.sleep(0.5)
                 print(f"ℹ️ State [{i+1}]: Does Not Apply")
             except Exception as e:
-                print(f"⚠️ State NA checkbox: {e}")
+                print(f"⚠️ State NA: {e}")
 
         # POSTAL
-        postal_val = postal[i].strip() if i < len(postal) else ""
-        if postal_val and postal_val.upper() not in ("NA", "N/A", "NONE", ""):
+        postal_val = (postal[i] or "").strip()
+        if postal_val and postal_val.upper() not in INVALID_VALS:
             try:
                 cb = driver.find_element(By.ID, fid(i, "cbxPREV_EMPL_ADDR_POSTAL_CD_NA"))
                 if cb.is_selected():
@@ -5428,11 +5497,11 @@ def fill_previous_employment(wait, driver, data):
                     time.sleep(0.5)
                 print(f"ℹ️ Postal [{i+1}]: Does Not Apply")
             except Exception as e:
-                print(f"⚠️ Postal NA checkbox: {e}")
+                print(f"⚠️ Postal NA: {e}")
 
         # COUNTRY
-        country_val = country[i].strip() if i < len(country) else "TURKEY"
-        if not country_val:
+        country_val = (country[i] or "").strip()
+        if not country_val or country_val.upper() in INVALID_VALS:
             country_val = "TURKEY"
         try:
             select_country_by_name(wait, fid(i, "DropDownList2"), country_val)
@@ -5445,12 +5514,23 @@ def fill_previous_employment(wait, driver, data):
             except Exception:
                 pass
 
-        js_fill(fid(i, "tbEmployerPhone"), phone[i][:15] if phone[i] else "")
-        js_fill(fid(i, "tbJobTitle"), translate_school_name(title[i])[:75] if title[i] else "")
+        # TELEFON — clean_phone ile temizle
+        raw_phone = (phone[i] or "").strip()
+        cleaned_phone = clean_phone(raw_phone) if raw_phone else "5555555555"
+        if not cleaned_phone:
+            cleaned_phone = "5555555555"
+        js_fill(fid(i, "tbEmployerPhone"), cleaned_phone)
+        print(f"✅ Phone [{i+1}]: {cleaned_phone}")
+
+        # JOB TITLE
+        job_title = translate_school_name(title[i]) if title[i] else ""
+        if not job_title or job_title.upper() in INVALID_VALS:
+            job_title = "EMPLOYEE"
+        js_fill(fid(i, "tbJobTitle"), job_title[:75])
 
         # SUPERVISOR SURNAME
-        sup_s = sup_surname[i].strip() if i < len(sup_surname) else ""
-        if sup_s and sup_s.upper() not in ("NA", "N/A", "NONE", "UNKNOWN"):
+        sup_s = (sup_surname[i] or "").strip()
+        if sup_s and sup_s.upper() not in INVALID_VALS and sup_s.upper() != "UNKNOWN":
             try:
                 cb = driver.find_element(By.ID, fid(i, "cbxSupervisorSurname_NA"))
                 if cb.is_selected():
@@ -5471,8 +5551,8 @@ def fill_previous_employment(wait, driver, data):
                 print(f"⚠️ Supervisor Surname NA: {e}")
 
         # SUPERVISOR GIVEN
-        sup_g = sup_given[i].strip() if i < len(sup_given) else ""
-        if sup_g and sup_g.upper() not in ("NA", "N/A", "NONE", "UNKNOWN"):
+        sup_g = (sup_given[i] or "").strip()
+        if sup_g and sup_g.upper() not in INVALID_VALS and sup_g.upper() != "UNKNOWN":
             try:
                 cb = driver.find_element(By.ID, fid(i, "cbxSupervisorGivenName_NA"))
                 if cb.is_selected():
@@ -5507,13 +5587,16 @@ def fill_previous_employment(wait, driver, data):
             date_to[i]
         )
 
-        js_fill(fid(i, "tbDescribeDuties"), duties[i][:4000] if duties[i] else "General duties")
+        # DUTIES
+        duty = (duties[i] or "").strip()
+        if not duty or duty.upper() in INVALID_VALS:
+            duty = "GENERAL DUTIES"
+        js_fill(fid(i, "tbDescribeDuties"), duty[:4000])
 
         print(f"✅ Previous Employment {i+1} dolduruldu")
 
-        # Yeni satır ekle — sadece gerekiyorsa
+        # Yeni satır ekle
         if i < count - 1:
-            # Zaten yeterli satır var mı?
             mevcut = len(driver.find_elements(
                 By.XPATH, "//input[contains(@id,'tbEmployerName')]"
             ))
@@ -5553,7 +5636,6 @@ def fill_previous_employment(wait, driver, data):
 
     click_outside(driver)
     print("🟢 Previous Employment TAMAMLANDI")
-
 def fill_other_education(wait, driver, data):
     print("🎓 Other Education bölümü başladı")
 
