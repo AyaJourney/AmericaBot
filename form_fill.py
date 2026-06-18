@@ -2442,7 +2442,7 @@ def fill_single_us_visit(wait, driver, data, index=1):
         # Tarih bugün veya gelecekteyse → dün yaz
         parsed = parse_ds160_date(date)
         if parsed and parsed >= dt.today():
-            yesterday = dt.today() - timedelta(days=1)
+            yesterday = dt.today() - timedelta(days=2)
             print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({date}) → {to_ds160_date(yesterday)}")
             date = to_ds160_date(yesterday)
 
@@ -5023,22 +5023,24 @@ def fill_employer_or_school_info(wait, driver, data):
     )
 
     # ADDR1 — 40 karakter split
-    raw_addr = clean_address(data.get("EMP_SCH_ADDR1", ""))
+    # ADDR1 — temizle + 40 karakter split
+    raw_addr = clean_address(data.get("EMP_SCH_ADDR1", "") or "")
+    if not raw_addr or raw_addr.upper() in ("", "XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A"):
+        raw_addr = "123 MAIN STREET"
+        print("⚠️ EMP_SCH_ADDR1 geçersiz → 123 MAIN STREET")
+
     addr1, addr2_overflow = split_address(raw_addr, max_len=40)
     print(f"📍 EMP addr1: '{addr1}' ({len(addr1)} kar)")
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr1", addr1)
 
     # ADDR2 — önce overflow, yoksa data'dan al
-    addr2_data  = clean_address(data.get("EMP_SCH_ADDR2", ""))
+    addr2_data  = clean_address(data.get("EMP_SCH_ADDR2", "") or "")
+    if addr2_data.upper() in ("XXX", "XXXX", "XXXXXXXXXX", "NA", "N/A"):
+        addr2_data = ""
     addr2_final = addr2_overflow or addr2_data
     if addr2_final:
         print(f"📍 EMP addr2: '{addr2_final}' ({len(addr2_final)} kar)")
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", addr2_final)
-
-    js_fill(
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchCity",
-        clean_address(data.get("EMP_SCH_CITY", ""))
-    )
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxEmpSchAddr2", addr2_final[:40])
 
     # STATE
     state_val = str(data.get("EMP_SCH_STATE", "")).strip().upper()
@@ -5565,7 +5567,7 @@ def fill_other_education(wait, driver, data):
         today = dt.today()
 
         if not raw_date or "-" not in raw_date:
-            yesterday = today - timedelta(days=1)
+            yesterday = today - timedelta(days=2)
             return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
 
         try:
@@ -5575,11 +5577,11 @@ def fill_other_education(wait, driver, data):
             year  = int(parts[2])
             parsed = dt(year, month, day)
         except Exception:
-            yesterday = today - timedelta(days=1)
+            yesterday = today - timedelta(days=2)
             return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
 
         if parsed >= today:
-            yesterday = today - timedelta(days=1)
+            yesterday = today - timedelta(days=2)
             result = f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
             print(f"⚠️ Eğitim bitiş tarihi gelecekte ({raw_date}) → {result} yazıldı")
             return result
