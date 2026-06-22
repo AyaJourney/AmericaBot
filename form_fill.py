@@ -2307,9 +2307,9 @@ def fill_travel_companions(wait, driver, data):
         print("⚠️ TRAVEL_COMPANIONS_LIST boş — NO'ya çevriliyor")
         try:
             no_radio = wait.until(EC.element_to_be_clickable((
-            By.ID,
-            "ctl00_SiteContentPlaceHolder_FormView1_rblOtherPersonsTravelingWithYou_1"
-        )))
+                By.ID,
+                "ctl00_SiteContentPlaceHolder_FormView1_rblOtherPersonsTravelingWithYou_1"
+            )))
             driver.execute_script("arguments[0].click();", no_radio)
             print("✅ Traveling with others: NO (fallback)")
         except Exception as e:
@@ -2344,21 +2344,18 @@ def fill_travel_companions(wait, driver, data):
                     opts = [(o.get_attribute("value"), o.text.strip()) for o in sel.options]
                     print(f"ℹ️ Options [{element_id.split('_')[-1]}]: {opts}")
 
-                # Value ile dene
                 try:
                     sel.select_by_value(value)
                     return
                 except Exception:
                     pass
 
-                # Visible text ile dene
                 try:
                     sel.select_by_visible_text(value)
                     return
                 except Exception:
                     pass
 
-                # Fallback: boş olmayan ilk option'ı seç
                 for opt in sel.options:
                     if opt.get_attribute("value") and opt.get_attribute("value") != "":
                         sel.select_by_value(opt.get_attribute("value"))
@@ -2373,7 +2370,62 @@ def fill_travel_companions(wait, driver, data):
                 print(f"⚠️ safe_select hata retry {attempt+1}: {e}")
                 time.sleep(0.5)
         raise Exception(f"❌ safe_select başarısız: {element_id}={value}")
-    
+
+    # ── Sayfadaki mevcut satırları oku ────────────────────────
+    existing_rows = []
+    i = 0
+    while True:
+        idx = f"{i:02d}"
+        try:
+            surname_el = driver.find_element(By.ID, f"{base_path}{idx}_tbxSurname")
+            given_el   = driver.find_element(By.ID, f"{base_path}{idx}_tbxGivenName")
+            rel_el     = driver.find_element(By.ID, f"{base_path}{idx}_ddlTCRelationship")
+
+            surname_val = (surname_el.get_attribute("value") or "").strip().upper()
+            given_val   = (given_el.get_attribute("value") or "").strip().upper()
+            rel_val     = Select(rel_el).first_selected_option.get_attribute("value") or ""
+
+            existing_rows.append({
+                "surname": surname_val,
+                "given": given_val,
+                "relationship": rel_val
+            })
+            i += 1
+        except Exception:
+            break
+
+    print(f"🔍 Sayfadaki mevcut yolcular ({len(existing_rows)}): {existing_rows}")
+
+    # ── Hedef listeyi normalize et ─────────────────────────────
+    target_rows = []
+    for p in persons:
+        target_rows.append({
+            "surname": p.get("surname", "").strip().upper(),
+            "given": p.get("given", "").strip().upper(),
+            "relationship": p.get("relationship", "").strip().upper()
+        })
+
+    # ── Karşılaştır — zaten doğruysa hiçbir şey yapma ─────────
+    if existing_rows == target_rows:
+        print("✅ Yolcular zaten doğru, hiçbir değişiklik yapılmadı")
+        return
+
+    # ── Fazla satırları sil ────────────────────────────────────
+    while len(existing_rows) > max(len(target_rows), 1):
+        try:
+            last_idx = f"{len(existing_rows)-1:02d}"
+            delete_btn_id = f"{base_path}{last_idx}_DeleteButtonPrincipalPOT"
+            delete_btn = wait.until(EC.element_to_be_clickable((By.ID, delete_btn_id)))
+            driver.execute_script("arguments[0].click();", delete_btn)
+            time.sleep(1.5)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            existing_rows.pop()
+            print(f"🗑️ Fazla yolcu satırı silindi, kalan: {len(existing_rows)}")
+        except Exception as e:
+            print(f"⚠️ Satır silinemedi: {e}")
+            break
+
+    # ── Her satırı doldur (eksikse Add Another ile ekle) ──────
     for i, person in enumerate(persons):
         idx = f"{i:02d}"
         print(f"👤 Yolcu {i+1} işleniyor...")
@@ -2386,9 +2438,42 @@ def fill_travel_companions(wait, driver, data):
         rel_value = person.get("relationship", "").strip().upper()
 
         if not surname or not given:
-            raise Exception(f"❌ Companion {i+1}: isim/soyisim eksik")
+            print(f"❌ Companion {i+1}: isim/soyisim eksik, atlanıyor")
+            continue
 
-        # Relationship — stale-safe
+        # Bu satır zaten doğru mu kontrol et — varsa atla
+        if i < len(existing_rows):
+            ex = existing_rows[i]
+            if (ex["surname"] == surname.upper() and
+                    ex["given"] == given.upper() and
+                    ex["relationship"] == rel_value):
+                print(f"ℹ️ Yolcu {i+1} zaten doğru, atlanıyor")
+                continue
+
+        # Satır DOM'da yoksa Add Another ile oluştur
+        row_exists = bool(driver.find_elements(By.ID, get_id("tbxSurname")))
+        if not row_exists:
+            prev_idx = f"{i-1:02d}"
+            add_btn_id = f"{base_path}{prev_idx}_InsertButtonPrincipalPOT"
+            for attempt in range(3):
+                try:
+                    add_btn = wait.until(EC.element_to_be_clickable((By.ID, add_btn_id)))
+                    driver.execute_script("arguments[0].click();", add_btn)
+                    print("➕ Add Another tıklandı")
+                    break
+                except StaleElementReferenceException:
+                    print(f"⚠️ Add Another stale retry {attempt+1}")
+                    time.sleep(0.5)
+
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, get_id("tbxSurname")))
+                )
+                print(f"✅ Yeni satır hazır: {idx}")
+            except Exception:
+                print("⚠️ Yeni satır timeout, devam ediliyor...")
+            time.sleep(0.5)
+
         safe_select(get_id("ddlTCRelationship"), rel_value)
         time.sleep(0.5)
 
@@ -2397,35 +2482,7 @@ def fill_travel_companions(wait, driver, data):
 
         print(f"✅ Companion {i+1} dolduruldu: {given} {surname}")
 
-        if i < len(persons) - 1:
-            add_btn_id = get_id("InsertButtonPrincipalPOT")
-            # Add Another — stale-safe tıklama
-            for attempt in range(3):
-                try:
-                    add_btn = wait.until(
-                        EC.element_to_be_clickable((By.ID, add_btn_id))
-                    )
-                    driver.execute_script("arguments[0].click();", add_btn)
-                    print("➕ Add Another tıklandı")
-                    break
-                except StaleElementReferenceException:
-                    print(f"⚠️ Add Another stale retry {attempt+1}")
-                    time.sleep(0.5)
-
-            # Yeni satırın DOM'a girmesini bekle
-            next_idx = f"{i+1:02d}"
-            next_rel_id = f"{base_path}{next_idx}_ddlTCRelationship"
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.ID, next_rel_id))
-                )
-                print(f"✅ Yeni satır hazır: {next_idx}")
-            except Exception:
-                print("⚠️ Yeni satır timeout, devam ediliyor...")
-            time.sleep(0.5)
-
     print("🟢 Travel Companions TAMAMLANDI")
-
 def fill_single_us_visit(wait, driver, data, index=1):
     from datetime import date as dt, timedelta
 
