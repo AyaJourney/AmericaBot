@@ -6037,217 +6037,218 @@ def fill_countries_visited(wait, driver, data):
             return
 
     COUNTRY_MAP = {
-    # Kısaltmalar / alternatif isimler
-    "USA": "UNITED STATES OF AMERICA",
-    "UNITED STATES": "UNITED STATES OF AMERICA",
-    "UK": "UNITED KINGDOM",
-    "ENGLAND": "UNITED KINGDOM",
-    "SCOTLAND": "UNITED KINGDOM",
-    "WALES": "UNITED KINGDOM",
-    "NORTHERN IRELAND": "NORTHERN IRELAND",
-    "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
-    "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
-    "MACEDONIA": "MACEDONIA, NORTH",
-    "NORTH MACEDONIA": "MACEDONIA, NORTH",
-    "UAE": "UNITED ARAB EMIRATES",
-    "TURKEY": "TURKEY",
-    "TÜRKİYE": "TURKEY",
-    "TURKIYE": "TURKEY",
-    "VATICAN": "HOLY SEE (VATICAN CITY)",
-    "BOSNIA": "BOSNIA-HERZEGOVINA",
-    "BOSNIA HERZEGOVINA": "BOSNIA-HERZEGOVINA",
-    "CZECHIA": "CZECH REPUBLIC",
-    "CZECH": "CZECH REPUBLIC",
-    "CABO VERDE": "CABO VERDE",
-    "CAPE VERDE": "CABO VERDE",
-    "CONGO DEMOCRATIC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
-    "CONGO REPUBLIC": "CONGO, REPUBLIC OF THE",
-    "DRC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
-    "TIMOR LESTE": "TIMOR-LESTE",
-    "EAST TIMOR": "TIMOR-LESTE",
-    "ESWATINI": "ESWATINI",
-    "SWAZILAND": "ESWATINI",
-    "BURMA": "BURMA",
-    "MYANMAR": "BURMA",
+        # Kısaltmalar / alternatif isimler
+        "USA": "UNITED STATES OF AMERICA",
+        "UNITED STATES": "UNITED STATES OF AMERICA",
+        "UK": "UNITED KINGDOM",
+        "ENGLAND": "UNITED KINGDOM",
+        "SCOTLAND": "UNITED KINGDOM",
+        "WALES": "UNITED KINGDOM",
+        "NORTHERN IRELAND": "NORTHERN IRELAND",
+        "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+        "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "MACEDONIA": "MACEDONIA, NORTH",
+        "NORTH MACEDONIA": "MACEDONIA, NORTH",
+        "UAE": "UNITED ARAB EMIRATES",
+        "TURKEY": "TURKEY",
+        "TÜRKİYE": "TURKEY",
+        "TURKIYE": "TURKEY",
+        "VATICAN": "HOLY SEE (VATICAN CITY)",
+        "BOSNIA": "BOSNIA-HERZEGOVINA",
+        "BOSNIA HERZEGOVINA": "BOSNIA-HERZEGOVINA",
+        "CZECHIA": "CZECH REPUBLIC",
+        "CZECH": "CZECH REPUBLIC",
+        "CABO VERDE": "CABO VERDE",
+        "CAPE VERDE": "CABO VERDE",
+        "CONGO DEMOCRATIC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
+        "CONGO REPUBLIC": "CONGO, REPUBLIC OF THE",
+        "DRC": "CONGO, DEMOCRATIC REPUBLIC OF THE",
+        "TIMOR LESTE": "TIMOR-LESTE",
+        "EAST TIMOR": "TIMOR-LESTE",
+        "ESWATINI": "ESWATINI",
+        "SWAZILAND": "ESWATINI",
+        "BURMA": "BURMA",
+        "MYANMAR": "BURMA",
 
-    # Avrupa
-    "ALBANIA": "ALBANIA",
-    "ANDORRA": "ANDORRA",
-    "AUSTRIA": "AUSTRIA",
-    "BELARUS": "BELARUS",
-    "BELGIUM": "BELGIUM",
-    "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
-    "BULGARIA": "BULGARIA",
-    "CROATIA": "CROATIA",
-    "CYPRUS": "CYPRUS",
-    "CZECH REPUBLIC": "CZECH REPUBLIC",
-    "DENMARK": "DENMARK",
-    "ESTONIA": "ESTONIA",
-    "FINLAND": "FINLAND",
-    "FRANCE": "FRANCE",
-    "GERMANY": "GERMANY",
-    "GREECE": "GREECE",
-    "HUNGARY": "HUNGARY",
-    "ICELAND": "ICELAND",
-    "IRELAND": "IRELAND",
-    "ITALY": "ITALY",
-    "KOSOVO": "KOSOVO",
-    "LATVIA": "LATVIA",
-    "LIECHTENSTEIN": "LIECHTENSTEIN",
-    "LITHUANIA": "LITHUANIA",
-    "LUXEMBOURG": "LUXEMBOURG",
-    "MALTA": "MALTA",
-    "MOLDOVA": "MOLDOVA",
-    "MONACO": "MONACO",
-    "MONTENEGRO": "MONTENEGRO",
-    "NETHERLANDS": "NETHERLANDS",
-    "NORTH MACEDONIA": "MACEDONIA, NORTH",
-    "NORWAY": "NORWAY",
-    "POLAND": "POLAND",
-    "PORTUGAL": "PORTUGAL",
-    "ROMANIA": "ROMANIA",
-    "RUSSIA": "RUSSIA",
-    "SAN MARINO": "SAN MARINO",
-    "SERBIA": "SERBIA",
-    "SLOVAKIA": "SLOVAKIA",
-    "SLOVENIA": "SLOVENIA",
-    "SPAIN": "SPAIN",
-    "SWEDEN": "SWEDEN",
-    "SWITZERLAND": "SWITZERLAND",
-    "UKRAINE": "UKRAINE",
-    "UNITED KINGDOM": "UNITED KINGDOM",
+        # Avrupa
+        "ALBANIA": "ALBANIA",
+        "ANDORRA": "ANDORRA",
+        "AUSTRIA": "AUSTRIA",
+        "BELARUS": "BELARUS",
+        "BELGIUM": "BELGIUM",
+        "BOSNIA-HERZEGOVINA": "BOSNIA-HERZEGOVINA",
+        "BULGARIA": "BULGARIA",
+        "CROATIA": "CROATIA",
+        "CYPRUS": "CYPRUS",
+        "CZECH REPUBLIC": "CZECH REPUBLIC",
+        "DENMARK": "DENMARK",
+        "ESTONIA": "ESTONIA",
+        "FINLAND": "FINLAND",
+        "FRANCE": "FRANCE",
+        "GERMANY": "GERMANY",
+        "GREECE": "GREECE",
+        "HUNGARY": "HUNGARY",
+        "ICELAND": "ICELAND",
+        "IRELAND": "IRELAND",
+        "ITALY": "ITALY",
+        "KOSOVO": "KOSOVO",
+        "LATVIA": "LATVIA",
+        "LIECHTENSTEIN": "LIECHTENSTEIN",
+        "LITHUANIA": "LITHUANIA",
+        "LUXEMBOURG": "LUXEMBOURG",
+        "MALTA": "MALTA",
+        "MOLDOVA": "MOLDOVA",
+        "MONACO": "MONACO",
+        "MONTENEGRO": "MONTENEGRO",
+        "NETHERLANDS": "NETHERLANDS",
+        "NORTH MACEDONIA": "MACEDONIA, NORTH",
+        "NORWAY": "NORWAY",
+        "POLAND": "POLAND",
+        "PORTUGAL": "PORTUGAL",
+        "ROMANIA": "ROMANIA",
+        "RUSSIA": "RUSSIA",
+        "SAN MARINO": "SAN MARINO",
+        "SERBIA": "SERBIA",
+        "SLOVAKIA": "SLOVAKIA",
+        "SLOVENIA": "SLOVENIA",
+        "SPAIN": "SPAIN",
+        "SWEDEN": "SWEDEN",
+        "SWITZERLAND": "SWITZERLAND",
+        "UKRAINE": "UKRAINE",
+        "UNITED KINGDOM": "UNITED KINGDOM",
 
-    # Asya
-    "AFGHANISTAN": "AFGHANISTAN",
-    "ARMENIA": "ARMENIA",
-    "AZERBAIJAN": "AZERBAIJAN",
-    "BAHRAIN": "BAHRAIN",
-    "BANGLADESH": "BANGLADESH",
-    "BHUTAN": "BHUTAN",
-    "BRUNEI": "BRUNEI",
-    "CAMBODIA": "CAMBODIA",
-    "CHINA": "CHINA",
-    "GEORGIA": "GEORGIA",
-    "HONG KONG": "HONG KONG",
-    "INDIA": "INDIA",
-    "INDONESIA": "INDONESIA",
-    "IRAN": "IRAN",
-    "IRAQ": "IRAQ",
-    "ISRAEL": "ISRAEL",
-    "JAPAN": "JAPAN",
-    "JORDAN": "JORDAN",
-    "KAZAKHSTAN": "KAZAKHSTAN",
-    "KUWAIT": "KUWAIT",
-    "KYRGYZSTAN": "KYRGYZSTAN",
-    "LAOS": "LAOS",
-    "LEBANON": "LEBANON",
-    "MACAU": "MACAU",
-    "MALAYSIA": "MALAYSIA",
-    "MALDIVES": "MALDIVES",
-    "MONGOLIA": "MONGOLIA",
-    "MYANMAR": "BURMA",
-    "NEPAL": "NEPAL",
-    "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
-    "OMAN": "OMAN",
-    "PAKISTAN": "PAKISTAN",
-    "PALESTINE": "WEST BANK",
-    "PHILIPPINES": "PHILIPPINES",
-    "QATAR": "QATAR",
-    "SAUDI ARABIA": "SAUDI ARABIA",
-    "SINGAPORE": "SINGAPORE",
-    "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
-    "SRI LANKA": "SRI LANKA",
-    "SYRIA": "SYRIA",
-    "TAIWAN": "TAIWAN",
-    "TAJIKISTAN": "TAJIKISTAN",
-    "THAILAND": "THAILAND",
-    "TIMOR-LESTE": "TIMOR-LESTE",
-    "TURKMENISTAN": "TURKMENISTAN",
-    "UZBEKISTAN": "UZBEKISTAN",
-    "VIETNAM": "VIETNAM",
-    "WEST BANK": "WEST BANK",
-    "YEMEN": "YEMEN",
+        # Asya
+        "AFGHANISTAN": "AFGHANISTAN",
+        "ARMENIA": "ARMENIA",
+        "AZERBAIJAN": "AZERBAIJAN",
+        "BAHRAIN": "BAHRAIN",
+        "BANGLADESH": "BANGLADESH",
+        "BHUTAN": "BHUTAN",
+        "BRUNEI": "BRUNEI",
+        "CAMBODIA": "CAMBODIA",
+        "CHINA": "CHINA",
+        "GEORGIA": "GEORGIA",
+        "HONG KONG": "HONG KONG",
+        "INDIA": "INDIA",
+        "INDONESIA": "INDONESIA",
+        "IRAN": "IRAN",
+        "IRAQ": "IRAQ",
+        "ISRAEL": "ISRAEL",
+        "JAPAN": "JAPAN",
+        "JORDAN": "JORDAN",
+        "KAZAKHSTAN": "KAZAKHSTAN",
+        "KUWAIT": "KUWAIT",
+        "KYRGYZSTAN": "KYRGYZSTAN",
+        "LAOS": "LAOS",
+        "LEBANON": "LEBANON",
+        "MACAU": "MACAU",
+        "MALAYSIA": "MALAYSIA",
+        "MALDIVES": "MALDIVES",
+        "MONGOLIA": "MONGOLIA",
+        "MYANMAR": "BURMA",
+        "NEPAL": "NEPAL",
+        "NORTH KOREA": "KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "OMAN": "OMAN",
+        "PAKISTAN": "PAKISTAN",
+        "PALESTINE": "WEST BANK",
+        "PHILIPPINES": "PHILIPPINES",
+        "QATAR": "QATAR",
+        "SAUDI ARABIA": "SAUDI ARABIA",
+        "SINGAPORE": "SINGAPORE",
+        "SOUTH KOREA": "KOREA, REPUBLIC OF (SOUTH)",
+        "SRI LANKA": "SRI LANKA",
+        "SYRIA": "SYRIA",
+        "TAIWAN": "TAIWAN",
+        "TAJIKISTAN": "TAJIKISTAN",
+        "THAILAND": "THAILAND",
+        "TIMOR-LESTE": "TIMOR-LESTE",
+        "TURKMENISTAN": "TURKMENISTAN",
+        "UZBEKISTAN": "UZBEKISTAN",
+        "VIETNAM": "VIETNAM",
+        "WEST BANK": "WEST BANK",
+        "YEMEN": "YEMEN",
 
-    # Afrika
-    "ALGERIA": "ALGERIA",
-    "ANGOLA": "ANGOLA",
-    "BENIN": "BENIN",
-    "BOTSWANA": "BOTSWANA",
-    "BURKINA FASO": "BURKINA FASO",
-    "BURUNDI": "BURUNDI",
-    "CAMEROON": "CAMEROON",
-    "CENTRAL AFRICAN REPUBLIC": "CENTRAL AFRICAN REPUBLIC",
-    "CHAD": "CHAD",
-    "COMOROS": "COMOROS",
-    "DJIBOUTI": "DJIBOUTI",
-    "EGYPT": "EGYPT",
-    "EQUATORIAL GUINEA": "EQUATORIAL GUINEA",
-    "ERITREA": "ERITREA",
-    "ETHIOPIA": "ETHIOPIA",
-    "GABON": "GABON",
-    "GHANA": "GHANA",
-    "GUINEA": "GUINEA",
-    "KENYA": "KENYA",
-    "LESOTHO": "LESOTHO",
-    "LIBERIA": "LIBERIA",
-    "LIBYA": "LIBYA",
-    "MADAGASCAR": "MADAGASCAR",
-    "MALAWI": "MALAWI",
-    "MALI": "MALI",
-    "MAURITANIA": "MAURITANIA",
-    "MAURITIUS": "MAURITIUS",
-    "MOROCCO": "MOROCCO",
-    "MOZAMBIQUE": "MOZAMBIQUE",
-    "NAMIBIA": "NAMIBIA",
-    "NIGER": "NIGER",
-    "NIGERIA": "NIGERIA",
-    "RWANDA": "RWANDA",
-    "SENEGAL": "SENEGAL",
-    "SIERRA LEONE": "SIERRA LEONE",
-    "SOMALIA": "SOMALIA",
-    "SOUTH AFRICA": "SOUTH AFRICA",
-    "SOUTH SUDAN": "SOUTH SUDAN",
-    "SUDAN": "SUDAN",
-    "TANZANIA": "TANZANIA",
-    "TOGO": "TOGO",
-    "TUNISIA": "TUNISIA",
-    "UGANDA": "UGANDA",
-    "ZAMBIA": "ZAMBIA",
-    "ZIMBABWE": "ZIMBABWE",
+        # Afrika
+        "ALGERIA": "ALGERIA",
+        "ANGOLA": "ANGOLA",
+        "BENIN": "BENIN",
+        "BOTSWANA": "BOTSWANA",
+        "BURKINA FASO": "BURKINA FASO",
+        "BURUNDI": "BURUNDI",
+        "CAMEROON": "CAMEROON",
+        "CENTRAL AFRICAN REPUBLIC": "CENTRAL AFRICAN REPUBLIC",
+        "CHAD": "CHAD",
+        "COMOROS": "COMOROS",
+        "DJIBOUTI": "DJIBOUTI",
+        "EGYPT": "EGYPT",
+        "EQUATORIAL GUINEA": "EQUATORIAL GUINEA",
+        "ERITREA": "ERITREA",
+        "ETHIOPIA": "ETHIOPIA",
+        "GABON": "GABON",
+        "GHANA": "GHANA",
+        "GUINEA": "GUINEA",
+        "KENYA": "KENYA",
+        "LESOTHO": "LESOTHO",
+        "LIBERIA": "LIBERIA",
+        "LIBYA": "LIBYA",
+        "MADAGASCAR": "MADAGASCAR",
+        "MALAWI": "MALAWI",
+        "MALI": "MALI",
+        "MAURITANIA": "MAURITANIA",
+        "MAURITIUS": "MAURITIUS",
+        "MOROCCO": "MOROCCO",
+        "MOZAMBIQUE": "MOZAMBIQUE",
+        "NAMIBIA": "NAMIBIA",
+        "NIGER": "NIGER",
+        "NIGERIA": "NIGERIA",
+        "RWANDA": "RWANDA",
+        "SENEGAL": "SENEGAL",
+        "SIERRA LEONE": "SIERRA LEONE",
+        "SOMALIA": "SOMALIA",
+        "SOUTH AFRICA": "SOUTH AFRICA",
+        "SOUTH SUDAN": "SOUTH SUDAN",
+        "SUDAN": "SUDAN",
+        "TANZANIA": "TANZANIA",
+        "TOGO": "TOGO",
+        "TUNISIA": "TUNISIA",
+        "UGANDA": "UGANDA",
+        "ZAMBIA": "ZAMBIA",
+        "ZIMBABWE": "ZIMBABWE",
 
-    # Amerika
-    "ARGENTINA": "ARGENTINA",
-    "BOLIVIA": "BOLIVIA",
-    "BRAZIL": "BRAZIL",
-    "CANADA": "CANADA",
-    "CHILE": "CHILE",
-    "COLOMBIA": "COLOMBIA",
-    "COSTA RICA": "COSTA RICA",
-    "CUBA": "CUBA",
-    "DOMINICAN REPUBLIC": "DOMINICAN REPUBLIC",
-    "ECUADOR": "ECUADOR",
-    "EL SALVADOR": "EL SALVADOR",
-    "GUATEMALA": "GUATEMALA",
-    "HAITI": "HAITI",
-    "HONDURAS": "HONDURAS",
-    "JAMAICA": "JAMAICA",
-    "MEXICO": "MEXICO",
-    "NICARAGUA": "NICARAGUA",
-    "PANAMA": "PANAMA",
-    "PARAGUAY": "PARAGUAY",
-    "PERU": "PERU",
-    "TRINIDAD AND TOBAGO": "TRINIDAD AND TOBAGO",
-    "UNITED STATES OF AMERICA": "UNITED STATES OF AMERICA",
-    "URUGUAY": "URUGUAY",
-    "VENEZUELA": "VENEZUELA",
+        # Amerika
+        "ARGENTINA": "ARGENTINA",
+        "BOLIVIA": "BOLIVIA",
+        "BRAZIL": "BRAZIL",
+        "CANADA": "CANADA",
+        "CHILE": "CHILE",
+        "COLOMBIA": "COLOMBIA",
+        "COSTA RICA": "COSTA RICA",
+        "CUBA": "CUBA",
+        "DOMINICAN REPUBLIC": "DOMINICAN REPUBLIC",
+        "ECUADOR": "ECUADOR",
+        "EL SALVADOR": "EL SALVADOR",
+        "GUATEMALA": "GUATEMALA",
+        "HAITI": "HAITI",
+        "HONDURAS": "HONDURAS",
+        "JAMAICA": "JAMAICA",
+        "MEXICO": "MEXICO",
+        "NICARAGUA": "NICARAGUA",
+        "PANAMA": "PANAMA",
+        "PARAGUAY": "PARAGUAY",
+        "PERU": "PERU",
+        "TRINIDAD AND TOBAGO": "TRINIDAD AND TOBAGO",
+        "UNITED STATES OF AMERICA": "UNITED STATES OF AMERICA",
+        "URUGUAY": "URUGUAY",
+        "VENEZUELA": "VENEZUELA",
 
-    # Okyanusya
-    "AUSTRALIA": "AUSTRALIA",
-    "FIJI": "FIJI",
-    "NEW ZEALAND": "NEW ZEALAND",
-    "PAPUA NEW GUINEA": "PAPUA NEW GUINEA",
-    "SAMOA": "SAMOA",
-}
+        # Okyanusya
+        "AUSTRALIA": "AUSTRALIA",
+        "FIJI": "FIJI",
+        "NEW ZEALAND": "NEW ZEALAND",
+        "PAPUA NEW GUINEA": "PAPUA NEW GUINEA",
+        "SAMOA": "SAMOA",
+    }
+
     seen = set()
     unique_countries = []
     for c in country_list:
@@ -6260,6 +6261,7 @@ def fill_countries_visited(wait, driver, data):
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlCountriesVisited_ctl"
 
+    # ── Sayfadaki mevcut ülkeleri kontrol et ──────────────────
     existing_countries = []
     try:
         i = 0
@@ -6284,6 +6286,7 @@ def fill_countries_visited(wait, driver, data):
         print("✅ Ülkeler zaten doğru, atlanıyor")
         return
 
+    # ── Fazla satırları sil ────────────────────────────────────
     while len(existing_countries) > 1:
         try:
             last_idx = f"{len(existing_countries)-1:02d}"
@@ -6298,53 +6301,93 @@ def fill_countries_visited(wait, driver, data):
             print(f"⚠️ Satır silinemedi: {e}")
             break
 
+    # ── Ülkeleri tek tek doldur ────────────────────────────────
     for i, country in enumerate(unique_countries):
         idx = f"{i:02d}"
-        try:
-            sel_el = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED"))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sel_el)
-            time.sleep(0.5)
+        success = False
 
-            sel = Select(sel_el)
-
-            matched = next((o.text for o in sel.options if o.text.upper().strip() == country), None)
-            if not matched:
-                matched = next((o.text for o in sel.options if country in o.text.upper()), None)
-
-            if matched:
-                sel.select_by_visible_text(matched)
-                driver.execute_script(
-                    "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
-                    sel_el
+        for attempt in range(3):
+            try:
+                sel_el = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED"))
                 )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", sel_el)
+                time.sleep(0.5)
+
+                sel = Select(sel_el)
+
+                matched = next((o.text for o in sel.options if o.text.upper().strip() == country), None)
+                if not matched:
+                    matched = next((o.text for o in sel.options if country in o.text.upper()), None)
+
+                if not matched:
+                    print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
+                    success = True  # listede yok, döngüye devam et
+                    break
+
+                sel.select_by_visible_text(matched)
                 time.sleep(0.3)
-                current = Select(sel_el).first_selected_option.text
-                print(f"✅ [{i+1}/{len(unique_countries)}] Ülke seçildi: {current}")
-            else:
-                print(f"⚠️ Ülke bulunamadı, atlanıyor: {country}")
-                continue
 
-            if i < len(unique_countries) - 1:
+                # Doğrula — gerçekten seçildi mi?
+                current = Select(
+                    driver.find_element(By.ID, f"{base}{idx}_ddlCOUNTRIES_VISITED")
+                ).first_selected_option.text
+
+                if current.upper().strip() == matched.upper().strip():
+                    print(f"✅ [{i+1}/{len(unique_countries)}] Ülke seçildi: {current}")
+                    success = True
+                    break
+                else:
+                    print(f"⚠️ Seçim doğrulanamadı (attempt {attempt+1}/3): '{current}' != '{matched}'")
+                    time.sleep(0.5)
+
+            except StaleElementReferenceException:
+                print(f"⚠️ Stale element, retry {attempt+1}/3")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ Ülke [{i}] {country} hata (attempt {attempt+1}/3): {e}")
+                time.sleep(0.5)
+
+        if not success:
+            print(f"❌ Ülke [{i}] {country} 3 denemede de girilemedi, atlanıyor")
+            continue
+
+        # ── Son ülke değilse Add Another tıkla ─────────────────
+        if i < len(unique_countries) - 1:
+            added = False
+            for add_attempt in range(3):
                 try:
-                    driver.execute_script(
-                        f"__doPostBack('ctl00$SiteContentPlaceHolder$FormView1$dtlCountriesVisited$ctl{idx}$InsertButtonCountriesVisited','');"
-                    )
-                    time.sleep(1.5)
-                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-                    next_idx = f"{i+1:02d}"
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.ID, f"{base}{next_idx}_ddlCOUNTRIES_VISITED"))
-                    )
-                    print(f"➕ Yeni satır açıldı: {next_idx}")
-                except Exception as e:
-                    print(f"⚠️ Add Another hatası: {e}")
+                    add_btn = wait.until(EC.element_to_be_clickable(
+                        (By.ID, f"{base}{idx}_InsertButtonCountriesVisited")
+                    ))
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", add_btn)
+                    time.sleep(0.2)
+                    driver.execute_script("arguments[0].click();", add_btn)
+                    print(f"➕ Add Another tıklandı (satır {idx})")
 
-        except Exception as e:
-            print(f"⚠️ Ülke [{i}] {country} girilemedi: {e}")
+                    next_idx = f"{i+1:02d}"
+                    next_id = f"{base}{next_idx}_ddlCOUNTRIES_VISITED"
+
+                    # Yeni satırın DOM'a gelmesini bekle
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.ID, next_id))
+                    )
+                    time.sleep(0.8)  # postback tam stabilize olsun
+                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+                    print(f"✅ Yeni satır hazır: {next_idx}")
+                    added = True
+                    break
+
+                except Exception as e:
+                    print(f"⚠️ Add Another attempt {add_attempt+1}/3: {e}")
+                    time.sleep(1)
+
+            if not added:
+                print(f"❌ Yeni satır eklenemedi (satır {idx} sonrası), kalan ülkeler atlanabilir")
 
     print("✅ Ziyaret edilen ülkeler tamamlandı")
+
 def fill_organizations(wait, driver, data):
     val = data.get("ORGANIZATION", "NO").upper()
 
