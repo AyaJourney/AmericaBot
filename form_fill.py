@@ -1422,6 +1422,7 @@ def select_specific_travel(wait, driver, answer):
 
 def fill_travel_details(wait, driver, data):
     print("🧭 Travel details dolduruluyor...")
+    from datetime import datetime, timedelta
 
     def js_fill(element_id, value):
         el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
@@ -1431,6 +1432,9 @@ def fill_travel_details(wait, driver, data):
             arguments[0].value = '';
         """, el)
         el.send_keys(value)
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
 
     # ARRIVAL DATE
     fill_ds160_date(
@@ -1446,15 +1450,43 @@ def fill_travel_details(wait, driver, data):
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxArriveCity", data["ARRIVAL_CITY"])
     time.sleep(0.5)
 
-    # DEPARTURE DATE
+    # DEPARTURE DATE — bugün/geçmişteyse arrival'dan 2 ay sonrasına ayarla
+    dep_day  = data.get("DEPARTURE_DAY", "")
+    dep_mon  = str(data.get("DEPARTURE_MONTH", "")).strip()
+    dep_year = data.get("DEPARTURE_YEAR", "")
+
+    def parse_to_date(day, mon, year):
+        try:
+            mon = str(mon).strip().upper()
+            if mon.isdigit():
+                mon_num = int(mon)
+            else:
+                mon_num = MON_STR.index(mon[:3]) + 1
+            return datetime(int(year), mon_num, int(day))
+        except Exception:
+            return None
+
+    today = datetime.now()
+    dep_date = parse_to_date(dep_day, dep_mon, dep_year)
+
+    if dep_date is None or dep_date.date() <= today.date():
+        # Arrival tarihinden 2 ay sonrasını hesapla (varış tarihi referans)
+        arr_date = parse_to_date(data["ARRIVAL_DAY"], data["ARRIVAL_MONTH"], data["ARRIVAL_YEAR"])
+        base_date = arr_date if arr_date else today
+        future = base_date + timedelta(days=60)
+        dep_day  = str(future.day)
+        dep_mon  = MON_STR[future.month - 1]
+        dep_year = str(future.year)
+        print(f"⚠️ Departure tarihi geçmiş/bugün → {dep_day}-{dep_mon}-{dep_year} olarak ayarlandı")
+
     fill_ds160_date(
         wait, driver,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEDay",
         "ctl00_SiteContentPlaceHolder_FormView1_ddlDEPARTURE_US_DTEMonth",
         "ctl00_SiteContentPlaceHolder_FormView1_tbxDEPARTURE_US_DTEYear",
-        data["DEPARTURE_DAY"],
-        data["DEPARTURE_MONTH"],
-        data["DEPARTURE_YEAR"]
+        dep_day,
+        dep_mon,
+        dep_year
     )
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDepartCity", data["DEPARTURE_CITY"])
@@ -1467,7 +1499,6 @@ def fill_travel_details(wait, driver, data):
     )
 
     print("✅ Travel details başarıyla dolduruldu")
-
 MONTH_MAP = {
     "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
     "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
