@@ -984,7 +984,7 @@ def click_submit(driver, wait, max_retries=3):
                         var skipGroups = ['hasValidIdCard', 'hasValidId', 'isCorrespondenceAddress', 
                                           'emailOwner', 'hasOtherNationality', 'hasDependants',
                                           'haveBeenToTheUK', 'haveYouHadTreatment', 'doYouHaveADrivingLicence',
-                                          'previouslyApplied', 'yesNo', 'purposeRef'];
+                                          'previouslyApplied', 'yesNo', 'purposeRef', 'countryRef'];
                         var shouldSkip = false;
                         for (var s = 0; s < skipGroups.length; s++) {
                             if (name === skipGroups[s] || name.indexOf(skipGroups[s]) !== -1) { shouldSkip = true; break; }
@@ -4177,16 +4177,26 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         print("[FORM-34] AU/CA/NZ/USA/CH/EEA seyahat...")
 
         # lastTravels'dan EEA/US/CA/AU/NZ/CH ulkelerini ayikla
-        eea_countries = {"austria","belgium","bulgaria","croatia","cyprus","czechia","czech republic",
-            "denmark","estonia","finland","france","germany","greece","hungary","iceland","ireland",
-            "italy","latvia","liechtenstein","lithuania","luxembourg","malta","netherlands","norway",
-            "poland","portugal","romania","slovakia","slovenia","spain","sweden","switzerland",
-            "usa","america","united states","canada","australia","new zealand","newzealand"}
+        eea_countries = {"austria","avusturya","belgium","belcika","belçika","bulgaria","bulgaristan",
+            "croatia","hirvatistan","hırvatistan","cyprus","kibris","kıbrıs","czechia","czech republic","cekya","çekya",
+            "denmark","danimarka","estonia","estonya","finland","finlandiya",
+            "france","fransa","germany","almanya","greece","yunanistan",
+            "hungary","macaristan","iceland","izlanda","ireland","irlanda",
+            "italy","italya","latvia","letonya","liechtenstein",
+            "lithuania","litvanya","luxembourg","luksemburg","lüksemburg",
+            "malta","netherlands","hollanda","norway","norvec","norveç",
+            "poland","polonya","portugal","portekiz","romania","romanya",
+            "slovakia","slovakya","slovenia","slovenya","spain","ispanya",
+            "sweden","isvec","isveç","switzerland","isvicre","isviçre",
+            "usa","america","united states","abd","amerika",
+            "canada","kanada","australia","avustralya",
+            "new zealand","newzealand","yeni zelanda"}
         
         country_to_radio = {
-            "usa": "usa", "america": "usa", "united states": "usa",
-            "canada": "canada", "australia": "australia",
-            "new zealand": "newzealand", "newzealand": "newzealand",
+            "usa": "usa", "america": "usa", "united states": "usa", "abd": "usa", "amerika": "usa",
+            "canada": "canada", "kanada": "canada",
+            "australia": "australia", "avustralya": "australia",
+            "new zealand": "newzealand", "newzealand": "newzealand", "yeni zelanda": "newzealand",
         }
         # Geri kalan EEA -> schengen
 
@@ -4253,26 +4263,82 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     if not matched_radio:
                         matched_radio = "countryRef_schengen"
 
-                    # Ulke sec
-                    set_radio(driver, matched_radio)
+                    # Ulke sec - JS ile tum radio'lari temizle, hedefi sec ve dogrula
+                    selected = driver.execute_script(f"""
+                        // Once tum countryRef radiolari temizle
+                        var radios = document.querySelectorAll('input[name="countryRef"]');
+                        radios.forEach(function(r) {{ r.checked = false; }});
+                        
+                        // Hedef radioyu bul ve sec
+                        var target = document.getElementById('{matched_radio}');
+                        if (target) {{
+                            target.scrollIntoView({{block: 'center'}});
+                            target.checked = true;
+                            target.click();
+                            target.dispatchEvent(new Event('change', {{bubbles: true}}));
+                            return '{matched_radio}';
+                        }}
+                        
+                        // Bulunamadiysa alternatif ID'leri dene (schengen icin)
+                        var alts = ['countryRef_schengen', 'countryRef_eea', 'countryRef_schengenEea', 'countryRef_schengenArea'];
+                        for (var i = 0; i < alts.length; i++) {{
+                            var alt = document.getElementById(alts[i]);
+                            if (alt) {{
+                                alt.scrollIntoView({{block: 'center'}});
+                                alt.checked = true;
+                                alt.click();
+                                alt.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                return alts[i];
+                            }}
+                        }}
+                        
+                        // Hicbiri yoksa mevcut radiolarin listesini dondur
+                        var ids = [];
+                        radios.forEach(function(r) {{ ids.push(r.id); }});
+                        return 'NONE:' + ids.join(',');
+                    """)
+                    print(f"[FORM-34] Ulke radio: {country} -> {selected}")
                     time.sleep(0.5)
 
                     # Schengen secildiyse ulke dropdown doldur
-                    if matched_radio == "countryRef_schengen":
+                    is_schengen = (selected and 'schengen' in str(selected).lower()) or (selected and 'eea' in str(selected).lower())
+                    if not is_schengen:
+                        # USA/Canada/Australia/NZ secildi - bunlar icin dropdown yok
+                        pass
+                    
+                    if is_schengen:
                         unhide_toggled(driver, "countryRef_schengen")
                         time.sleep(1)
                         # Schengen ulke kodunu ve ismini bul
-                        schengen_map = {"germany":("DEU","Germany"),"france":("FRA","France"),"spain":("ESP","Spain"),
-                            "italy":("ITA","Italy"),"netherlands":("NLD","Netherlands"),"greece":("GRC","Greece"),
-                            "portugal":("PRT","Portugal"),"austria":("AUT","Austria"),"belgium":("BEL","Belgium"),
-                            "sweden":("SWE","Sweden"),"norway":("NOR","Norway"),"denmark":("DNK","Denmark"),
-                            "finland":("FIN","Finland"),"poland":("POL","Poland"),"czech":("CZE","Czech"),
-                            "hungary":("HUN","Hungary"),"romania":("ROU","Romania"),"croatia":("HRV","Croatia"),
-                            "bulgaria":("BGR","Bulgaria"),"switzerland":("CHE","Switzerland"),
-                            "ireland":("IRL","Ireland"),"iceland":("ISL","Iceland"),"slovakia":("SVK","Slovakia"),
-                            "slovenia":("SVN","Slovenia"),"estonia":("EST","Estonia"),"latvia":("LVA","Latvia"),
-                            "lithuania":("LTU","Lithuania"),"luxembourg":("LUX","Luxembourg"),
-                            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus")}
+                        schengen_map = {"germany":("DEU","Germany"),"almanya":("DEU","Germany"),
+                            "france":("FRA","France"),"fransa":("FRA","France"),
+                            "spain":("ESP","Spain"),"ispanya":("ESP","Spain"),
+                            "italy":("ITA","Italy"),"italya":("ITA","Italy"),
+                            "netherlands":("NLD","Netherlands"),"hollanda":("NLD","Netherlands"),
+                            "greece":("GRC","Greece"),"yunanistan":("GRC","Greece"),
+                            "portugal":("PRT","Portugal"),"portekiz":("PRT","Portugal"),
+                            "austria":("AUT","Austria"),"avusturya":("AUT","Austria"),
+                            "belgium":("BEL","Belgium"),"belcika":("BEL","Belgium"),"belçika":("BEL","Belgium"),
+                            "sweden":("SWE","Sweden"),"isvec":("SWE","Sweden"),"isveç":("SWE","Sweden"),
+                            "norway":("NOR","Norway"),"norvec":("NOR","Norway"),"norveç":("NOR","Norway"),
+                            "denmark":("DNK","Denmark"),"danimarka":("DNK","Denmark"),
+                            "finland":("FIN","Finland"),"finlandiya":("FIN","Finland"),
+                            "poland":("POL","Poland"),"polonya":("POL","Poland"),
+                            "czech":("CZE","Czech"),"cekya":("CZE","Czech"),"çekya":("CZE","Czech"),
+                            "hungary":("HUN","Hungary"),"macaristan":("HUN","Hungary"),
+                            "romania":("ROU","Romania"),"romanya":("ROU","Romania"),
+                            "croatia":("HRV","Croatia"),"hirvatistan":("HRV","Croatia"),"hırvatistan":("HRV","Croatia"),
+                            "bulgaria":("BGR","Bulgaria"),"bulgaristan":("BGR","Bulgaria"),
+                            "switzerland":("CHE","Switzerland"),"isvicre":("CHE","Switzerland"),"isviçre":("CHE","Switzerland"),
+                            "ireland":("IRL","Ireland"),"irlanda":("IRL","Ireland"),
+                            "iceland":("ISL","Iceland"),"izlanda":("ISL","Iceland"),
+                            "slovakia":("SVK","Slovakia"),"slovakya":("SVK","Slovakia"),
+                            "slovenia":("SVN","Slovenia"),"slovenya":("SVN","Slovenia"),
+                            "estonia":("EST","Estonia"),"estonya":("EST","Estonia"),
+                            "latvia":("LVA","Latvia"),"letonya":("LVA","Latvia"),
+                            "lithuania":("LTU","Lithuania"),"litvanya":("LTU","Lithuania"),
+                            "luxembourg":("LUX","Luxembourg"),"luksemburg":("LUX","Luxembourg"),"lüksemburg":("LUX","Luxembourg"),
+                            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus"),"kibris":("CYP","Cyprus"),"kıbrıs":("CYP","Cyprus")}
                         code = "DEU"
                         name = "Germany"
                         for key, (c, n) in schengen_map.items():
@@ -4714,12 +4780,20 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             print("[FORM-46] Dunya seyahat sayfasi degil, atlaniyor...")
         else:
             # lastTravels'dan EEA/US/CA/AU/NZ/CH/UK OLMAYAN ulkeleri bul
-            excluded = {"usa","america","united states","canada","australia","new zealand","newzealand",
-                "uk","united kingdom","england","switzerland",
-                "austria","belgium","bulgaria","croatia","cyprus","czechia","czech republic",
-                "denmark","estonia","finland","france","germany","greece","hungary","iceland","ireland",
-                "italy","latvia","liechtenstein","lithuania","luxembourg","malta","netherlands","norway",
-                "poland","portugal","romania","slovakia","slovenia","spain","sweden"}
+            excluded = {"usa","america","united states","abd","amerika",
+                "canada","kanada","australia","avustralya","new zealand","newzealand","yeni zelanda",
+                "uk","united kingdom","england","ingiltere","switzerland","isvicre","isviçre",
+                "austria","avusturya","belgium","belcika","belçika","bulgaria","bulgaristan",
+                "croatia","hirvatistan","hırvatistan","cyprus","kibris","kıbrıs","czechia","czech republic","cekya","çekya",
+                "denmark","danimarka","estonia","estonya","finland","finlandiya",
+                "france","fransa","germany","almanya","greece","yunanistan",
+                "hungary","macaristan","iceland","izlanda","ireland","irlanda",
+                "italy","italya","latvia","letonya","liechtenstein",
+                "lithuania","litvanya","luxembourg","luksemburg","lüksemburg",
+                "malta","netherlands","hollanda","norway","norvec","norveç",
+                "poland","polonya","portugal","portekiz","romania","romanya",
+                "slovakia","slovakya","slovenia","slovenya","spain","ispanya",
+                "sweden","isvec","isveç"}
 
             travels = form.last_travels
             other_travels = [t for t in travels if not any(ex in t.get("country","").strip().lower() for ex in excluded)]
