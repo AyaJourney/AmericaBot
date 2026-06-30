@@ -5377,6 +5377,26 @@ def fill_present_occupation_section(wait, driver, data):
     # ── NOT_EMPLOYED ──────────────────────────────────────────
     if occ in ("NOT_EMPLOYED", "N"):
         expl = (data.get("PRESENT_OCCUPATION_EXPLAIN") or "").strip() or "XXXXXXXXXX"
+
+        # Textarea'nın DOM'a gelmesini bekle
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+                ))
+            )
+            WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_FormView1_tbxExplainOtherPresentOccupation"
+                ))
+            )
+            time.sleep(1)
+            print("✅ NOT_EMPLOYED → Explain textarea görünür")
+        except Exception as e:
+            print(f"⚠️ NOT_EMPLOYED → Explain textarea beklenemedi: {e}")
+
         fill_explain_textarea(expl)
         return
 
