@@ -613,7 +613,15 @@ class VisaFormData:
         travels = self.step5.get("lastTravels", [])
         for t in travels:
             if t.get("country", "").strip():
-                result.append(t)
+                entry = dict(t)  # kopya al
+                # startDate/endDate varsa monthYear ve durationDays'i hesapla
+                start = entry.get("startDate", "") or entry.get("start_date", "") or entry.get("gidis_tarihi", "")
+                end = entry.get("endDate", "") or entry.get("end_date", "") or entry.get("donus_tarihi", "")
+                if start and not entry.get("monthYear"):
+                    entry["monthYear"] = start
+                if start and end and not entry.get("durationDays"):
+                    entry["durationDays"] = end  # handler parse edecek
+                result.append(entry)
         
         # YONTEM 2: Flat key'lerden (lastTravel1_country, lastTravel2_country, ...)
         if not result:
@@ -621,15 +629,24 @@ class VisaFormData:
                 country = self.step5.get(f"lastTravel{i}_country", "").strip()
                 if not country:
                     break
+                # Tarih icin birden fazla key dene
+                start = (self.step5.get(f"lastTravel{i}_startDate", "") or 
+                         self.step5.get(f"lastTravel{i}_start_date", "") or
+                         self.step5.get(f"lastTravel{i}_monthYear", "")).strip()
+                end = (self.step5.get(f"lastTravel{i}_endDate", "") or 
+                       self.step5.get(f"lastTravel{i}_end_date", "") or
+                       self.step5.get(f"lastTravel{i}_duration", "")).strip()
                 result.append({
                     "country": country,
                     "purpose": self.step5.get(f"lastTravel{i}_purpose", "").strip(),
-                    "monthYear": self.step5.get(f"lastTravel{i}_monthYear", "").strip(),
-                    "durationDays": self.step5.get(f"lastTravel{i}_duration", "").strip(),
+                    "monthYear": start,
+                    "durationDays": end,
                 })
         
         if result:
-            print(f"[DATA] {len(result)} seyahat bulundu: {[t['country'] for t in result]}")
+            print(f"[DATA] {len(result)} seyahat bulundu: {[t.get('country','?') for t in result]}")
+            for i, t in enumerate(result):
+                print(f"[DATA]   {i+1}. {t.get('country','')} | tarih={t.get('monthYear','')} | bitis={t.get('durationDays','')}")
         return result
 
     @property
@@ -4422,37 +4439,64 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                         time.sleep(0.5)
                         print(f"[FORM-34] Schengen ulke: {country} -> {code} ({name})")
 
-                    # Sebep
-                    reason_map = {"tourist":"tourist","turist":"tourist","is":"business","business":"business",
-                                  "work":"business","study":"study","transit":"transit"}
+                    # Sebep - Turkce destegi ekle
+                    reason_map = {"tourist":"tourist","turist":"tourist","turistik":"tourist",
+                                  "is":"business","business":"business","work":"business","fuar":"business","ticari":"business",
+                                  "study":"study","egitim":"study","eğitim":"study","education":"study",
+                                  "transit":"transit","gecis":"transit","geçiş":"transit",
+                                  "medical":"medicalTreatment","tedavi":"medicalTreatment",
+                                  "family":"visitingFamily","aile":"visitingFamily"}
                     reason_radio = "reasonRef_tourist"
                     for key, val in reason_map.items():
                         if key in purpose:
                             reason_radio = f"reasonRef_{val}"
                             break
                     set_radio(driver, reason_radio)
+                    print(f"[FORM-34] Sebep: {purpose} -> {reason_radio}")
 
-                    # Tarih (MM YYYY)
-                    if month_year:
-                        try:
-                            visit_dt = parse_date_safe(month_year, "EEA ziyaret")
-                        except:
-                            visit_dt = datetime.now() - relativedelta(years=1)
+                    # Tarih - CRM'den gelen startDate/monthYear'i parse et
+                    # Ayrica travel icinde startDate, start_date, gidis_tarihi de dene
+                    actual_date = (month_year or 
+                                   travel.get("startDate", "") or 
+                                   travel.get("start_date", "") or 
+                                   travel.get("gidis_tarihi", "")).strip()
+                    
+                    if actual_date:
+                        visit_dt = parse_date_safe(actual_date, f"EEA ziyaret {idx+1}")
                     else:
                         visit_dt = datetime.now() - relativedelta(years=1)
-                    set_input(driver, "date_month", str(visit_dt.month))
-                    set_input(driver, "date_year", str(visit_dt.year))
+                        print(f"[FORM-34] UYARI: Tarih bos, varsayilan kullaniliyor")
+                    
+                    # JS ile yaz (pre-fill 2020 yazmasin)
+                    driver.execute_script(f"""
+                        function setVal(id, val) {{
+                            var el = document.getElementById(id);
+                            if (!el) return;
+                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                            setter.call(el, String(val));
+                            el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                            el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                        }}
+                        setVal('date_month', '{visit_dt.month}');
+                        setVal('date_year', '{visit_dt.year}');
+                    """)
+                    print(f"[FORM-34] Tarih: {visit_dt.month}/{visit_dt.year} (kaynak: '{actual_date[:20]}')")
 
-                    # Sure - duration tarih olabilir (bitis tarihi) veya gun sayisi
+                    # Sure - endDate'den hesapla
+                    actual_end = (duration or
+                                  travel.get("endDate", "") or
+                                  travel.get("end_date", "") or
+                                  travel.get("donus_tarihi", "")).strip()
                     dur_days = 7
-                    if duration:
+                    if actual_end:
                         try:
-                            dur_days = int(duration)
+                            dur_days = int(actual_end)
                         except ValueError:
-                            # Tarih formati olabilir - bitis tarihi
+                            # Tarih formati - bitis tarihi olarak parse et
                             try:
-                                end_dt = parse_date_safe(duration, "EEA bitis")
+                                end_dt = parse_date_safe(actual_end, f"EEA bitis {idx+1}")
                                 dur_days = max(1, (end_dt - visit_dt).days)
+                                print(f"[FORM-34] Sure hesaplandi: {dur_days} gun ({actual_end[:15]})")
                             except:
                                 dur_days = 7
                     if dur_days < 1:
@@ -4854,10 +4898,11 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                                 break
                         set_select(driver, "whichCountry", code, country)
 
-                        # Sebep
-                        reason_map = {"tourism":"tourism","tourist":"tourism","turist":"tourism",
-                                      "business":"business","is":"business","work":"business",
-                                      "study":"study","transit":"transit"}
+                        # Sebep - Turkce destegi
+                        reason_map = {"tourism":"tourism","tourist":"tourism","turist":"tourism","turistik":"tourism",
+                                      "business":"business","is":"business","work":"business","ticari":"business","fuar":"business",
+                                      "study":"study","egitim":"study","eğitim":"study","education":"study",
+                                      "transit":"transit","gecis":"transit","geçiş":"transit"}
                         reason_val = "tourism"
                         for key, val in reason_map.items():
                             if key in purpose:
@@ -4865,24 +4910,31 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                                 break
                         set_radio(driver, f"reasonForVisit_{reason_val}")
 
-                        # Tarihler
-                        if month_year:
-                            try:
-                                visit_dt = parse_date_safe(month_year, "Diger ulke ziyaret")
-                            except:
-                                visit_dt = datetime.now() - relativedelta(years=1)
+                        # Tarihler - CRM'den gelen startDate'i parse et
+                        actual_date = (month_year or
+                                       travel.get("startDate", "") or
+                                       travel.get("start_date", "") or
+                                       travel.get("gidis_tarihi", "")).strip()
+                        if actual_date:
+                            visit_dt = parse_date_safe(actual_date, f"Diger ulke ziyaret {idx+1}")
                         else:
                             visit_dt = datetime.now() - relativedelta(years=1)
+                            print(f"[FORM-46] UYARI: Tarih bos, varsayilan kullaniliyor")
 
-                        # Sure - duration tarih olabilir (bitis tarihi) veya gun sayisi
+                        # Sure - endDate'den hesapla
+                        actual_end = (duration or
+                                      travel.get("endDate", "") or
+                                      travel.get("end_date", "") or
+                                      travel.get("donus_tarihi", "")).strip()
                         dur_days = 7
-                        if duration:
+                        if actual_end:
                             try:
-                                dur_days = int(duration)
+                                dur_days = int(actual_end)
                             except ValueError:
                                 try:
-                                    end_parsed = parse_date_safe(duration, "Diger ulke bitis")
+                                    end_parsed = parse_date_safe(actual_end, f"Diger ulke bitis {idx+1}")
                                     dur_days = max(1, (end_parsed - visit_dt).days)
+                                    print(f"[FORM-46] Sure hesaplandi: {dur_days} gun")
                                 except:
                                     dur_days = 7
                         if dur_days < 1:
