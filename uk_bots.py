@@ -3707,86 +3707,174 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             time.sleep(3)
             print("[FORM-26] Bakmakla yukumlu kisi tamamlandi!")
 
-            # Eger Yes secildiyse dependant detay sayfasi acilir - doldur
-            try:
-                time.sleep(1)
-                is_dep_detail = driver.execute_script("""
-                    var forms = document.querySelectorAll('form');
-                    for (var i = 0; i < forms.length; i++) {
-                        var action = (forms[i].getAttribute('action') || '').toLowerCase();
-                        if (action.includes('dependantslist')) return true;
-                    }
-                    return document.getElementById('dependantDetails') !== null;
-                """)
-                if is_dep_detail:
-                    print("[FORM-26b] Dependant detay sayfasi acildi, dolduruluyor...")
-
-                    # Iliski
-                    driver.execute_script("""
-                        var el = document.getElementById('relationship');
-                        if (el) { el.value = 'Spouse'; el.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-
-                    # Isim soyisim - partner bilgilerini kullan
-                    partner_full = form.partner_name if form.partner_name else "UNKNOWN UNKNOWN"
-                    parts = partner_full.split()
-                    given = " ".join(parts[:-1]) if len(parts) > 1 else parts[0]
-                    family = parts[-1] if len(parts) > 1 else "UNKNOWN"
-
-                    driver.execute_script(f"""
-                        var g = document.getElementById('givenName');
-                        if (g) {{ g.value = '{given}'; g.dispatchEvent(new Event('change', {{bubbles: true}})); }}
-                        var f = document.getElementById('familyName');
-                        if (f) {{ f.value = '{family}'; f.dispatchEvent(new Event('change', {{bubbles: true}})); }}
-                    """)
-
-                    # Dogum tarihi
-                    partner_dob = parse_date_safe(form.partner_birth_date, "Dep dogum")
-                    for fid, val in [("dateOfBirth_day", str(partner_dob.day)), ("dateOfBirth_month", str(partner_dob.month)), ("dateOfBirth_year", str(partner_dob.year))]:
-                        try:
-                            el = driver.find_element(By.ID, fid)
-                            driver.execute_script("arguments[0].value = '';", el)
-                            safe_click(driver, el)
-                            el.send_keys(val)
-                            time.sleep(0.1)
-                        except:
-                            driver.execute_script(f"var e=document.getElementById('{fid}'); if(e){{e.value='{val}'; e.dispatchEvent(new Event('change',{{bubbles:true}}));}}")
-
-                    # Birlikte yasiyor - Yes
-                    driver.execute_script("""
-                        var r = document.getElementById('livingWithApplicant_true');
-                        if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-                    time.sleep(0.5)
-
-                    # Seyahat - No
-                    driver.execute_script("""
-                        var r = document.getElementById('travelling_false');
-                        if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
-                    """)
-                    time.sleep(0.5)
-
-                    click_submit(driver, wait)
-                    time.sleep(3)
-                    print("[FORM-26b] Dependant detay tamamlandi!")
-
-                    # Baska dependant ekle - No
-                    try:
-                        time.sleep(1)
-                        has_add = driver.find_element(By.ID, "addAnother_false")
-                        if has_add:
-                            driver.execute_script("""
-                                var r = document.getElementById('addAnother_false');
-                                if (r) { r.checked = true; r.click(); r.dispatchEvent(new Event('change', {bubbles: true})); }
+            # Eger Yes secildiyse dependant detay sayfasi acilir - cocuklari gir
+            if radio_id == "value_true":
+                try:
+                    time.sleep(2)
+                    
+                    # CRM'den cocuk bilgilerini al
+                    children = form.children
+                    print(f"[FORM-26b] CRM'den {len(children)} cocuk bulundu")
+                    
+                    # Cocuk yoksa step4'ten dependant bilgisi dene
+                    if not children:
+                        dep_name = form.step4.get("dependant_name", "").strip()
+                        dep_dob = form.step4.get("dependant_birth_date", "").strip()
+                        dep_rel = form.step4.get("dependant_relationship", "").strip()
+                        if dep_name:
+                            children = [{"name": dep_name, "birth_date": dep_dob, "relationship": dep_rel}]
+                            print(f"[FORM-26b] Step4'ten dependant: {dep_name}")
+                    
+                    if not children:
+                        print("[FORM-26b] Cocuk/dependant bilgisi yok, submit ile geciliyor...")
+                        click_submit(driver, wait)
+                        time.sleep(3)
+                    else:
+                        for child_idx, child in enumerate(children):
+                            time.sleep(1)
+                            
+                            # Detay sayfasi acik mi kontrol et
+                            is_dep_detail = driver.execute_script("""
+                                var forms = document.querySelectorAll('form');
+                                for (var i = 0; i < forms.length; i++) {
+                                    var action = (forms[i].getAttribute('action') || '').toLowerCase();
+                                    if (action.includes('dependantslist') || action.includes('dependant')) return true;
+                                }
+                                return document.getElementById('relationship') !== null;
                             """)
-                            time.sleep(0.5)
+                            if not is_dep_detail:
+                                print(f"[FORM-26b] Detay sayfasi degil, atlaniyor...")
+                                break
+                            
+                            print(f"[FORM-26b] Cocuk {child_idx+1}/{len(children)} giriliyor...")
+                            
+                            # Iliski - Child (cocuk icin)
+                            child_rel = child.get("relationship", "").strip().upper()
+                            if child_rel in ("SPOUSE", "ES", "EŞ"):
+                                rel_val = "Spouse"
+                            elif child_rel in ("PARENT", "ANNE", "BABA"):
+                                rel_val = "Parent"
+                            else:
+                                rel_val = "Child"
+                            
+                            driver.execute_script(f"""
+                                var el = document.getElementById('relationship');
+                                if (el) {{
+                                    // Secenekleri kontrol et
+                                    var opts = el.querySelectorAll('option');
+                                    var found = false;
+                                    for (var i = 0; i < opts.length; i++) {{
+                                        if (opts[i].value === '{rel_val}' || opts[i].textContent.trim().toLowerCase().includes('{rel_val.lower()}')) {{
+                                            el.value = opts[i].value;
+                                            found = true;
+                                            break;
+                                        }}
+                                    }}
+                                    if (!found) {{
+                                        // Value olarak direkt dene
+                                        el.value = '{rel_val}';
+                                    }}
+                                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                }}
+                            """)
+                            print(f"[FORM-26b] Iliski: {rel_val}")
+                            time.sleep(0.3)
+                            
+                            # Isim soyisim
+                            child_name = child.get("name", "").strip()
+                            if not child_name:
+                                child_name = "UNKNOWN UNKNOWN"
+                            parts = child_name.split()
+                            given = parts[0] if parts else "UNKNOWN"
+                            family = " ".join(parts[1:]) if len(parts) > 1 else form.last_name or "UNKNOWN"
+                            
+                            driver.execute_script(f"""
+                                var g = document.getElementById('givenName');
+                                if (g) {{
+                                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                    setter.call(g, '{given.replace("'", "")}');
+                                    g.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                    g.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                }}
+                                var f = document.getElementById('familyName');
+                                if (f) {{
+                                    var setter2 = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                    setter2.call(f, '{family.replace("'", "")}');
+                                    f.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                    f.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                }}
+                            """)
+                            print(f"[FORM-26b] Isim: {given} {family}")
+                            time.sleep(0.3)
+                            
+                            # Dogum tarihi - JS ile yaz
+                            child_dob_str = child.get("birth_date", "").strip()
+                            child_dob = parse_date_safe(child_dob_str, f"Cocuk {child_idx+1} dogum")
+                            
+                            driver.execute_script(f"""
+                                function setVal(id, val) {{
+                                    var el = document.getElementById(id);
+                                    if (!el) return;
+                                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                    setter.call(el, String(val));
+                                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                }}
+                                setVal('dateOfBirth_day', '{child_dob.day}');
+                                setVal('dateOfBirth_month', '{child_dob.month}');
+                                setVal('dateOfBirth_year', '{child_dob.year}');
+                            """)
+                            print(f"[FORM-26b] Dogum: {child_dob.day}/{child_dob.month}/{child_dob.year}")
+                            time.sleep(0.3)
+                            
+                            # Birlikte yasiyor mu
+                            lives_with = child.get("lives_with", True)
+                            if lives_with:
+                                set_radio(driver, "livingWithApplicant_true")
+                            else:
+                                set_radio(driver, "livingWithApplicant_false")
+                            print(f"[FORM-26b] Birlikte yasiyor: {lives_with}")
+                            time.sleep(0.3)
+                            
+                            # Seyahat ediyor mu
+                            travels_with = child.get("travels_with", False)
+                            if travels_with:
+                                set_radio(driver, "travelling_true")
+                            else:
+                                set_radio(driver, "travelling_false")
+                            print(f"[FORM-26b] Seyahat: {travels_with}")
+                            time.sleep(0.3)
+                            
                             click_submit(driver, wait)
                             time.sleep(3)
-                            print("[FORM-26c] Baska dependant: No")
+                            print(f"[FORM-26b] Cocuk {child_idx+1} tamamlandi!")
+                            
+                            # Baska dependant ekle?
+                            try:
+                                time.sleep(1)
+                                has_add = driver.find_element(By.ID, "addAnother_false")
+                                if has_add:
+                                    if child_idx < len(children) - 1:
+                                        # Daha cocuk var - Yes
+                                        set_radio(driver, "addAnother_true")
+                                        print(f"[FORM-26c] Baska dependant: Yes (siradaki cocuk)")
+                                        click_submit(driver, wait)
+                                        time.sleep(3)
+                                    else:
+                                        # Son cocuk - No
+                                        set_radio(driver, "addAnother_false")
+                                        print(f"[FORM-26c] Baska dependant: No")
+                                        click_submit(driver, wait)
+                                        time.sleep(3)
+                            except:
+                                pass
+                except Exception as e:
+                    print(f"[FORM-26b] Dependant hatasi: {e}")
+                    try:
+                        click_submit(driver, wait)
+                        time.sleep(3)
                     except:
                         pass
-            except:
-                pass
 
     # ===== SAYFA 27: Ebeveyn 1 (Baba) =====
     elif page == "parent_one":
