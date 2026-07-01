@@ -2479,8 +2479,12 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
         issuing_country = wait.until(EC.presence_of_element_located((By.ID, "issuingCountry")))
         issuing_country.clear()
-        issuing_country.send_keys("MINISTRY OF INTERIOR - DIRECTORATE GENERAL FOR CIVIL REGISTRY AND CITIZENSHIP")
-        print("[FORM-12b] Verildigi yer: MINISTRY OF INTERIOR (sabit)")
+        # CRM'den passport_issuing_authority - kullanici ne yazdiysa o
+        passport_authority = form.passport_authority
+        if not passport_authority:
+            passport_authority = "NUFUS MUDURLUGU"
+        issuing_country.send_keys(passport_authority[:255])
+        print(f"[FORM-12b] Pasaport veren makam: {passport_authority[:50]}")
         time.sleep(0.3)
 
         issue_date = parse_date_safe(form.passport_start_date, "Pasaport verilis tarihi")
@@ -2569,9 +2573,12 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             set_input(driver, "nationalIdCardNo", form.tc_id, wait)
             print(f"[FORM-13] Kimlik no: {form.tc_id}")
             
-            # Veren makam
-            set_input(driver, "issuingAuthority", form.home_district or "NUFUS MUDURLUGU", wait)
-            print(f"[FORM-13] Veren makam: {form.home_district or 'NUFUS MUDURLUGU'}")
+            # Veren makam - CRM'den direkt al
+            id_authority = (form.step3.get("tc_issuing_authority", "") or 
+                           form.step3.get("id_issuing_authority", "") or
+                           form.passport_authority or "NUFUS MUDURLUGU").strip()
+            set_input(driver, "issuingAuthority", id_authority, wait)
+            print(f"[FORM-13] Kimlik veren makam: {id_authority}")
             
             # Verilis tarihi
             if form.birth_date:
@@ -2607,7 +2614,10 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             return
         print("[FORM-13b] Kimlik karti detaylari (ayri sayfa)...")
         set_input(driver, "nationalIdCardNo", form.tc_id, wait)
-        set_input(driver, "issuingAuthority", form.home_district or "NUFUS MUDURLUGU", wait)
+        id_authority2 = (form.step3.get("tc_issuing_authority", "") or
+                        form.step3.get("id_issuing_authority", "") or
+                        form.passport_authority or "NUFUS MUDURLUGU").strip()
+        set_input(driver, "issuingAuthority", id_authority2, wait)
         if form.birth_date:
             id_issue = parse_date_safe(form.birth_date, "Kimlik verilis")
         else:
