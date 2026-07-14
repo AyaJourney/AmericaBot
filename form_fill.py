@@ -2483,84 +2483,10 @@ def fill_travel_companions(wait, driver, data):
         print(f"✅ Companion {i+1} dolduruldu: {given} {surname}")
 
     print("🟢 Travel Companions TAMAMLANDI")
-import time
-from datetime import date as dt, timedelta
+def fill_single_us_visit(wait, driver, data, index=1):
+    from datetime import date as dt, timedelta
 
-
-MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-          "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
-
-MONTH_NAME_TO_NUM = {m: i + 1 for i, m in enumerate(MONTHS)}
-
-MAX_DS160_VISITS = 5  # DS-160 formu "last five U.S. visits" diyor, sayfa 5 ile sınırlı
-
-
-def parse_any_date(raw: str):
-    """
-    Birden fazla olası formatı deneyerek raw string'i date objesine çevirir.
-    Desteklenen formatlar: DD-MMM-YYYY, DD/MM/YYYY, DD.MM.YYYY, YYYY-MM-DD,
-    DD-MM-YYYY. Başarısız olursa None döner.
-    """
-    raw = raw.strip()
-    if not raw:
-        return None
-
-    parts = raw.replace("/", "-").replace(".", "-").split("-")
-    if len(parts) == 3:
-        a, b, c = parts
-
-        # 1) DD-MMM-YYYY  (örn: 15-MAY-2024)
-        if b.upper() in MONTH_NAME_TO_NUM:
-            try:
-                return dt(int(c), MONTH_NAME_TO_NUM[b.upper()], int(a))
-            except Exception:
-                pass
-
-        # 2) YYYY-MM-DD (ISO)
-        if len(a) == 4:
-            try:
-                return dt(int(a), int(b), int(c))
-            except Exception:
-                pass
-
-        # 3) DD-MM-YYYY
-        if len(c) == 4:
-            try:
-                return dt(int(c), int(b), int(a))
-            except Exception:
-                pass
-
-    return None
-
-
-def to_ds160_date(d):
-    return f"{d.day:02d}-{MONTHS[d.month - 1]}-{d.year}"
-
-
-def get_current_visit_ctl(driver):
-    """
-    Sayfada şu an AKTİF (doldurulabilir) tek Previous US Visit satırının
-    ctl kimliğini "Add Another" linkinin gerçek ID'sinden dinamik olarak bulur.
-    DS-160 bu bölümde her seferinde SADECE TEK satır gösterir; ctl00/ctl01
-    diye sıralı gitmesini varsaymak güvenli değil, DOM'dan okumak lazım.
-    """
-    els = driver.find_elements(
-        By.XPATH,
-        "//*[contains(@id,'_dtlPREV_US_VISIT_') and contains(@id,'_InsertButtonPREV_US_VISIT')]"
-    )
-    if not els:
-        return None
-    full_id = els[0].get_attribute("id")
-    marker = "_dtlPREV_US_VISIT_"
-    idx = full_id.find(marker)
-    if idx == -1:
-        return None
-    rest = full_id[idx + len(marker):]
-    return rest.split("_")[0]  # örn: "ctl00"
-
-
-def fill_single_us_visit(wait, driver, data, index, ctl):
-    date_raw = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
+    date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
     length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
     unit_raw = str(data.get(f"VISIT{index}_STAY_UNIT", "M")).strip().upper()
 
@@ -2569,50 +2495,88 @@ def fill_single_us_visit(wait, driver, data, index, ctl):
         "MONTH": "M", "MONTHS": "M", "M": "M",
         "WEEK": "W", "WEEKS": "W", "W": "W",
         "DAY": "D", "DAYS": "D", "D": "D",
-        "HOUR": "H", "HOURS": "H", "H": "H",
     }
     unit = unit_map.get(unit_raw, "M")
 
+    # Length boşsa fallback
     if not length:
         length = "1"
         print(f"⚠️ VISIT{index} stay length boş → 1 yazıldı")
 
-    # ── Tarihi TEK noktadan, sağlam şekilde çöz ──────────────────
-    parsed = parse_any_date(date_raw) if date_raw else None
+    MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
 
-    if parsed is None:
-        parsed = dt.today() - timedelta(days=365)
-        print(f"⚠️ VISIT{index} tarih boş/hatalı ('{date_raw}') → fallback: {to_ds160_date(parsed)}")
-    elif parsed >= dt.today():
-        print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({to_ds160_date(parsed)}) → düzeltiliyor")
-        parsed = dt.today() - timedelta(days=2)
+    def to_ds160_date(d):
+        return f"{d.day:02d}-{MONTHS[d.month-1]}-{d.year}"
 
-    day = parsed.day          # HTML'de value zero-pad değil: value="14"
-    month_num = parsed.month  # HTML'de value="7" (JUL) gibi zero-pad değil
-    year = parsed.year
+    def parse_ds160_date(s):
+        """DD-MMM-YYYY → date objesi"""
+        try:
+            parts = s.split("-")
+            if len(parts) != 3:
+                return None
+            day = int(parts[0])
+            month = MONTHS.index(parts[1].upper()) + 1
+            year = int(parts[2])
+            return dt(year, month, day)
+        except Exception:
+            return None
 
-    base = f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}"
+    # Tarih boşsa → 1 yıl önce
+    if not date:
+        fallback = dt.today() - timedelta(days=365)
+        date = to_ds160_date(fallback)
+        print(f"⚠️ VISIT{index} tarih boş → fallback: {date}")
+    else:
+        # Tarih bugün veya gelecekteyse → dün yaz
+        parsed = parse_ds160_date(date)
+        if parsed and parsed >= dt.today():
+            yesterday = dt.today() - timedelta(days=2)
+            print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({date}) → {to_ds160_date(yesterday)}")
+            date = to_ds160_date(yesterday)
+
+    parts = date.split("-")
+    if len(parts) != 3:
+        print(f"⚠️ VISIT{index} tarih formatı hatalı: {date}, atlanıyor")
+        return
+
+    day, month, year = parts
+    month_map = {
+        "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
+        "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
+        "SEP": "9", "OCT": "10", "NOV": "11", "DEC": "12",
+        "01": "1", "02": "2", "03": "3", "04": "4",
+        "05": "5", "06": "6", "07": "7", "08": "8",
+        "09": "9", "10": "10", "11": "11", "12": "12",
+        "1": "1", "2": "2", "3": "3", "4": "4",
+        "5": "5", "6": "6", "7": "7", "8": "8", "9": "9",
+    }
+
+    if month.upper() not in month_map:
+        print(f"⚠️ VISIT{index} ay değeri tanımsız: {month}, atlanıyor")
+        return
+
+    ctl = f"ctl{str(index - 1).zfill(2)}"
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"{base}_ddlPREV_US_VISIT_DTEDay")
-    ))).select_by_value(str(day))
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEDay")
+    ))).select_by_value(str(int(day)))
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"{base}_ddlPREV_US_VISIT_DTEMonth")
-    ))).select_by_value(str(month_num))
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEMonth")
+    ))).select_by_value(month_map[month.upper()])
 
     year_el = wait.until(EC.presence_of_element_located(
-        (By.ID, f"{base}_tbxPREV_US_VISIT_DTEYear")
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear")
     ))
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
         arguments[0].removeAttribute('readonly');
         arguments[0].value = '';
     """, year_el)
-    year_el.send_keys(str(year))
+    year_el.send_keys(year)
 
     los_el = wait.until(EC.presence_of_element_located(
-        (By.ID, f"{base}_tbxPREV_US_VISIT_LOS")
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_LOS")
     ))
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
@@ -2622,12 +2586,10 @@ def fill_single_us_visit(wait, driver, data, index, ctl):
     los_el.send_keys(length)
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"{base}_ddlPREV_US_VISIT_LOS_CD")
+        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_LOS_CD")
     ))).select_by_value(unit)
 
-    print(f"✅ US Visit {index} girildi ({ctl}): {to_ds160_date(parsed)}, {length} {unit}")
-
-
+    print(f"✅ US Visit {index} girildi ({ctl}): {date}, {length} {unit}")
 def fill_previous_us_travel(wait, driver, data):
     prev = data.get("PREV_US_TRAVEL", "NO").strip().upper()
 
@@ -2648,56 +2610,46 @@ def fill_previous_us_travel(wait, driver, data):
 
     # ── Ziyaret sayısını hesapla ──────────────────────────
     requested = int(data.get("PREV_US_VISITS", 1) or 1)
-    scan_upper_bound = max(requested, 20)
 
+    # Tarih VEYA stay length varsa say — tarih boş olsa bile
     actual_visits = 0
-    for i in range(1, scan_upper_bound + 1):
-        has_date = bool(data.get(f"VISIT{i}_ARRIVAL_DATE", "").strip())
+    for i in range(1, requested + 1):
+        has_date   = bool(data.get(f"VISIT{i}_ARRIVAL_DATE", "").strip())
         has_length = bool(data.get(f"VISIT{i}_STAY_LENGTH", "").strip())
         if has_date or has_length:
             actual_visits = i
+        else:
+            break
 
+    # Hiç veri yoksa bile 1 tane doldur
     visits = max(actual_visits, 1) if requested >= 1 else 1
-    if visits > MAX_DS160_VISITS:
-        print(f"⚠️ {visits} ziyaret istendi ama DS-160 en fazla {MAX_DS160_VISITS} kabul ediyor → {MAX_DS160_VISITS}'e düşürüldü")
-        visits = MAX_DS160_VISITS
-
     print(f"ℹ️ PREV_US_VISITS={requested}, gerçek veri={actual_visits}, kullanılan={visits}")
 
-    # ── DS-160 bu bölümde HER ZAMAN TEK bir aktif satır gösterir. ──
-    # "Add Another" tıklanınca o satır kaydedilir/özet olur ve YENİ
-    # satır açılır. Bu yüzden: doldur → Add Another'a bas → yeni
-    # satırın ctl'i DEĞİŞTİ mi diye bekle → tekrar doldur ...
+    # ── Sayfada kaç satır mevcut? ─────────────────────────
+    existing_rows = 0
+    while True:
+        ctl = f"ctl{str(existing_rows).zfill(2)}"
+        els = driver.find_elements(
+            By.ID,
+            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear"
+        )
+        if not els:
+            break
+        existing_rows += 1
+    print(f"ℹ️ Sayfada {existing_rows} mevcut satır, {visits} gerekli")
+
+    # ── Eksik kadar Insert'e tıkla ────────────────────────
+    for i in range(existing_rows, visits):
+        ctl = f"ctl{str(i - 1).zfill(2)}"
+        wait.until(EC.element_to_be_clickable((By.ID,
+            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
+        ))).click()
+        print(f"✅ Visit satırı {i + 1} eklendi")
+        time.sleep(2)
+
+    # ── Hepsini doldur ────────────────────────────────────
     for i in range(1, visits + 1):
-        ctl = get_current_visit_ctl(driver)
-        if ctl is None:
-            print(f"❌ VISIT{i} için aktif satır (Add Another linki) bulunamadı, durduruluyor")
-            break
-
-        try:
-            fill_single_us_visit(wait, driver, data, index=i, ctl=ctl)
-        except Exception as e:
-            print(f"❌ VISIT{i} girilirken hata: {e} → durduruluyor")
-            break
-
-        if i < visits:
-            try:
-                add_link = wait.until(EC.element_to_be_clickable((
-                    By.ID,
-                    f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
-                )))
-                add_link.click()
-            except Exception as e:
-                print(f"❌ VISIT{i + 1} için 'Add Another' tıklanamadı: {e} → durduruluyor")
-                break
-
-            try:
-                wait.until(lambda d: get_current_visit_ctl(d) != ctl)
-            except Exception:
-                print(f"❌ VISIT{i + 1} için yeni satır postback sonrası açılmadı → durduruluyor")
-                break
-
-            time.sleep(1)  # postback'in tam oturması için kısa bekleme
+        fill_single_us_visit(wait, driver, data, index=i)
 
     # ── Public school sorusu (F vizesi için) ──────────────
     try:
@@ -2728,6 +2680,7 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
+
 
 
 
