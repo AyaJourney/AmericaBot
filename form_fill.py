@@ -2492,6 +2492,8 @@ MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
 
 MONTH_NAME_TO_NUM = {m: i + 1 for i, m in enumerate(MONTHS)}
 
+MAX_DS160_VISITS = 5  # DS-160 formu "last five U.S. visits" diyor, sayfa 5 ile sınırlı
+
 
 def parse_any_date(raw: str):
     """
@@ -2503,19 +2505,16 @@ def parse_any_date(raw: str):
     if not raw:
         return None
 
-    # 1) DD-MMM-YYYY  (örn: 15-MAY-2024)
     parts = raw.replace("/", "-").replace(".", "-").split("-")
     if len(parts) == 3:
         a, b, c = parts
-        # Ay isim olarak mı geldi? (herhangi bir konumda olabilir)
-        for candidate, day_str, year_str in (
-            (b, a, c),  # DD-MMM-YYYY
-        ):
-            if candidate.upper() in MONTH_NAME_TO_NUM:
-                try:
-                    return dt(int(year_str), MONTH_NAME_TO_NUM[candidate.upper()], int(day_str))
-                except Exception:
-                    pass
+
+        # 1) DD-MMM-YYYY  (örn: 15-MAY-2024)
+        if b.upper() in MONTH_NAME_TO_NUM:
+            try:
+                return dt(int(c), MONTH_NAME_TO_NUM[b.upper()], int(a))
+            except Exception:
+                pass
 
         # 2) YYYY-MM-DD (ISO)
         if len(a) == 4:
@@ -2538,7 +2537,29 @@ def to_ds160_date(d):
     return f"{d.day:02d}-{MONTHS[d.month - 1]}-{d.year}"
 
 
-def fill_single_us_visit(wait, driver, data, index=1):
+def get_current_visit_ctl(driver):
+    """
+    Sayfada şu an AKTİF (doldurulabilir) tek Previous US Visit satırının
+    ctl kimliğini "Add Another" linkinin gerçek ID'sinden dinamik olarak bulur.
+    DS-160 bu bölümde her seferinde SADECE TEK satır gösterir; ctl00/ctl01
+    diye sıralı gitmesini varsaymak güvenli değil, DOM'dan okumak lazım.
+    """
+    els = driver.find_elements(
+        By.XPATH,
+        "//*[contains(@id,'_dtlPREV_US_VISIT_') and contains(@id,'_InsertButtonPREV_US_VISIT')]"
+    )
+    if not els:
+        return None
+    full_id = els[0].get_attribute("id")
+    marker = "_dtlPREV_US_VISIT_"
+    idx = full_id.find(marker)
+    if idx == -1:
+        return None
+    rest = full_id[idx + len(marker):]
+    return rest.split("_")[0]  # örn: "ctl00"
+
+
+def fill_single_us_visit(wait, driver, data, index, ctl):
     date_raw = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
     length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
     unit_raw = str(data.get(f"VISIT{index}_STAY_UNIT", "M")).strip().upper()
@@ -2548,6 +2569,7 @@ def fill_single_us_visit(wait, driver, data, index=1):
         "MONTH": "M", "MONTHS": "M", "M": "M",
         "WEEK": "W", "WEEKS": "W", "W": "W",
         "DAY": "D", "DAYS": "D", "D": "D",
+        "HOUR": "H", "HOURS": "H", "H": "H",
     }
     unit = unit_map.get(unit_raw, "M")
 
@@ -2559,30 +2581,28 @@ def fill_single_us_visit(wait, driver, data, index=1):
     parsed = parse_any_date(date_raw) if date_raw else None
 
     if parsed is None:
-        # Ayrıştırılamadıysa (boş / bozuk format) → 1 yıl önce fallback
         parsed = dt.today() - timedelta(days=365)
         print(f"⚠️ VISIT{index} tarih boş/hatalı ('{date_raw}') → fallback: {to_ds160_date(parsed)}")
     elif parsed >= dt.today():
-        # Bugün veya gelecekteyse → 2 gün önce
         print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({to_ds160_date(parsed)}) → düzeltiliyor")
         parsed = dt.today() - timedelta(days=2)
 
-    day = parsed.day
-    month_num = parsed.month
+    day = parsed.day          # HTML'de value zero-pad değil: value="14"
+    month_num = parsed.month  # HTML'de value="7" (JUL) gibi zero-pad değil
     year = parsed.year
 
-    ctl = f"ctl{str(index - 1).zfill(2)}"
+    base = f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}"
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEDay")
+        (By.ID, f"{base}_ddlPREV_US_VISIT_DTEDay")
     ))).select_by_value(str(day))
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEMonth")
+        (By.ID, f"{base}_ddlPREV_US_VISIT_DTEMonth")
     ))).select_by_value(str(month_num))
 
     year_el = wait.until(EC.presence_of_element_located(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear")
+        (By.ID, f"{base}_tbxPREV_US_VISIT_DTEYear")
     ))
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
@@ -2592,7 +2612,7 @@ def fill_single_us_visit(wait, driver, data, index=1):
     year_el.send_keys(str(year))
 
     los_el = wait.until(EC.presence_of_element_located(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_LOS")
+        (By.ID, f"{base}_tbxPREV_US_VISIT_LOS")
     ))
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
@@ -2602,7 +2622,7 @@ def fill_single_us_visit(wait, driver, data, index=1):
     los_el.send_keys(length)
 
     Select(wait.until(EC.element_to_be_clickable(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_LOS_CD")
+        (By.ID, f"{base}_ddlPREV_US_VISIT_LOS_CD")
     ))).select_by_value(unit)
 
     print(f"✅ US Visit {index} girildi ({ctl}): {to_ds160_date(parsed)}, {length} {unit}")
@@ -2627,73 +2647,57 @@ def fill_previous_us_travel(wait, driver, data):
         return
 
     # ── Ziyaret sayısını hesapla ──────────────────────────
-    # Not: requested sadece bir üst sınır / ipucu. Gerçek sayıyı veriden
-    # tespit ederken aradaki bir boşlukta erken durmuyoruz — tüm indexleri
-    # tarayıp veri olan EN YÜKSEK index'i alıyoruz. Böylece
-    # PREV_US_VISITS alanı yanlış/eksik gelse bile veri kaybolmaz.
     requested = int(data.get("PREV_US_VISITS", 1) or 1)
-    scan_upper_bound = max(requested, 20)  # güvenlik için makul bir üst sınır
+    scan_upper_bound = max(requested, 20)
 
     actual_visits = 0
-    missing_gap_indexes = []
     for i in range(1, scan_upper_bound + 1):
         has_date = bool(data.get(f"VISIT{i}_ARRIVAL_DATE", "").strip())
         has_length = bool(data.get(f"VISIT{i}_STAY_LENGTH", "").strip())
         if has_date or has_length:
             actual_visits = i
-        elif i <= requested:
-            missing_gap_indexes.append(i)
-
-    if missing_gap_indexes:
-        print(f"⚠️ Şu index'lerde veri yok ama aralarında veri bulundu: {missing_gap_indexes}")
 
     visits = max(actual_visits, 1) if requested >= 1 else 1
+    if visits > MAX_DS160_VISITS:
+        print(f"⚠️ {visits} ziyaret istendi ama DS-160 en fazla {MAX_DS160_VISITS} kabul ediyor → {MAX_DS160_VISITS}'e düşürüldü")
+        visits = MAX_DS160_VISITS
+
     print(f"ℹ️ PREV_US_VISITS={requested}, gerçek veri={actual_visits}, kullanılan={visits}")
 
-    # ── Satır var mı kontrolü ──────────────────────────────
-    def row_exists(ctl):
-        return bool(driver.find_elements(
-            By.ID,
-            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear"
-        ))
-
-    # ── KRİTİK DÜZELTME ────────────────────────────────────
-    # Önceki versiyon önce TÜM satırları insert edip sonra hepsini
-    # dolduruyordu. Fakat DS-160'ta "Add Another" tıklanınca site,
-    # o ana kadar girilmiş satırı salt-okunur/özet görünüme çeviriyor
-    # ve YENİ satırı o anda açıyor. Yani toplu insert yapılırsa,
-    # 2. insert tıklandığı anda 1. satırın input alanları artık mevcut
-    # olmuyor/değişiyor ve script sadece en son satırı bulup dolduruyor.
-    #
-    # Doğrusu: doldur → insert et → doldur → insert et ... şeklinde
-    # sırayla, iç içe ilerlemek.
+    # ── DS-160 bu bölümde HER ZAMAN TEK bir aktif satır gösterir. ──
+    # "Add Another" tıklanınca o satır kaydedilir/özet olur ve YENİ
+    # satır açılır. Bu yüzden: doldur → Add Another'a bas → yeni
+    # satırın ctl'i DEĞİŞTİ mi diye bekle → tekrar doldur ...
     for i in range(1, visits + 1):
-        ctl = f"ctl{str(i - 1).zfill(2)}"
-
-        if not row_exists(ctl):
-            prev_ctl = f"ctl{str(i - 2).zfill(2)}"
-            try:
-                wait.until(EC.element_to_be_clickable((By.ID,
-                    f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{prev_ctl}_InsertButtonPREV_US_VISIT"
-                ))).click()
-            except Exception as e:
-                print(f"❌ VISIT{i} için Insert butonu bulunamadı/tıklanamadı ({prev_ctl}): {e} → durduruluyor")
-                break
-
-            try:
-                wait.until(lambda d: row_exists(ctl))
-            except Exception:
-                print(f"❌ VISIT{i} için yeni satır ({ctl}) postback sonrası oluşmadı → durduruluyor")
-                break
-
-            print(f"✅ Visit satırı {i} eklendi ({ctl})")
-            time.sleep(1)  # postback'in tamamen oturması için kısa bekleme
+        ctl = get_current_visit_ctl(driver)
+        if ctl is None:
+            print(f"❌ VISIT{i} için aktif satır (Add Another linki) bulunamadı, durduruluyor")
+            break
 
         try:
-            fill_single_us_visit(wait, driver, data, index=i)
+            fill_single_us_visit(wait, driver, data, index=i, ctl=ctl)
         except Exception as e:
-            print(f"❌ VISIT{i} girilirken hata: {e} → devam ediliyor")
-            continue
+            print(f"❌ VISIT{i} girilirken hata: {e} → durduruluyor")
+            break
+
+        if i < visits:
+            try:
+                add_link = wait.until(EC.element_to_be_clickable((
+                    By.ID,
+                    f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
+                )))
+                add_link.click()
+            except Exception as e:
+                print(f"❌ VISIT{i + 1} için 'Add Another' tıklanamadı: {e} → durduruluyor")
+                break
+
+            try:
+                wait.until(lambda d: get_current_visit_ctl(d) != ctl)
+            except Exception:
+                print(f"❌ VISIT{i + 1} için yeni satır postback sonrası açılmadı → durduruluyor")
+                break
+
+            time.sleep(1)  # postback'in tam oturması için kısa bekleme
 
     # ── Public school sorusu (F vizesi için) ──────────────
     try:
