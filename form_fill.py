@@ -2486,8 +2486,8 @@ def fill_travel_companions(wait, driver, data):
 def fill_single_us_visit(wait, driver, data, index=1):
     from datetime import date as dt, timedelta
 
-    date   = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
-    length = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
+    date     = data.get(f"VISIT{index}_ARRIVAL_DATE", "").strip()
+    length   = data.get(f"VISIT{index}_STAY_LENGTH", "").strip()
     unit_raw = str(data.get(f"VISIT{index}_STAY_UNIT", "M")).strip().upper()
 
     unit_map = {
@@ -2498,7 +2498,6 @@ def fill_single_us_visit(wait, driver, data, index=1):
     }
     unit = unit_map.get(unit_raw, "M")
 
-    # Length boşsa fallback
     if not length:
         length = "1"
         print(f"⚠️ VISIT{index} stay length boş → 1 yazıldı")
@@ -2509,7 +2508,6 @@ def fill_single_us_visit(wait, driver, data, index=1):
         return f"{d.day:02d}-{MONTHS[d.month-1]}-{d.year}"
 
     def parse_ds160_date(s):
-        """DD-MMM-YYYY → date objesi"""
         try:
             parts = s.split("-")
             if len(parts) != 3:
@@ -2521,18 +2519,16 @@ def fill_single_us_visit(wait, driver, data, index=1):
         except Exception:
             return None
 
-    # Tarih boşsa → 1 yıl önce
     if not date:
         fallback = dt.today() - timedelta(days=365)
         date = to_ds160_date(fallback)
         print(f"⚠️ VISIT{index} tarih boş → fallback: {date}")
     else:
-        # Tarih bugün veya gelecekteyse → dün yaz
         parsed = parse_ds160_date(date)
         if parsed and parsed >= dt.today():
-            yesterday = dt.today() - timedelta(days=2)
-            print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({date}) → {to_ds160_date(yesterday)}")
-            date = to_ds160_date(yesterday)
+            two_days_ago = dt.today() - timedelta(days=2)
+            print(f"⚠️ VISIT{index} tarih bugün/gelecekte ({date}) → {to_ds160_date(two_days_ago)}")
+            date = to_ds160_date(two_days_ago)
 
     parts = date.split("-")
     if len(parts) != 3:
@@ -2557,34 +2553,68 @@ def fill_single_us_visit(wait, driver, data, index=1):
 
     ctl = f"ctl{str(index - 1).zfill(2)}"
 
+    # Sayfanın tam hazır olmasını bekle
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    time.sleep(0.3)
+
+    # DAY
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEDay")
     ))).select_by_value(str(int(day)))
+    time.sleep(0.2)
 
+    # MONTH
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_DTEMonth")
     ))).select_by_value(month_map[month.upper()])
+    time.sleep(0.2)
 
-    year_el = wait.until(EC.presence_of_element_located(
+    # YEAR
+    year_el = wait.until(EC.element_to_be_clickable(
         (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_DTEYear")
     ))
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", year_el)
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
         arguments[0].removeAttribute('readonly');
         arguments[0].value = '';
     """, year_el)
     year_el.send_keys(year)
+    time.sleep(0.2)
 
-    los_el = wait.until(EC.presence_of_element_located(
-        (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_LOS")
-    ))
+    # LENGTH OF STAY — element_to_be_clickable ile bekle
+    los_id = f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_tbxPREV_US_VISIT_LOS"
+    try:
+        los_el = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.ID, los_id))
+        )
+    except Exception:
+        los_el = wait.until(EC.presence_of_element_located((By.ID, los_id)))
+
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", los_el)
+    time.sleep(0.2)
     driver.execute_script("""
         arguments[0].removeAttribute('disabled');
         arguments[0].removeAttribute('readonly');
+        arguments[0].style.display = 'block';
+        arguments[0].style.visibility = 'visible';
         arguments[0].value = '';
     """, los_el)
-    los_el.send_keys(length)
 
+    try:
+        los_el.click()
+        time.sleep(0.1)
+        los_el.send_keys(length)
+    except Exception as e:
+        print(f"⚠️ LOS send_keys başarısız ({e}) → JS ile yazılıyor")
+        driver.execute_script("""
+            arguments[0].value = arguments[1];
+            arguments[0].dispatchEvent(new Event('change', {bubbles:true}));
+            arguments[0].dispatchEvent(new Event('input', {bubbles:true}));
+        """, los_el, length)
+    time.sleep(0.2)
+
+    # UNIT
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_ddlPREV_US_VISIT_LOS_CD")
     ))).select_by_value(unit)
