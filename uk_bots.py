@@ -606,21 +606,20 @@ class VisaFormData:
 
     @property
     def last_travels(self):
-        """CRM'den son seyahat listesi - hem array hem flat key'lerden oku"""
+        """CRM'den son seyahat listesi - lastTravels, flat key'ler VE abroad_country'den oku"""
         result = []
         
         # YONTEM 1: lastTravels array'inden (bos olmayanlar)
         travels = self.step5.get("lastTravels", [])
         for t in travels:
             if t.get("country", "").strip():
-                entry = dict(t)  # kopya al
-                # startDate/endDate varsa monthYear ve durationDays'i hesapla
+                entry = dict(t)
                 start = entry.get("startDate", "") or entry.get("start_date", "") or entry.get("gidis_tarihi", "")
                 end = entry.get("endDate", "") or entry.get("end_date", "") or entry.get("donus_tarihi", "")
                 if start and not entry.get("monthYear"):
                     entry["monthYear"] = start
                 if start and end and not entry.get("durationDays"):
-                    entry["durationDays"] = end  # handler parse edecek
+                    entry["durationDays"] = end
                 result.append(entry)
         
         # YONTEM 2: Flat key'lerden (lastTravel1_country, lastTravel2_country, ...)
@@ -629,7 +628,6 @@ class VisaFormData:
                 country = self.step5.get(f"lastTravel{i}_country", "").strip()
                 if not country:
                     break
-                # Tarih icin birden fazla key dene
                 start = (self.step5.get(f"lastTravel{i}_startDate", "") or 
                          self.step5.get(f"lastTravel{i}_start_date", "") or
                          self.step5.get(f"lastTravel{i}_monthYear", "")).strip()
@@ -642,6 +640,32 @@ class VisaFormData:
                     "monthYear": start,
                     "durationDays": end,
                 })
+        
+        # YONTEM 3: abroad_country array'inden (lastTravels/flat'te olmayanlar)
+        abroad = self.step5.get("abroad_country", [])
+        existing_countries = set()
+        for t in result:
+            c = t.get("country", "").strip().upper()
+            m = t.get("monthYear", "")[:7]  # YYYY-MM
+            existing_countries.add(f"{c}_{m}")
+        
+        for ac in abroad:
+            if not isinstance(ac, dict):
+                continue
+            country = ac.get("country", "").strip()
+            if not country:
+                continue
+            start = ac.get("start", "").strip()
+            end = ac.get("end", "").strip()
+            key = f"{country.upper()}_{start[:7]}"
+            if key not in existing_countries:
+                result.append({
+                    "country": country,
+                    "purpose": ac.get("purpose", "").strip(),
+                    "monthYear": start,
+                    "durationDays": end,
+                })
+                existing_countries.add(key)
         
         if result:
             print(f"[DATA] {len(result)} seyahat bulundu: {[t.get('country','?') for t in result]}")
@@ -1001,7 +1025,7 @@ def click_submit(driver, wait, max_retries=3):
                         var skipGroups = ['hasValidIdCard', 'hasValidId', 'isCorrespondenceAddress', 
                                           'emailOwner', 'hasOtherNationality', 'hasDependants',
                                           'haveBeenToTheUK', 'haveYouHadTreatment', 'doYouHaveADrivingLicence',
-                                          'previouslyApplied', 'yesNo', 'purposeRef', 'countryRef'];
+                                          'previouslyApplied', 'yesNo', 'purposeRef', 'countryRef', 'reasonRef'];
                         var shouldSkip = false;
                         for (var s = 0; s < skipGroups.length; s++) {
                             if (name === skipGroups[s] || name.indexOf(skipGroups[s]) !== -1) { shouldSkip = true; break; }
@@ -4422,8 +4446,9 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                         pass
                     
                     if is_schengen:
-                        unhide_toggled(driver, "countryRef_schengen")
-                        time.sleep(1)
+                        # Schengen radio'ya tiklaninca site otomatik gosterir - bekle
+                        time.sleep(2)
+                        
                         # Schengen ulke kodunu ve ismini bul
                         schengen_map = {"germany":("DEU","Germany"),"almanya":("DEU","Germany"),
                             "france":("FRA","France"),"fransa":("FRA","France"),
@@ -4439,7 +4464,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             "denmark":("DNK","Denmark"),"danimarka":("DNK","Denmark"),
                             "finland":("FIN","Finland"),"finlandiya":("FIN","Finland"),
                             "poland":("POL","Poland"),"polonya":("POL","Poland"),
-                            "czech":("CZE","Czech"),"cekya":("CZE","Czech"),"çekya":("CZE","Czech"),
+                            "czech":("CZE","Czech Republic"),"cekya":("CZE","Czech Republic"),"çekya":("CZE","Czech Republic"),
                             "hungary":("HUN","Hungary"),"macaristan":("HUN","Hungary"),
                             "romania":("ROU","Romania"),"romanya":("ROU","Romania"),
                             "croatia":("HRV","Croatia"),"hirvatistan":("HRV","Croatia"),"hırvatistan":("HRV","Croatia"),
@@ -4462,70 +4487,59 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                                 name = n
                                 break
                         
-                        # Schengen ulke secimi - UI autocomplete input'u bul ve yaz
-                        schengen_set = driver.execute_script(f"""
-                            // Oncelikle hidden content icindeki select'i bul
-                            var container = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                            if (!container) return 'no_container';
-                            
-                            var sel = container.querySelector('select');
-                            if (!sel) return 'no_select';
-                            
-                            var selId = sel.id;
-                            
-                            // Hidden select'e value ata
-                            sel.value = '{code}';
-                            var opt = sel.querySelector('option[value="{code}"]');
-                            if (opt) {{ opt.selected = true; opt.setAttribute('selected', 'selected'); }}
-                            sel.dispatchEvent(new Event('change', {{bubbles: true}}));
-                            
-                            // UI input'u bul ve doldur
-                            var ui = document.getElementById(selId + '_ui');
-                            if (ui) {{
-                                var optText = opt ? opt.textContent.trim() : '{name}';
-                                ui.value = optText;
-                                ui.dispatchEvent(new Event('input', {{bubbles: true}}));
-                                ui.dispatchEvent(new Event('change', {{bubbles: true}}));
-                                return 'ok:' + selId + '=' + sel.value + ' ui=' + ui.value;
-                            }}
-                            
-                            return 'no_ui:' + selId + '=' + sel.value;
+                        # Container'i JS ile ac (site JS'i calismazsa diye)
+                        driver.execute_script("""
+                            var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                            if (el) { el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }
                         """)
-                        print(f"[FORM-34] Schengen JS sonuc: {schengen_set}")
+                        time.sleep(0.5)
                         
-                        # JS ile secilemadiyse send_keys ile dene
-                        if not schengen_set or 'no_' in str(schengen_set):
-                            print(f"[FORM-34] JS basarisiz, send_keys deneniyor...")
+                        # ONCELIK: send_keys ile autocomplete'den sec (en guvenilir)
+                        schengen_ok = False
+                        try:
+                            ui_input = driver.find_element(By.ID, "schengenCountry_ui")
+                            safe_click(driver, ui_input)
+                            time.sleep(0.3)
+                            ui_input.clear()
+                            time.sleep(0.2)
+                            ui_input.send_keys(name)
+                            time.sleep(1.5)
+                            # Autocomplete'den sec
                             try:
-                                # Container icindeki autocomplete input'u bul
-                                ui_inputs = driver.execute_script("""
-                                    var container = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                                    if (!container) return [];
-                                    var inputs = container.querySelectorAll('input.ui-autocomplete-input, input[type="text"]');
-                                    return Array.from(inputs).map(function(i) { return i.id; });
-                                """)
-                                if ui_inputs:
-                                    ui_el = driver.find_element(By.ID, ui_inputs[0])
-                                    safe_click(driver, ui_el)
-                                    time.sleep(0.3)
-                                    ui_el.clear()
-                                    ui_el.send_keys(name)
-                                    time.sleep(1.5)
-                                    # Autocomplete'den sec
-                                    try:
-                                        autocomplete_item = wait.until(EC.element_to_be_clickable(
-                                            (By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
-                                        safe_click(driver, autocomplete_item)
-                                    except:
-                                        ui_el.send_keys(Keys.ARROW_DOWN)
-                                        time.sleep(0.3)
-                                        ui_el.send_keys(Keys.ENTER)
-                                    print(f"[FORM-34] send_keys ile secildi: {name}")
-                            except Exception as e:
-                                print(f"[FORM-34] send_keys hatasi: {e}")
+                                ac_item = wait.until(EC.element_to_be_clickable(
+                                    (By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
+                                safe_click(driver, ac_item)
+                                schengen_ok = True
+                                print(f"[FORM-34] Schengen: autocomplete ile {name} secildi")
+                            except:
+                                ui_input.send_keys(Keys.ARROW_DOWN)
+                                time.sleep(0.3)
+                                ui_input.send_keys(Keys.ENTER)
+                                schengen_ok = True
+                                print(f"[FORM-34] Schengen: ArrowDown+Enter ile {name} secildi")
+                        except Exception as e:
+                            print(f"[FORM-34] send_keys hatasi: {e}")
+                        
+                        # FALLBACK: JS ile hidden select'e value ata
+                        if not schengen_ok:
+                            driver.execute_script(f"""
+                                var sel = document.getElementById('schengenCountry');
+                                if (sel) {{
+                                    sel.value = '{code}';
+                                    var opt = sel.querySelector('option[value="{code}"]');
+                                    if (opt) {{ opt.selected = true; }}
+                                    sel.dispatchEvent(new Event('change', {{bubbles: true}}));
+                                    var ui = document.getElementById('schengenCountry_ui');
+                                    if (ui && opt) {{ ui.value = opt.textContent.trim(); }}
+                                }}
+                            """)
+                            print(f"[FORM-34] Schengen: JS fallback ile {code} secildi")
+                        
+                        # Dogrulama
+                        sel_val = driver.execute_script("var s=document.getElementById('schengenCountry'); return s?s.value:'';")
+                        print(f"[FORM-34] Schengen dogrulama: select={sel_val} (hedef={code})")
                         
                         time.sleep(0.5)
-                        print(f"[FORM-34] Schengen ulke: {country} -> {code} ({name})")
 
                     # Sebep - Turkce destegi ekle
                     reason_map = {"tourist":"tourist","turist":"tourist","turistik":"tourist",
@@ -4974,6 +4988,10 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             "south africa":"ZAF","turkey":"TUR","pakistan":"PAK","iran":"IRN",
                             "iraq":"IRQ","saudi":"SAU","qatar":"QAT","uae":"ARE","dubai":"ARE",
                             "georgia":"GEO","azerbaijan":"AZE","ukraine":"UKR","tunisia":"TUN",
+                            "serbia":"SRB","sirbistan":"SRB","bosnia":"BIH","bosna":"BIH",
+                            "albania":"ALB","arnavutluk":"ALB","macedonia":"MKD","makedonya":"MKD",
+                            "kosovo":"XKX","montenegro":"MNE","karadag":"MNE","karadağ":"MNE",
+                            "moldova":"MDA","belarus":"BLR",
                             "jordan":"JOR","lebanon":"LBN","israel":"ISR","vietnam":"VNM",
                             "philippines":"PHL","sri lanka":"LKA","nepal":"NPL","bangladesh":"BGD",
                             "argentina":"ARG","chile":"CHL","colombia":"COL","peru":"PER",

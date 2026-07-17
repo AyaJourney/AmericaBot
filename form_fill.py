@@ -2594,7 +2594,7 @@ def fill_previous_us_travel(wait, driver, data):
     prev = data.get("PREV_US_TRAVEL", "NO").strip().upper()
 
     if prev not in ("YES", "NO"):
-        raise Exception("❌ PREV_US_TRAVEL YES veya NO olmalı")
+        prev = "NO"  # raise yerine default
 
     radio_id = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblPREV_US_TRAVEL_IND_0"
@@ -2609,9 +2609,8 @@ def fill_previous_us_travel(wait, driver, data):
         return
 
     # ── Ziyaret sayısını hesapla ──────────────────────────
-    requested = int(data.get("PREV_US_VISITS", 1) or 1)
+    requested = min(int(data.get("PREV_US_VISITS", 1) or 1), 5)  # max 5
 
-    # Tarih VEYA stay length varsa say — tarih boş olsa bile
     actual_visits = 0
     for i in range(1, requested + 1):
         has_date   = bool(data.get(f"VISIT{i}_ARRIVAL_DATE", "").strip())
@@ -2621,7 +2620,6 @@ def fill_previous_us_travel(wait, driver, data):
         else:
             break
 
-    # Hiç veri yoksa bile 1 tane doldur
     visits = max(actual_visits, 1) if requested >= 1 else 1
     print(f"ℹ️ PREV_US_VISITS={requested}, gerçek veri={actual_visits}, kullanılan={visits}")
 
@@ -2640,12 +2638,29 @@ def fill_previous_us_travel(wait, driver, data):
 
     # ── Eksik kadar Insert'e tıkla ────────────────────────
     for i in range(existing_rows, visits):
+        # i-1 değil, mevcut son satırın index'i kullan
         ctl = f"ctl{str(i - 1).zfill(2)}"
-        wait.until(EC.element_to_be_clickable((By.ID,
-            f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
-        ))).click()
-        print(f"✅ Visit satırı {i + 1} eklendi")
-        time.sleep(2)
+        btn_id = f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{ctl}_InsertButtonPREV_US_VISIT"
+
+        for attempt in range(3):
+            try:
+                wait.until(EC.element_to_be_clickable((By.ID, btn_id))).click()
+                print(f"✅ Visit satırı {i + 1} eklendi")
+                time.sleep(2)
+                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+
+                # Yeni satırın geldiğini doğrula
+                new_ctl = f"ctl{str(i).zfill(2)}"
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID,
+                        f"ctl00_SiteContentPlaceHolder_FormView1_dtlPREV_US_VISIT_{new_ctl}_tbxPREV_US_VISIT_DTEYear"
+                    ))
+                )
+                time.sleep(0.5)
+                break
+            except Exception as e:
+                print(f"⚠️ Insert attempt {attempt+1}/3: {e}")
+                time.sleep(1)
 
     # ── Hepsini doldur ────────────────────────────────────
     for i in range(1, visits + 1):
@@ -2680,8 +2695,6 @@ def fill_previous_us_travel(wait, driver, data):
 
     if dl == "YES":
         fill_us_driver_license(wait, driver, data)
-
-
 
 
 def fill_us_driver_license(wait, driver, data):
