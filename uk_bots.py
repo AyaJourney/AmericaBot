@@ -4624,8 +4624,133 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                         set_input(driver, "durationOfStay", str(max(1, dur_days // 30)))
 
                     print(f"[FORM-34b] Seyahat {idx+1}: {country} / {purpose} / {visit_dt.month}/{visit_dt.year} / {dur_days} gun")
-                    click_submit(driver, wait)
-                    time.sleep(3)
+                    
+                    # Submit oncesi dogrulama - tum alanlar dolu mu?
+                    for _verify in range(3):
+                        # countryRef secili mi?
+                        cr_ok = driver.execute_script("""
+                            var radios = document.querySelectorAll('input[name="countryRef"]');
+                            for (var i = 0; i < radios.length; i++) { if (radios[i].checked) return true; }
+                            return false;
+                        """)
+                        if not cr_ok:
+                            print(f"[FORM-34] UYARI: countryRef secili degil, tekrar seciliyor... (deneme {_verify+1})")
+                            set_radio(driver, selected or matched_radio)
+                            time.sleep(1)
+                        
+                        # reasonRef secili mi?
+                        rr_ok = driver.execute_script("""
+                            var radios = document.querySelectorAll('input[name="reasonRef"]');
+                            for (var i = 0; i < radios.length; i++) { if (radios[i].checked) return true; }
+                            return false;
+                        """)
+                        if not rr_ok:
+                            print(f"[FORM-34] UYARI: reasonRef secili degil, tekrar seciliyor... (deneme {_verify+1})")
+                            set_radio(driver, reason_radio)
+                            time.sleep(0.5)
+                        
+                        # Schengen ise dropdown dolu mu?
+                        if is_schengen:
+                            sc_val = driver.execute_script("var s=document.getElementById('schengenCountry'); return s?s.value:'';")
+                            if not sc_val:
+                                print(f"[FORM-34] UYARI: Schengen dropdown bos, tekrar dolduruluyor... (deneme {_verify+1})")
+                                driver.execute_script(f"""
+                                    var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                                    if (el) {{ el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }}
+                                """)
+                                time.sleep(0.5)
+                                try:
+                                    ui = driver.find_element(By.ID, "schengenCountry_ui")
+                                    safe_click(driver, ui)
+                                    time.sleep(0.3)
+                                    ui.clear()
+                                    ui.send_keys(name)
+                                    time.sleep(1.5)
+                                    try:
+                                        ac = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
+                                        safe_click(driver, ac)
+                                    except:
+                                        ui.send_keys(Keys.ARROW_DOWN)
+                                        time.sleep(0.3)
+                                        ui.send_keys(Keys.ENTER)
+                                except:
+                                    driver.execute_script(f"""
+                                        var s=document.getElementById('schengenCountry');
+                                        if(s){{s.value='{code}';s.dispatchEvent(new Event('change',{{bubbles:true}}));}}
+                                        var u=document.getElementById('schengenCountry_ui');
+                                        if(u){{u.value='{name}';}}
+                                    """)
+                                time.sleep(0.5)
+                        
+                        if cr_ok and rr_ok:
+                            break
+                    
+                    # Submit - direkt form submit (pre-fill olmadan)
+                    driver.execute_script("""
+                        var btn = document.getElementById('submit');
+                        if (btn) btn.click();
+                    """)
+                    time.sleep(4)
+                    
+                    # Validation hatasi var mi? Varsa tekrar doldur
+                    has_error = driver.execute_script("""
+                        var errs = document.querySelectorAll('.validation-message');
+                        for (var i = 0; i < errs.length; i++) {
+                            if (errs[i].offsetParent !== null) return true;
+                        }
+                        return false;
+                    """)
+                    if has_error:
+                        print(f"[FORM-34] Validation hatasi, tekrar dolduruluyor...")
+                        # Sayfa re-render oldu, tum alanlari tekrar doldur
+                        set_radio(driver, selected or matched_radio)
+                        time.sleep(1)
+                        if is_schengen:
+                            driver.execute_script("""
+                                var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                                if (el) { el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }
+                            """)
+                            time.sleep(0.5)
+                            try:
+                                ui = driver.find_element(By.ID, "schengenCountry_ui")
+                                safe_click(driver, ui)
+                                ui.clear()
+                                time.sleep(0.2)
+                                ui.send_keys(name)
+                                time.sleep(1.5)
+                                try:
+                                    ac = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
+                                    safe_click(driver, ac)
+                                except:
+                                    ui.send_keys(Keys.ARROW_DOWN)
+                                    time.sleep(0.3)
+                                    ui.send_keys(Keys.ENTER)
+                            except:
+                                driver.execute_script(f"""
+                                    var s=document.getElementById('schengenCountry');
+                                    if(s){{s.value='{code}';s.dispatchEvent(new Event('change',{{bubbles:true}}));}}
+                                    var u=document.getElementById('schengenCountry_ui');
+                                    if(u){{u.value='{name}';}}
+                                """)
+                            time.sleep(0.5)
+                        set_radio(driver, reason_radio)
+                        time.sleep(0.5)
+                        driver.execute_script(f"""
+                            function setVal(id, val) {{
+                                var el = document.getElementById(id);
+                                if (!el) return;
+                                var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                                setter.call(el, String(val));
+                                el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                                el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                            }}
+                            setVal('date_month', '{visit_dt.month}');
+                            setVal('date_year', '{visit_dt.year}');
+                        """)
+                        time.sleep(0.3)
+                        # Tekrar submit
+                        driver.execute_script("var btn = document.getElementById('submit'); if (btn) btn.click();")
+                        time.sleep(4)
 
                     # Baska ekle?
                     if idx < len(entries_to_fill) - 1:
