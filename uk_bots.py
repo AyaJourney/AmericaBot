@@ -4629,9 +4629,16 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
 
                     # Baska ekle?
                     if idx < len(entries_to_fill) - 1:
+                        # addAnother sayfasini bekle
+                        for _aw in range(8):
+                            has_add = driver.execute_script("return document.getElementById('addAnother_true') !== null;")
+                            if has_add:
+                                break
+                            time.sleep(1)
                         set_radio(driver, "addAnother_true")
+                        time.sleep(0.5)
                         click_submit(driver, wait)
-                        time.sleep(3)
+                        time.sleep(5)  # ikinci detay sayfasi icin ekstra bekle
                     else:
                         set_radio(driver, "addAnother_false")
                         click_submit(driver, wait)
@@ -5222,7 +5229,21 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         eea_list = [t for t in travels if any(ec in t.get("country","").strip().lower() for ec in eea_countries_set)]
         
         if eea_list:
-            t = eea_list[0]  # En son
+            # Sayfada zaten dolu mu kontrol et - doluysa siradaki seyahati kullan
+            # Mevcut countryRef secili mi?
+            current_selected = driver.execute_script("""
+                var radios = document.querySelectorAll('input[name="countryRef"]');
+                for (var i = 0; i < radios.length; i++) {
+                    if (radios[i].checked) return radios[i].value;
+                }
+                return '';
+            """)
+            
+            # Eger radio secili degilse ilk seyahati doldur, seciliyse ikincisini dene
+            travel_idx = 0
+            if current_selected and len(eea_list) > 1:
+                travel_idx = 1
+            t = eea_list[min(travel_idx, len(eea_list)-1)]
             country = t.get("country", "").strip().lower()
             purpose = t.get("purpose", "tourist").strip().lower()
             
