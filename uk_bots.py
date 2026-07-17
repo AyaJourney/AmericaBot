@@ -4380,13 +4380,21 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             entries_to_fill = eea_travels[:2]  # Son 2 seyahat
             for idx, travel in enumerate(entries_to_fill):
                 try:
-                    time.sleep(1)
-                    is_detail = driver.execute_script("""
-                        return document.getElementById('countryRef_usa') !== null ||
-                               document.getElementById('countryRef_schengen') !== null;
-                    """)
+                    # Detay sayfasinin yuklenmesini bekle (max 10 saniye)
+                    is_detail = False
+                    for _w in range(10):
+                        time.sleep(1)
+                        is_detail = driver.execute_script("""
+                            return document.getElementById('countryRef_usa') !== null ||
+                                   document.getElementById('countryRef_schengen') !== null;
+                        """)
+                        if is_detail:
+                            break
                     if not is_detail:
+                        print(f"[FORM-34] Detay sayfasi yuklenemedi, atlaniyor...")
                         break
+                    
+                    print(f"[FORM-34] Seyahat {idx+1}/{len(entries_to_fill)} dolduruluyor...")
 
                     country = travel.get("country", "").strip().lower()
                     purpose = travel.get("purpose", "tourist").strip().lower()
@@ -5164,9 +5172,180 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         time.sleep(3)
         print("[FORM-50] Ek bilgi tamamlandi!")
 
+    # ===== Sayfa 34b: EEA/USA detay sayfasi (ayrı gelirse) =====
+    elif page == "other_countries_detail":
+        print("[FORM-34b] EEA/USA detay sayfasi ayri geldi, dolduruluyor...")
+        
+        # En son EEA seyahati bul
+        eea_countries_set = {"austria","avusturya","belgium","belcika","belçika","bulgaria","bulgaristan",
+            "croatia","hirvatistan","hırvatistan","cyprus","kibris","kıbrıs","czechia","czech republic","cekya","çekya",
+            "denmark","danimarka","estonia","estonya","finland","finlandiya",
+            "france","fransa","germany","almanya","greece","yunanistan",
+            "hungary","macaristan","iceland","izlanda","ireland","irlanda",
+            "italy","italya","latvia","letonya","liechtenstein",
+            "lithuania","litvanya","luxembourg","luksemburg","lüksemburg",
+            "malta","netherlands","hollanda","norway","norvec","norveç",
+            "poland","polonya","portugal","portekiz","romania","romanya",
+            "slovakia","slovakya","slovenia","slovenya","spain","ispanya",
+            "sweden","isvec","isveç","switzerland","isvicre","isviçre",
+            "usa","america","united states","abd","amerika",
+            "canada","kanada","australia","avustralya",
+            "new zealand","newzealand","yeni zelanda"}
+        
+        country_to_radio_detail = {
+            "usa": "usa", "america": "usa", "united states": "usa", "abd": "usa", "amerika": "usa",
+            "canada": "canada", "kanada": "canada",
+            "australia": "australia", "avustralya": "australia",
+            "new zealand": "newzealand", "newzealand": "newzealand", "yeni zelanda": "newzealand",
+        }
+        
+        schengen_map_detail = {"germany":("DEU","Germany"),"almanya":("DEU","Germany"),
+            "france":("FRA","France"),"fransa":("FRA","France"),
+            "spain":("ESP","Spain"),"ispanya":("ESP","Spain"),
+            "italy":("ITA","Italy"),"italya":("ITA","Italy"),
+            "netherlands":("NLD","Netherlands"),"hollanda":("NLD","Netherlands"),
+            "greece":("GRC","Greece"),"yunanistan":("GRC","Greece"),
+            "portugal":("PRT","Portugal"),"austria":("AUT","Austria"),
+            "belgium":("BEL","Belgium"),"sweden":("SWE","Sweden"),
+            "norway":("NOR","Norway"),"denmark":("DNK","Denmark"),
+            "finland":("FIN","Finland"),"poland":("POL","Poland"),
+            "czech":("CZE","Czech Republic"),"hungary":("HUN","Hungary"),
+            "romania":("ROU","Romania"),"croatia":("HRV","Croatia"),
+            "bulgaria":("BGR","Bulgaria"),"switzerland":("CHE","Switzerland"),
+            "ireland":("IRL","Ireland"),"iceland":("ISL","Iceland"),
+            "slovakia":("SVK","Slovakia"),"slovenia":("SVN","Slovenia"),
+            "estonia":("EST","Estonia"),"latvia":("LVA","Latvia"),
+            "lithuania":("LTU","Lithuania"),"luxembourg":("LUX","Luxembourg"),
+            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus")}
+        
+        travels = form.last_travels
+        eea_list = [t for t in travels if any(ec in t.get("country","").strip().lower() for ec in eea_countries_set)]
+        
+        if eea_list:
+            t = eea_list[0]  # En son
+            country = t.get("country", "").strip().lower()
+            purpose = t.get("purpose", "tourist").strip().lower()
+            
+            # Ulke radio sec
+            matched = None
+            for key, val in country_to_radio_detail.items():
+                if key in country:
+                    matched = f"countryRef_{val}"
+                    break
+            if not matched:
+                matched = "countryRef_schengen"
+            
+            set_radio(driver, matched)
+            print(f"[FORM-34b] Ulke: {country} -> {matched}")
+            time.sleep(1)
+            
+            # Schengen ise dropdown doldur
+            if "schengen" in matched:
+                time.sleep(1)
+                driver.execute_script("""
+                    var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
+                    if (el) { el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }
+                """)
+                time.sleep(0.5)
+                code = "DEU"
+                name = "Germany"
+                for key, (c, n) in schengen_map_detail.items():
+                    if key in country:
+                        code = c
+                        name = n
+                        break
+                try:
+                    ui = driver.find_element(By.ID, "schengenCountry_ui")
+                    safe_click(driver, ui)
+                    time.sleep(0.3)
+                    ui.clear()
+                    ui.send_keys(name)
+                    time.sleep(1.5)
+                    try:
+                        ac = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
+                        safe_click(driver, ac)
+                    except:
+                        ui.send_keys(Keys.ARROW_DOWN)
+                        time.sleep(0.3)
+                        ui.send_keys(Keys.ENTER)
+                    print(f"[FORM-34b] Schengen: {name}")
+                except Exception as e:
+                    print(f"[FORM-34b] Schengen hatasi: {e}")
+                    driver.execute_script(f"""
+                        var s = document.getElementById('schengenCountry');
+                        if(s){{s.value='{code}';s.dispatchEvent(new Event('change',{{bubbles:true}}));}}
+                        var u = document.getElementById('schengenCountry_ui');
+                        if(u){{u.value='{name}';}}
+                    """)
+            
+            # Sebep
+            reason_map = {"tourist":"tourist","turist":"tourist","turistik":"tourist",
+                          "business":"business","is":"business","fuar":"business",
+                          "study":"study","egitim":"study","eğitim":"study",
+                          "transit":"transit"}
+            reason_radio = "reasonRef_tourist"
+            for key, val in reason_map.items():
+                if key in purpose:
+                    reason_radio = f"reasonRef_{val}"
+                    break
+            set_radio(driver, reason_radio)
+            print(f"[FORM-34b] Sebep: {purpose} -> {reason_radio}")
+            
+            # Tarih
+            actual_date = (t.get("monthYear", "") or t.get("startDate", "") or t.get("start", "")).strip()
+            if actual_date:
+                visit_dt = parse_date_safe(actual_date, "EEA detay tarih")
+            else:
+                visit_dt = datetime.now() - relativedelta(years=1)
+            
+            driver.execute_script(f"""
+                function setVal(id, val) {{
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, String(val));
+                    el.dispatchEvent(new Event('input', {{bubbles: true}}));
+                    el.dispatchEvent(new Event('change', {{bubbles: true}}));
+                }}
+                setVal('date_month', '{visit_dt.month}');
+                setVal('date_year', '{visit_dt.year}');
+            """)
+            print(f"[FORM-34b] Tarih: {visit_dt.month}/{visit_dt.year}")
+            
+            # Sure
+            actual_end = (t.get("durationDays", "") or t.get("endDate", "") or t.get("end", "")).strip()
+            dur_days = 7
+            if actual_end:
+                try:
+                    dur_days = int(actual_end)
+                except ValueError:
+                    try:
+                        end_dt = parse_date_safe(actual_end, "EEA detay bitis")
+                        dur_days = max(1, (end_dt - visit_dt).days)
+                    except:
+                        dur_days = 7
+            if dur_days < 1: dur_days = 7
+            if dur_days > 365: dur_days = 30
+            
+            if dur_days <= 7:
+                set_select(driver, "durationOfStayUnit", "days")
+                set_input(driver, "durationOfStay", str(dur_days))
+            elif dur_days <= 30:
+                set_select(driver, "durationOfStayUnit", "weeks")
+                set_input(driver, "durationOfStay", str(max(1, dur_days // 7)))
+            else:
+                set_select(driver, "durationOfStayUnit", "months")
+                set_input(driver, "durationOfStay", str(max(1, dur_days // 30)))
+            print(f"[FORM-34b] Sure: {dur_days} gun")
+        
+        time.sleep(0.5)
+        click_submit(driver, wait)
+        time.sleep(3)
+        print("[FORM-34b] Tamamlandi!")
+
     # ===== Alt sayfalar - submit ile gec =====
     elif page in ("dependant_detail", "accommodation_plans", "accommodation_details",
-                   "paying_visit_details", "uk_travel_detail", "other_countries_detail",
+                   "paying_visit_details", "uk_travel_detail",
                    "world_travel_detail", "family_in_uk_details", "declaration"):
         print(f"[FORM] Alt sayfa: {page}, submit ile geciliyor...")
         click_submit(driver, wait)
