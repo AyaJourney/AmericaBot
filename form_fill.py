@@ -6107,6 +6107,49 @@ def fill_languages(wait, driver, data):
             except Exception as e:
                 print(f"⚠️ Dil Insert hatası: {e}")
                 break
+
+def parse_countries_visited(val):
+    """
+    Virgüllü ülke listesini doğru parse eder.
+    'KOREA,REPUBLIC OF' gibi ülke içi virgülleri korur.
+    """
+    # Bilinen çok kelimeli ülkeleri önce koru
+    MULTI_WORD_COUNTRIES = [
+        "KOREA, REPUBLIC OF",
+        "KOREA, DEMOCRATIC REPUBLIC OF",
+        "KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF",
+        "CONGO, DEMOCRATIC REPUBLIC OF THE",
+        "CONGO, REPUBLIC OF THE",
+        "KOREA,REPUBLIC OF",
+        "KOREA,DEMOCRATIC REPUBLIC OF",
+        "KOREA,DEMOCRATIC PEOPLE'S REPUBLIC OF",
+        "CONGO,DEMOCRATIC REPUBLIC OF THE",
+        "CONGO,REPUBLIC OF THE",
+    ]
+
+    # Önce çok kelimeli olanları placeholder ile değiştir
+    PLACEHOLDERS = {}
+    result = val
+    for i, country in enumerate(MULTI_WORD_COUNTRIES):
+        placeholder = f"__COUNTRY_{i}__"
+        if country.upper() in result.upper():
+            # Case-insensitive replace
+            import re
+            result = re.sub(re.escape(country), placeholder, result, flags=re.IGNORECASE)
+            PLACEHOLDERS[placeholder] = country
+
+    # Şimdi virgülle split yap
+    parts = [x.strip() for x in result.split(",") if x.strip()]
+
+    # Placeholder'ları geri çevir
+    final = []
+    for part in parts:
+        for placeholder, original in PLACEHOLDERS.items():
+            if placeholder in part:
+                part = part.replace(placeholder, original)
+        final.append(part)
+
+    return final
 def fill_countries_visited(wait, driver, data):
     import json
 
@@ -6129,7 +6172,7 @@ def fill_countries_visited(wait, driver, data):
     print(f"🌍 COUNTRIES_VISITED: '{val}'")
 
     has_countries = val and val.upper() not in ("NO", "NONE", "")
-    country_list = [x.strip() for x in val.split(",") if x.strip()] if has_countries else []
+    country_list = parse_countries_visited(val) if has_countries else []
 
     SKIP_PHRASES = [
         "I HAVE NOT TRAVELLED",
@@ -6405,6 +6448,15 @@ def fill_countries_visited(wait, driver, data):
         "NEW ZEALAND": "NEW ZEALAND",
         "PAPUA NEW GUINEA": "PAPUA NEW GUINEA",
         "SAMOA": "SAMOA",
+        "KOREA,REPUBLIC OF":"KOREA, REPUBLIC OF (SOUTH)",
+        "KOREA, REPUBLIC OF":"KOREA, REPUBLIC OF (SOUTH)",
+        "KOREA,DEMOCRATIC REPUBLIC OF":"KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "KOREA, DEMOCRATIC REPUBLIC OF":"KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "KOREA,DEMOCRATIC PEOPLE'S REPUBLIC OF":"KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "KOREA, DEMOCRATIC PEOPLE'S REPUBLIC OF":"KOREA, DEMOCRATIC REPUBLIC OF (NORTH)",
+        "CONGO,DEMOCRATIC REPUBLIC OF THE":"CONGO, DEMOCRATIC REPUBLIC OF THE",
+        "CONGO,REPUBLIC OF THE":"CONGO, REPUBLIC OF THE",
+
     }
 
     seen = set()
