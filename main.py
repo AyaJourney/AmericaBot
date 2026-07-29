@@ -323,56 +323,23 @@ def make_driver():
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
+    # Profil kilidi temizliği (önceki oturumdan kalan lock varsa)
     chrome_profile = os.path.join(os.path.expanduser("~"), f"chrome-bot-{BOT_ID}")
+    for lock in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
+        try:
+            os.unlink(os.path.join(chrome_profile, lock))
+        except OSError:
+            pass
+
     options.add_argument(f"--user-data-dir={chrome_profile}")
     print(f"[BOT-{BOT_ID}] Chrome profil: {chrome_profile}")
 
     ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
     options.add_argument(f"--user-agent={ua}")
 
-    # ── Proxy ─────────────────────────────────────────────────
-    PROXY_HOST = "191.96.254.138"
-    PROXY_PORT = "6185"
-    PROXY_USER = "jotooekm"
-    PROXY_PASS = "kkj4n7etun7f"
-
-    import zipfile
-    manifest_json = """{"version":"1.0.0","manifest_version":2,"name":"proxy","permissions":["proxy","tabs","unlimitedStorage","storage","<all_urls>","webRequest","webRequestBlocking"],"background":{"scripts":["background.js"]},"minimum_chrome_version":"22.0.0"}"""
-
-    background_js = f"""
-var config = {{
-    mode: "fixed_servers",
-    rules: {{
-        singleProxy: {{
-            scheme: "http",
-            host: "{PROXY_HOST}",
-            port: parseInt({PROXY_PORT})
-        }},
-        bypassList: ["localhost"]
-    }}
-}};
-chrome.proxy.settings.set({{value: config, scope: "regular"}}, function() {{}});
-function callbackFn(details) {{
-    return {{
-        authCredentials: {{
-            username: "{PROXY_USER}",
-            password: "{PROXY_PASS}"
-        }}
-    }};
-}}
-chrome.webRequest.onAuthRequired.addListener(
-    callbackFn,
-    {{urls: ["<all_urls>"]}},
-    ['blocking']
-);
-"""
-
-    pluginfile = f"/tmp/proxy_auth_bot{BOT_ID}.zip"
-    with zipfile.ZipFile(pluginfile, 'w') as zp:
-        zp.writestr("manifest.json", manifest_json)
-        zp.writestr("background.js", background_js)
-    options.add_extension(pluginfile)
-    # ──────────────────────────────────────────────────────────
+    # ── PROXY KALDIRILDI ──────────────────────────────────────
+    # Proxy extension'ı session'ı çökertiyordu, çıkarıldı.
+    # Gerekirse ileride extension yöntemiyle tekrar eklenebilir.
 
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
@@ -385,7 +352,6 @@ chrome.webRequest.onAuthRequired.addListener(
     })
 
     return driver
-
 # =====================================================
 # DS-160 FLOW
 # =====================================================
