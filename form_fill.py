@@ -1328,6 +1328,31 @@ def click_continue_application(wait, driver):
 
     print("✅ Continue Application tamamlandı")
 def click_next_travel(wait, driver):
+    # ── Next'e basmadan ONCE: aktif validation hatasi varsa genel duzeltme ──
+    try:
+        _act = fix_active_validators(driver)
+        if _act:
+            print(f"🔧 (Travel oncesi) {_act} alan genel duzeltildi")
+            for _bid in ("ctl00_SiteContentPlaceHolder_FormView1_UpdateButton2",
+                         "ctl00_SiteContentPlaceHolder_UpdateButton3",
+                         "ctl00_SiteContentPlaceHolder_FormView1_UpdateButton3",
+                         "ctl00_SiteContentPlaceHolder_UpdateButton2"):
+                try:
+                    _sb = driver.find_element(By.ID, _bid)
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", _sb)
+                    time.sleep(0.3)
+                    driver.execute_script("arguments[0].click();", _sb)
+                    time.sleep(1.5)
+                    try:
+                        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                    except Exception:
+                        pass
+                    break
+                except Exception:
+                    continue
+    except Exception as _e:
+        print(f"⚠️ Travel recovery hatasi: {_e}")
+
     next_id = "ctl00_SiteContentPlaceHolder_UpdateButton3"
 
     # 1️⃣ Buton gerçekten DOM'da + clickable olsun
@@ -1354,8 +1379,6 @@ def click_next_travel(wait, driver):
     time.sleep(0.1)
 
     print("✅ Travel sayfasına geçildi")
-
-
 
 def select_purpose_of_trip(wait, driver, purpose_text):
     select_id = "ctl00_SiteContentPlaceHolder_FormView1_dlPrincipalAppTravel_ctl00_ddlPurposeOfTrip"
@@ -2223,31 +2246,51 @@ def click_continue_applications(wait, driver):
     # postback + yeni sayfa yüklenmesi
     time.sleep(0.1)
 def click_nexts(wait, driver, label=None, wait_seconds=0.1):
-    btn_id = "ctl00_SiteContentPlaceHolder_UpdateButton3"
+    # ── Next'e basmadan ONCE: sayfada aktif validation hatasi varsa genel duzeltme ──
+    try:
+        _act = fix_active_validators(driver)
+        if _act:
+            print(f"🔧 (click_nexts oncesi) {_act} alan genel duzeltildi")
+            # duzeltince Save'e bas ki gecerli olsun
+            for _bid in ("ctl00_SiteContentPlaceHolder_FormView1_UpdateButton2",
+                         "ctl00_SiteContentPlaceHolder_UpdateButton3",
+                         "ctl00_SiteContentPlaceHolder_FormView1_UpdateButton3",
+                         "ctl00_SiteContentPlaceHolder_UpdateButton2"):
+                try:
+                    _sb = driver.find_element(By.ID, _bid)
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", _sb)
+                    time.sleep(0.3)
+                    driver.execute_script("arguments[0].click();", _sb)
+                    time.sleep(1.5)
+                    try:
+                        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                    except Exception:
+                        pass
+                    break
+                except Exception:
+                    continue
+    except Exception as _e:
+        print(f"⚠️ click_nexts recovery hatasi: {_e}")
 
+    btn_id = "ctl00_SiteContentPlaceHolder_UpdateButton3"
     btn = wait.until(
         EC.element_to_be_clickable((By.ID, btn_id))
     )
-
     driver.execute_script(
         "arguments[0].scrollIntoView({block:'center'});",
         btn
     )
     time.sleep(0.1)
-
     try:
         btn.click()
     except:
         driver.execute_script("arguments[0].click();", btn)
-
     if label:
         print(f"➡️ Next tıklandı → {label}")
     else:
         print("➡️ Next tıklandı")
-
     # postback + yeni sayfa
     time.sleep(wait_seconds)
-    
 
 def parse_travel_companions(data):
     companions = []

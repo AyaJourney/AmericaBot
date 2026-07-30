@@ -285,13 +285,16 @@ def take_and_send_screenshot(driver, job_id: str):
 def wait_for_close_command(driver, job_id: str):
     update_job_status(job_id, "waiting_close")
     print(f"[BOT-{BOT_ID}] Waiting close - kullanici onay bekleniyor...")
+    _last_close_status = None
     while True:
         time.sleep(POLL_INTERVAL)
         payload = poll_captcha_state(job_id)
         if not payload:
             continue
         job_status = payload.get("status")
-        print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
+        if job_status != _last_close_status:          # sadece DEGISINCE yaz
+            print(f"[BOT-{BOT_ID}] waiting_close poll: {job_status}")
+            _last_close_status = job_status
         if job_status == "close":
             print(f"[BOT-{BOT_ID}] Kapat komutu alindi, bot kapatiliyor...")
             try:
@@ -302,7 +305,6 @@ def wait_for_close_command(driver, job_id: str):
         if payload.get("close_ack") or job_status == "close_ack":
             print(f"[BOT-{BOT_ID}] close_ack alindi, devam ediliyor...")
             break
-
 
 # =====================================================
 # CHROME

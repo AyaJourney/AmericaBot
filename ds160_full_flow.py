@@ -109,6 +109,8 @@ def _save_continue_next(wait, driver, label="next"):
 
     click_continue_applications(wait, driver)
     click_nexts(wait, driver, label=label)
+
+
 def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_photo_page=None):
     print(f"DEBUG PRESENT_OCCUPATION: {data.get('PRESENT_OCCUPATION')}")
     print(f"DEBUG PRESENT_OCCUPATION_EXPLAIN: {data.get('PRESENT_OCCUPATION_EXPLAIN')}")
