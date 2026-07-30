@@ -9,7 +9,7 @@ from selenium.common.exceptions import (
     TimeoutException,
     NoSuchElementException,
 )
-
+from auto_recovery import fix_active_validators
 PAYER_MAP = {
     "SELF": "S",
     "OTHER": "O",
@@ -8572,6 +8572,21 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
             print(f"⚠️ Validation hatası (attempt {attempt+1}/{max_attempts}):")
             
             print(f"   {error_text[:300]}")
+            genel = fix_active_validators(driver)
+            if genel:
+                print(f"🔧 {genel} alan genel yontemle duzeltildi, tekrar Save...")
+                try:
+                    save_btn = wait.until(EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_UpdateButton2")
+                    ))
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", save_btn)
+                    time.sleep(0.3)
+                    driver.execute_script("arguments[0].click();", save_btn)
+                    time.sleep(2)
+                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                except Exception as e:
+                    print(f"⚠️ genel recovery sonrasi Save hatasi: {e}")
+                continue  # dongu basina don, kalan hata var mi tekrar bak
 
         except NoSuchElementException:
             print("✅ ValidationSummary yok, sayfa temiz")
