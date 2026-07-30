@@ -2247,17 +2247,7 @@ def click_nexts(wait, driver, label=None, wait_seconds=0.1):
 
     # postback + yeni sayfa
     time.sleep(wait_seconds)
-    try:
-        src = driver.page_source
-        low = src.lower()
-        if "correct the following" in low or "is required" in low or "validationsummary" in low:
-            import time as _t
-            fname = f"logs/error_dump_{int(_t.time())}.html"
-            with open(fname, "w", encoding="utf-8") as f:
-                f.write(src)
-            print(f"⚠️⚠️ HATA SAYFASI KAYDEDILDI: {fname}")
-    except Exception as _e:
-        print(f"dump hatasi: {_e}")
+    
 
 def parse_travel_companions(data):
     companions = []
