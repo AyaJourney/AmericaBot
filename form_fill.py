@@ -8575,19 +8575,29 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
             genel = fix_active_validators(driver)
             if genel:
                 print(f"🔧 {genel} alan genel yontemle duzeltildi, tekrar Save...")
-                try:
-                    save_btn = wait.until(EC.element_to_be_clickable(
-                        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_UpdateButton2")
-                    ))
-                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", save_btn)
-                    time.sleep(0.3)
-                    driver.execute_script("arguments[0].click();", save_btn)
+                _saved = False
+                for _bid in ("ctl00_SiteContentPlaceHolder_FormView1_UpdateButton2",
+                             "ctl00_SiteContentPlaceHolder_UpdateButton3",
+                             "ctl00_SiteContentPlaceHolder_FormView1_UpdateButton3",
+                             "ctl00_SiteContentPlaceHolder_UpdateButton2"):
+                    try:
+                        _sb = driver.find_element(By.ID, _bid)
+                        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", _sb)
+                        time.sleep(0.3)
+                        driver.execute_script("arguments[0].click();", _sb)
+                        _saved = True
+                        break
+                    except Exception:
+                        continue
+                if _saved:
                     time.sleep(2)
-                    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-                except Exception as e:
-                    print(f"⚠️ genel recovery sonrasi Save hatasi: {e}")
-                continue  # dongu basina don, kalan hata var mi tekrar bak
-
+                    try:
+                        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                    except Exception:
+                        pass
+                else:
+                    print("⚠️ genel recovery sonrasi Save butonu bulunamadi")
+                continue
         except NoSuchElementException:
             print("✅ ValidationSummary yok, sayfa temiz")
             return True
