@@ -8570,6 +8570,7 @@ def check_and_fix_validation_errors(wait, driver, max_attempts=3):
                 return True
 
             print(f"⚠️ Validation hatası (attempt {attempt+1}/{max_attempts}):")
+            
             print(f"   {error_text[:300]}")
 
         except NoSuchElementException:
