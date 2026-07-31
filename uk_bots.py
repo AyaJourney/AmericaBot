@@ -4487,13 +4487,17 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             "lithuania":("LTU","Lithuania"),"litvanya":("LTU","Lithuania"),
                             "luxembourg":("LUX","Luxembourg"),"luksemburg":("LUX","Luxembourg"),"lüksemburg":("LUX","Luxembourg"),
                             "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus"),"kibris":("CYP","Cyprus"),"kıbrıs":("CYP","Cyprus")}
-                        code = "DEU"
-                        name = "Germany"
-                        for key, (c, n) in schengen_map.items():
-                            if key in country:
-                                code = c
-                                name = n
-                                break
+                        code = None; name = None
+                        c_norm = country.strip().lower()
+                        if c_norm in schengen_map:
+                            code, name = schengen_map[c_norm]
+                        else:
+                            for key in sorted(schengen_map, key=len, reverse=True):
+                                if key in c_norm:
+                                    code, name = schengen_map[key]; break
+                        if not code:
+                            print(f"[FORM-34] ⚠️ Schengen disi, atlaniyor: '{country}'")
+                            continue
                         
                         # Container'i JS ile ac (site JS'i calismazsa diye)
                         driver.execute_script("""
