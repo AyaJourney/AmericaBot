@@ -1459,6 +1459,17 @@ def fill_travel_details(wait, driver, data):
     MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
                "JUL","AUG","SEP","OCT","NOV","DEC"]
 
+    def add_months(date_obj, months):
+        """Ay bazında doğru ekleme yapar (gün taşmalarını da güvenli şekilde yönetir)."""
+        month = date_obj.month - 1 + months
+        year = date_obj.year + month // 12
+        month = month % 12 + 1
+        # Hedef ayın son gününü aşmamak için gün sayısını sınırla
+        day = min(date_obj.day, [31,
+            29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
+            31,30,31,30,31,31,30,31,30,31][month - 1])
+        return date_obj.replace(year=year, month=month, day=day)
+
     # ARRIVAL DATE
     fill_ds160_date(
         wait, driver,
@@ -1473,7 +1484,7 @@ def fill_travel_details(wait, driver, data):
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxArriveCity", data["ARRIVAL_CITY"])
     time.sleep(0.5)
 
-    # DEPARTURE DATE — bugün/geçmişteyse arrival'dan 2 ay sonrasına ayarla
+    # DEPARTURE DATE — bugün/geçmişteyse arrival'dan 6 ay sonrasına ayarla
     dep_day  = data.get("DEPARTURE_DAY", "")
     dep_mon  = str(data.get("DEPARTURE_MONTH", "")).strip()
     dep_year = data.get("DEPARTURE_YEAR", "")
@@ -1493,14 +1504,14 @@ def fill_travel_details(wait, driver, data):
     dep_date = parse_to_date(dep_day, dep_mon, dep_year)
 
     if dep_date is None or dep_date.date() <= today.date():
-        # Arrival tarihinden 2 ay sonrasını hesapla (varış tarihi referans)
+        # Arrival tarihinden 6 ay sonrasını hesapla (varış tarihi referans)
         arr_date = parse_to_date(data["ARRIVAL_DAY"], data["ARRIVAL_MONTH"], data["ARRIVAL_YEAR"])
         base_date = arr_date if arr_date else today
-        future = base_date + timedelta(days=60)
+        future = add_months(base_date, 6)
         dep_day  = str(future.day)
         dep_mon  = MON_STR[future.month - 1]
         dep_year = str(future.year)
-        print(f"⚠️ Departure tarihi geçmiş/bugün → {dep_day}-{dep_mon}-{dep_year} olarak ayarlandı")
+        print(f"⚠️ Departure tarihi geçmiş/bugün → {dep_day}-{dep_mon}-{dep_year} olarak ayarlandı (6 ay ileri)")
 
     fill_ds160_date(
         wait, driver,
@@ -1522,6 +1533,7 @@ def fill_travel_details(wait, driver, data):
     )
 
     print("✅ Travel details başarıyla dolduruldu")
+
 MONTH_MAP = {
     "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
     "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
@@ -1722,15 +1734,25 @@ def fill_intended_arrival_date(wait, driver, data):
     MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
                "JUL","AUG","SEP","OCT","NOV","DEC"]
 
-    # Geçersiz değerler — XXXXXXXXXX, boş, vs → 90 gün sonrası
+    def add_months(date_obj, months):
+        """Ay bazında doğru ekleme yapar (gün taşmalarını da güvenli şekilde yönetir)."""
+        month = date_obj.month - 1 + months
+        year = date_obj.year + month // 12
+        month = month % 12 + 1
+        day = min(date_obj.day, [31,
+            29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
+            31,30,31,30,31,31,30,31,30,31][month - 1])
+        return date_obj.replace(year=year, month=month, day=day)
+
+    # Geçersiz değerler — XXXXXXXXXX, boş, vs → 6 ay sonrası
     invalid_vals = {"", "XXXXXXXXXX", "XX", "X", "NA", "N/A", "NONE", "0"}
 
     def is_invalid(val):
         return not val or val.upper() in invalid_vals or not any(c.isdigit() or c.isalpha() for c in val)
 
     if is_invalid(day_raw) or is_invalid(mon_raw) or is_invalid(year_raw):
-        print(f"⚠️ Varış tarihi geçersiz ({day_raw}-{mon_raw}-{year_raw}) → 90 gün sonrası")
-        future  = datetime.now() + timedelta(days=90)
+        print(f"⚠️ Varış tarihi geçersiz ({day_raw}-{mon_raw}-{year_raw}) → 6 ay sonrası")
+        future  = add_months(datetime.now(), 6)
         day_raw  = str(future.day)
         mon_raw  = MON_STR[future.month - 1]
         year_raw = str(future.year)
@@ -1746,15 +1768,15 @@ def fill_intended_arrival_date(wait, driver, data):
         today   = datetime.now()
 
         if arrival <= today:
-            print(f"⚠️ Varış tarihi geçmişte ({day_raw}-{mon_raw}-{year_raw}), 90 gün sonrasına ayarlanıyor...")
-            future   = today + timedelta(days=90)
+            print(f"⚠️ Varış tarihi geçmişte ({day_raw}-{mon_raw}-{year_raw}), 6 ay sonrasına ayarlanıyor...")
+            future   = add_months(today, 6)
             day_raw  = str(future.day)
             mon_raw  = MON_STR[future.month - 1]
             year_raw = str(future.year)
             print(f"✅ Yeni varış tarihi: {day_raw}-{mon_raw}-{year_raw}")
     except Exception as e:
-        print(f"⚠️ Tarih kontrol hatası: {e} → 90 gün sonrası kullanılıyor")
-        future   = datetime.now() + timedelta(days=90)
+        print(f"⚠️ Tarih kontrol hatası: {e} → 6 ay sonrası kullanılıyor")
+        future   = add_months(datetime.now(), 6)
         day_raw  = str(future.day)
         mon_raw  = MON_STR[future.month - 1]
         year_raw = str(future.year)
@@ -1772,7 +1794,7 @@ def fill_intended_arrival_date(wait, driver, data):
         mon_text = mon_raw[:3]
 
     if not mon_val:
-        future   = datetime.now() + timedelta(days=90)
+        future   = add_months(datetime.now(), 6)
         mon_val  = str(future.month)
         mon_text = MON_STR[future.month - 1]
 
@@ -1812,7 +1834,6 @@ def fill_intended_arrival_date(wait, driver, data):
     driver.find_element(By.TAG_NAME, "body").click()
     time.sleep(0.6)
     print(f"✅ Intended Arrival Date: {day_val}-{mon_raw}-{year_raw}")
-
 def fill_intended_length_of_stay(wait, driver, data):
     raw_value = str(data.get("TRAVEL_LOS_VALUE", "")).strip()
     raw_unit = str(data.get("TRAVEL_LOS_UNIT", "")).strip().upper()
