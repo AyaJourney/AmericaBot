@@ -1460,34 +1460,13 @@ def fill_travel_details(wait, driver, data):
                "JUL","AUG","SEP","OCT","NOV","DEC"]
 
     def add_months(date_obj, months):
-        """Ay bazında doğru ekleme yapar (gün taşmalarını da güvenli şekilde yönetir)."""
         month = date_obj.month - 1 + months
         year = date_obj.year + month // 12
         month = month % 12 + 1
-        # Hedef ayın son gününü aşmamak için gün sayısını sınırla
         day = min(date_obj.day, [31,
             29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
             31,30,31,30,31,31,30,31,30,31][month - 1])
         return date_obj.replace(year=year, month=month, day=day)
-
-    # ARRIVAL DATE
-    fill_ds160_date(
-        wait, driver,
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlARRIVAL_US_DTEDay",
-        "ctl00_SiteContentPlaceHolder_FormView1_ddlARRIVAL_US_DTEMonth",
-        "ctl00_SiteContentPlaceHolder_FormView1_tbxARRIVAL_US_DTEYear",
-        data["ARRIVAL_DAY"],
-        data["ARRIVAL_MONTH"],
-        data["ARRIVAL_YEAR"]
-    )
-
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxArriveCity", data["ARRIVAL_CITY"])
-    time.sleep(0.5)
-
-    # DEPARTURE DATE — bugün/geçmişteyse arrival'dan 6 ay sonrasına ayarla
-    dep_day  = data.get("DEPARTURE_DAY", "")
-    dep_mon  = str(data.get("DEPARTURE_MONTH", "")).strip()
-    dep_year = data.get("DEPARTURE_YEAR", "")
 
     def parse_to_date(day, mon, year):
         try:
@@ -1501,17 +1480,48 @@ def fill_travel_details(wait, driver, data):
             return None
 
     today = datetime.now()
+
+    # ── ARRIVAL DATE — bugün veya geçmişteyse → bugünden 10 gün sonrasına ayarla ──
+    arr_day  = data.get("ARRIVAL_DAY", "")
+    arr_mon  = data.get("ARRIVAL_MONTH", "")
+    arr_year = data.get("ARRIVAL_YEAR", "")
+
+    arr_date = parse_to_date(arr_day, arr_mon, arr_year)
+
+    if arr_date is None or arr_date.date() <= today.date():
+        future_arr = today + timedelta(days=10)
+        arr_day  = str(future_arr.day)
+        arr_mon  = MON_STR[future_arr.month - 1]
+        arr_year = str(future_arr.year)
+        arr_date = future_arr
+        print(f"⚠️ Arrival tarihi geçmiş/bugün → {arr_day}-{arr_mon}-{arr_year} olarak ayarlandı")
+
+    fill_ds160_date(
+        wait, driver,
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlARRIVAL_US_DTEDay",
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlARRIVAL_US_DTEMonth",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxARRIVAL_US_DTEYear",
+        arr_day,
+        arr_mon,
+        arr_year
+    )
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxArriveCity", data["ARRIVAL_CITY"])
+    time.sleep(0.5)
+
+    # DEPARTURE DATE — bugün/geçmişteyse veya arrival'dan önceyse arrival'dan 6 ay sonrasına ayarla
+    dep_day  = data.get("DEPARTURE_DAY", "")
+    dep_mon  = str(data.get("DEPARTURE_MONTH", "")).strip()
+    dep_year = data.get("DEPARTURE_YEAR", "")
+
     dep_date = parse_to_date(dep_day, dep_mon, dep_year)
 
-    if dep_date is None or dep_date.date() <= today.date():
-        # Arrival tarihinden 6 ay sonrasını hesapla (varış tarihi referans)
-        arr_date = parse_to_date(data["ARRIVAL_DAY"], data["ARRIVAL_MONTH"], data["ARRIVAL_YEAR"])
-        base_date = arr_date if arr_date else today
-        future = add_months(base_date, 6)
+    if dep_date is None or dep_date.date() <= today.date() or dep_date.date() <= arr_date.date():
+        future = add_months(arr_date, 6)
         dep_day  = str(future.day)
         dep_mon  = MON_STR[future.month - 1]
         dep_year = str(future.year)
-        print(f"⚠️ Departure tarihi geçmiş/bugün → {dep_day}-{dep_mon}-{dep_year} olarak ayarlandı (6 ay ileri)")
+        print(f"⚠️ Departure tarihi geçmiş/bugün/arrival'dan önce → {dep_day}-{dep_mon}-{dep_year} olarak ayarlandı (6 ay ileri)")
 
     fill_ds160_date(
         wait, driver,
@@ -1533,7 +1543,6 @@ def fill_travel_details(wait, driver, data):
     )
 
     print("✅ Travel details başarıyla dolduruldu")
-
 MONTH_MAP = {
     "JAN": "1", "FEB": "2", "MAR": "3", "APR": "4",
     "MAY": "5", "JUN": "6", "JUL": "7", "AUG": "8",
