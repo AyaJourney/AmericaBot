@@ -3837,6 +3837,7 @@ def fill_date_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
 
 def fill_passport_info(wait, driver, data):
     print("🛂 Passport section başladı")
+    from datetime import datetime, timedelta
 
     def js_fill(element_id, value):
         if not value:
@@ -3848,6 +3849,37 @@ def fill_passport_info(wait, driver, data):
             arguments[0].value = '';
         """, el)
         el.send_keys(str(value))
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    def add_months(date_obj, months):
+        """Ay bazında doğru ekleme (gün taşmalarını güvenli yönetir)."""
+        month = date_obj.month - 1 + months
+        year = date_obj.year + month // 12
+        month = month % 12 + 1
+        day = min(date_obj.day, [31,
+            29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28,
+            31,30,31,30,31,31,30,31,30,31][month - 1])
+        return date_obj.replace(year=year, month=month, day=day)
+
+    def parse_flex_date(val):
+        """Serbest formatlı tarih string'ini datetime'a çevirir. Parse edilemezse None döner."""
+        if not val:
+            return None
+        val = str(val).strip().upper()
+        # Yaygın formatları dene
+        fmts = ["%d-%b-%Y", "%d-%B-%Y", "%d/%m/%Y", "%d.%m.%Y",
+                "%d %b %Y", "%d %B %Y", "%Y-%m-%d", "%m/%d/%Y"]
+        for fmt in fmts:
+            try:
+                return datetime.strptime(val, fmt)
+            except Exception:
+                continue
+        return None
+
+    def format_date_ddmmmyyyy(date_obj):
+        return f"{date_obj.day}-{MON_STR[date_obj.month - 1]}-{date_obj.year}"
 
     passport_type = data.get("PASSPORT_TYPE", "REGULAR").strip().upper()
     type_value = PASSPORT_TYPE_MAP.get(passport_type)
@@ -3928,18 +3960,30 @@ def fill_passport_info(wait, driver, data):
         data.get("PASSPORT_ISSUED_IN_COUNTRY", "TURKEY")
     )
 
-    # ISSUE DATE
+    # ---- ISSUE DATE — bugün veya ileri tarihse → dün ----
+    today = datetime.now()
+    issue_raw = data.get("PASSPORT_ISSUE_DATE", "")
+    issue_date = parse_flex_date(issue_raw)
+
+    if issue_date is None or issue_date.date() >= today.date():
+        yesterday = today - timedelta(days=1)
+        issue_date_str = format_date_ddmmmyyyy(yesterday)
+        print(f"⚠️ Passport Issue Date geçersiz/bugün/ileri tarih ({issue_raw}) → {issue_date_str} (dün) olarak ayarlandı")
+    else:
+        issue_date_str = format_date_ddmmmyyyy(issue_date)
+
     fill_date_dd_mmm_yyyy(
         wait, driver,
         "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEDay",
         "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_ISSUED_DTEMonth",
         "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_ISSUEDYear",
-        data.get("PASSPORT_ISSUE_DATE", "")
+        issue_date_str
     )
 
-    # EXPIRY DATE
-    exp_date = data.get("PASSPORT_EXPIRY_DATE", "").strip().upper()
-    if exp_date in ("", "NA", "N/A"):
+    # ---- EXPIRY DATE — bugün veya öncesiyse → bugünden 1 yıl sonrası ----
+    exp_raw = data.get("PASSPORT_EXPIRY_DATE", "").strip().upper()
+
+    if exp_raw in ("", "NA", "N/A"):
         try:
             cb_exp_na = wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxPPT_EXPIRE_NA")
@@ -3950,15 +3994,25 @@ def fill_passport_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Expiry NA: {e}")
     else:
+        exp_date = parse_flex_date(exp_raw)
+
+        if exp_date is None or exp_date.date() <= today.date():
+            future = add_months(today, 12)
+            exp_date_str = format_date_ddmmmyyyy(future)
+            print(f"⚠️ Passport Expiry Date geçersiz/bugün/geçmiş ({exp_raw}) → {exp_date_str} (1 yıl sonrası) olarak ayarlandı")
+        else:
+            exp_date_str = format_date_ddmmmyyyy(exp_date)
+
         fill_date_dd_mmm_yyyy(
             wait, driver,
             "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_EXPIRE_DTEDay",
             "ctl00_SiteContentPlaceHolder_FormView1_ddlPPT_EXPIRE_DTEMonth",
             "ctl00_SiteContentPlaceHolder_FormView1_tbxPPT_EXPIREYear",
-            data.get("PASSPORT_EXPIRY_DATE", "")
+            exp_date_str
         )
 
     print("🟢 Passport section TAMAMLANDI")
+
 def fill_lost_passport(wait, driver, data):
     print("🟠 Lost Passport bölümü başladı")
 
@@ -4239,6 +4293,71 @@ def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
 
 def fill_parents_info(wait, driver, data):
     print("👨‍👩‍👧‍👦 Parents info başladı...")
+    from datetime import datetime
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    def parse_flex_date(day, mon, year):
+        """day/month/year parçalarından datetime üretir. Ay isim veya sayı olabilir."""
+        try:
+            mon = str(mon).strip().upper()
+            if mon.isdigit():
+                mon_num = int(mon)
+            else:
+                mon_num = MON_STR.index(mon[:3]) + 1
+            return datetime(int(year), mon_num, int(day))
+        except Exception:
+            return None
+
+    def parse_flex_date_str(val):
+        """Tek string tarih ('15-JAN-1980' gibi) parse eder."""
+        if not val:
+            return None
+        val = str(val).strip().upper()
+        fmts = ["%d-%b-%Y", "%d-%B-%Y", "%d/%m/%Y", "%d.%m.%Y",
+                "%d %b %Y", "%d %B %Y", "%Y-%m-%d", "%m/%d/%Y"]
+        for fmt in fmts:
+            try:
+                return datetime.strptime(val, fmt)
+            except Exception:
+                continue
+        return None
+
+    def subtract_years(date_obj, years):
+        """Yıl bazında doğru çıkarma (29 Şubat gibi durumları güvenli yönetir)."""
+        year = date_obj.year - years
+        month = date_obj.month
+        day = date_obj.day
+        if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+            day = 28
+        return date_obj.replace(year=year, month=month, day=day)
+
+    def format_date_ddmmmyyyy(date_obj):
+        return f"{date_obj.day}-{MON_STR[date_obj.month - 1]}-{date_obj.year}"
+
+    def split_name_parts(raw_name):
+        """
+        1 kelime  → tamamı ADA (given name)
+        2 kelime  → 1. kelime ADA, 2. kelime SOYADA
+        3+ kelime → son kelime SOYADA, geri kalanı ADA
+        """
+        words = [w for w in raw_name.strip().split() if w]
+        if len(words) == 0:
+            return "", ""
+        elif len(words) == 1:
+            return words[0], ""
+        else:
+            given = " ".join(words[:-1])
+            surname = words[-1]
+            return given, surname
+
+    # ---- Kişinin (applicant) doğum tarihi — parent DOB kontrolü için referans ----
+    applicant_dob = parse_flex_date(
+        data.get("DOB_DAY", ""),
+        data.get("DOB_MONTH", ""),
+        data.get("DOB_YEAR", "")
+    )
 
     def fill_parent(parent_type):
         if parent_type == "FATHER":
@@ -4274,12 +4393,27 @@ def fill_parents_info(wait, driver, data):
             """, el)
             el.send_keys(value)
 
+        # ---- İSİM BÖLME: mevcut SURNAME/GIVEN alanlarını birleştirip kelime sayısına göre yeniden böl ----
+        raw_surname = data.get(f"{parent_type}_SURNAME", "").strip()
+        raw_given   = data.get(f"{parent_type}_GIVEN", "").strip()
+
+        # Her iki alanda da veri varsa birleştir (given + surname sırasıyla), tek alanda varsa onu kullan
+        combined_parts = [p for p in [raw_given, raw_surname] if p and p.upper() not in ("NA", "UNKNOWN")]
+        combined_name = " ".join(combined_parts).strip()
+
+        if combined_name:
+            given_val, surname_val = split_name_parts(combined_name)
+            given_val = given_val.upper()
+            surname_val = surname_val.upper()
+        else:
+            given_val, surname_val = "", ""
+
         # SURNAME
-        surname_val = data.get(f"{parent_type}_SURNAME", "").upper().strip()
         cb = wait.until(EC.presence_of_element_located((By.ID, cb_surname_id)))
-        if not surname_val or surname_val in ("NA", "UNKNOWN"):
+        if not surname_val:
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
+            print(f"ℹ️ {parent_type} Surname: bilinmiyor/tek kelime → Unknown işaretlendi")
         else:
             if cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
@@ -4287,9 +4421,8 @@ def fill_parents_info(wait, driver, data):
             js_fill(surname_id, surname_val)
 
         # GIVEN NAME
-        given_val = data.get(f"{parent_type}_GIVEN", "").upper().strip()
         cb = wait.until(EC.presence_of_element_located((By.ID, cb_given_id)))
-        if not given_val or given_val in ("NA", "UNKNOWN"):
+        if not given_val:
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
         else:
@@ -4298,14 +4431,25 @@ def fill_parents_info(wait, driver, data):
             time.sleep(0.3)
             js_fill(given_id, given_val)
 
-        # DOB
+        print(f"✅ {parent_type} isim bölündü → Given: '{given_val}' | Surname: '{surname_val}' (kaynak: '{combined_name}')")
+
+        # ---- DOB — kişiden sonra doğmuşsa (veya parse edilemiyorsa geçersizse) → kişinin DOB'undan 20 yıl önce ----
         dob_val = data.get(f"{parent_type}_DOB", "").strip()
         dob_na  = data.get(f"{parent_type}_DOB_NA", "NO").upper()
         cb = wait.until(EC.presence_of_element_located((By.ID, cb_dob_id)))
+
         if dob_na == "YES" or not dob_val:
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
         else:
+            parent_dob_date = parse_flex_date_str(dob_val)
+
+            # Kişiden sonra (veya aynı gün) doğmuşsa mantıksız → düzelt
+            if applicant_dob is not None and (parent_dob_date is None or parent_dob_date.date() >= applicant_dob.date()):
+                corrected = subtract_years(applicant_dob, 20)
+                dob_val = format_date_ddmmmyyyy(corrected)
+                print(f"⚠️ {parent_type} doğum tarihi kişiden sonra/geçersiz → kişinin DOB'undan 20 yıl önce: {dob_val}")
+
             if cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
             time.sleep(0.3)
@@ -4336,7 +4480,6 @@ def fill_parents_info(wait, driver, data):
     time.sleep(0.5)
 
     print("🟢 Parents info TAMAMLANDI")
-
 def fill_us_immediate_relatives(wait, driver, data):
     print("👪 Immediate Relatives başladı")
 
@@ -4634,6 +4777,10 @@ def auto_fill_family_page(wait, driver, data):
 
 def fill_former_spouse(wait, driver, data):
     print("💍 Former Spouse başlıyor...")
+    from datetime import datetime
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
 
     def js_fill(element_id, value):
         if not value:
@@ -4677,6 +4824,36 @@ def fill_former_spouse(wait, driver, data):
         except Exception as e:
             raise Exception(f"❌ Month seçilemedi: {month_val} → {e}")
 
+    def split_name_parts(raw_name):
+        """
+        1 kelime  → tamamı ADA (given name)
+        2 kelime  → 1. kelime ADA, 2. kelime SOYADA
+        3+ kelime → son kelime SOYADA, geri kalanı ADA
+        """
+        words = [w for w in raw_name.strip().split() if w]
+        if len(words) == 0:
+            return "", ""
+        elif len(words) == 1:
+            return words[0], ""
+        else:
+            given = " ".join(words[:-1])
+            surname = words[-1]
+            return given, surname
+
+    def calc_age(date_obj, today):
+        age = today.year - date_obj.year
+        if (today.month, today.day) < (date_obj.month, date_obj.day):
+            age -= 1
+        return age
+
+    def add_years(date_obj, years):
+        year = date_obj.year + years
+        month = date_obj.month
+        day = date_obj.day
+        if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
+            day = 28
+        return date_obj.replace(year=year, month=month, day=day)
+
     count_el = wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxNumberOfPrevSpouses")
     ))
@@ -4693,8 +4870,23 @@ def fill_former_spouse(wait, driver, data):
 
     prefix = "ctl00_SiteContentPlaceHolder_FormView1_DListSpouse_ctl00_"
 
-    js_fill(prefix + "tbxSURNAME",    data.get("FORMER_SPOUSE_SURNAME"))
-    js_fill(prefix + "tbxGIVEN_NAME", data.get("FORMER_SPOUSE_GIVEN"))
+    # ---- İSİM BÖLME ----
+    raw_surname = str(data.get("FORMER_SPOUSE_SURNAME", "") or "").strip()
+    raw_given   = str(data.get("FORMER_SPOUSE_GIVEN", "") or "").strip()
+
+    combined_parts = [p for p in [raw_given, raw_surname] if p and p.upper() not in ("NA", "UNKNOWN")]
+    combined_name = " ".join(combined_parts).strip()
+
+    if combined_name:
+        given_val, surname_val = split_name_parts(combined_name)
+        given_val = given_val.upper()
+        surname_val = surname_val.upper()
+    else:
+        given_val, surname_val = "", ""
+
+    js_fill(prefix + "tbxSURNAME",    surname_val)
+    js_fill(prefix + "tbxGIVEN_NAME", given_val)
+    print(f"✅ Former Spouse isim bölündü → Given: '{given_val}' | Surname: '{surname_val}' (kaynak: '{combined_name}')")
 
     def parse_ds160_date(date_str):
         if not date_str or "-" not in date_str:
@@ -4715,14 +4907,31 @@ def fill_former_spouse(wait, driver, data):
         except Exception:
             return "01", "JAN", "1900"
 
+    def to_datetime(day, mon, year):
+        try:
+            mon_num = MON_STR.index(mon[:3].upper()) + 1
+            return datetime(int(year), mon_num, int(day))
+        except Exception:
+            return None
+
     month_to_number = {
         "JAN":"1","FEB":"2","MAR":"3","APR":"4",
         "MAY":"5","JUN":"6","JUL":"7","AUG":"8",
         "SEP":"9","OCT":"10","NOV":"11","DEC":"12"
     }
 
-    # ── DOB ──────────────────────────────────────────────────
+    today = datetime.now()
+
+    # ── DOB — 18 yaş altıysa düzelt ─────────────────────────────
     dob_day, dob_month, dob_year = parse_ds160_date(data.get("FORMER_SPOUSE_DOB"))
+    dob_date = to_datetime(dob_day, dob_month, dob_year)
+
+    if dob_date is None or calc_age(dob_date, today) < 18:
+        corrected = add_years(today, -25)
+        dob_day, dob_month, dob_year = str(corrected.day).zfill(2), MON_STR[corrected.month - 1], str(corrected.year)
+        dob_date = corrected
+        print(f"⚠️ Former Spouse DOB 18 yaş altı/geçersiz → {dob_day}-{dob_month}-{dob_year} (25 yaşında) olarak ayarlandı")
+
     safe_select_day(prefix + "ddlDOBDay", dob_day)
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, prefix + "ddlDOBMonth")
@@ -4747,14 +4956,37 @@ def fill_former_spouse(wait, driver, data):
     except Exception:
         pass
 
-    # ── MARRIAGE DATE ─────────────────────────────────────────
+    # ── MARRIAGE DATE — DOB+18'den önce olamaz, bugünden ileri olamaz ──
     dom_day, dom_month, dom_year = parse_ds160_date(data.get("FORMER_MARRIAGE_DATE"))
+    dom_date = to_datetime(dom_day, dom_month, dom_year)
+
+    earliest_marriage = add_years(dob_date, 18)
+
+    if dom_date is None or dom_date < earliest_marriage or dom_date > today:
+        # DOB+18 ile bugün arasında güvenli bir tarih seç (DOB+22 gibi), bugünü aşarsa bugünü kullan
+        candidate = add_years(dob_date, 22)
+        if candidate > today:
+            candidate = today
+        dom_date = candidate
+        dom_day, dom_month, dom_year = str(dom_date.day).zfill(2), MON_STR[dom_date.month - 1], str(dom_date.year)
+        print(f"⚠️ Marriage Date geçersiz/tutarsız → {dom_day}-{dom_month}-{dom_year} olarak ayarlandı")
+
     safe_select_day(prefix + "ddlDomDay", dom_day)
     safe_select_month(prefix + "ddlDomMonth", month_to_number.get(dom_month, "1"))
     js_fill(prefix + "txtDomYear", dom_year)
 
-    # ── END DATE ──────────────────────────────────────────────
+    # ── END DATE — marriage date'den önce olamaz, bugünden ileri olamaz ──
     end_day, end_month, end_year = parse_ds160_date(data.get("FORMER_MARRIAGE_END_DATE"))
+    end_date = to_datetime(end_day, end_month, end_year)
+
+    if end_date is None or end_date <= dom_date or end_date > today:
+        candidate = add_years(dom_date, 3)
+        if candidate > today:
+            candidate = today
+        end_date = candidate
+        end_day, end_month, end_year = str(end_date.day).zfill(2), MON_STR[end_date.month - 1], str(end_date.year)
+        print(f"⚠️ Marriage End Date geçersiz/tutarsız → {end_day}-{end_month}-{end_year} olarak ayarlandı")
+
     safe_select_day(prefix + "ddlDomEndDay", end_day)
     safe_select_month(prefix + "ddlDomEndMonth", month_to_number.get(end_month, "1"))
     js_fill(prefix + "txtDomEndYear", end_year)
@@ -4782,9 +5014,9 @@ def fill_former_spouse(wait, driver, data):
         pass
 
     print("✅ Former Spouse tamamlandı.")
-
 def fill_spouse_info(wait, driver, data):
     print("💍 Spouse bilgileri kontrol ediliyor...")
+    from datetime import datetime
 
     marital_status = str(data.get("MARITAL_STATUS", "")).upper()
 
@@ -4798,6 +5030,9 @@ def fill_spouse_info(wait, driver, data):
         print(f"⏭ {marital_status} — spouse gerekmiyor.")
         return
 
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
     def js_fill(element_id, value):
         if not value:
             return
@@ -4809,12 +5044,50 @@ def fill_spouse_info(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
+    def split_name_parts(raw_name):
+        """
+        1 kelime  → tamamı ADA (given name)
+        2 kelime  → 1. kelime ADA, 2. kelime SOYADA
+        3+ kelime → son kelime SOYADA, geri kalanı ADA
+        """
+        words = [w for w in raw_name.strip().split() if w]
+        if len(words) == 0:
+            return "", ""
+        elif len(words) == 1:
+            return words[0], ""
+        else:
+            given = " ".join(words[:-1])
+            surname = words[-1]
+            return given, surname
+
+    def calc_age(date_obj, today):
+        age = today.year - date_obj.year
+        if (today.month, today.day) < (date_obj.month, date_obj.day):
+            age -= 1
+        return age
+
     try:
         print("📝 Mevcut eş bilgileri dolduruluyor...")
 
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseSurname", data.get("SPOUSE_SURNAME", "").upper())
-        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseGivenName", data.get("SPOUSE_GIVEN_NAME", "").upper())
+        # ---- İSİM BÖLME ----
+        raw_surname = data.get("SPOUSE_SURNAME", "").strip()
+        raw_given   = data.get("SPOUSE_GIVEN_NAME", "").strip()
 
+        combined_parts = [p for p in [raw_given, raw_surname] if p and p.upper() not in ("NA", "UNKNOWN")]
+        combined_name = " ".join(combined_parts).strip()
+
+        if combined_name:
+            given_val, surname_val = split_name_parts(combined_name)
+            given_val = given_val.upper()
+            surname_val = surname_val.upper()
+        else:
+            given_val, surname_val = "", ""
+
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseSurname", surname_val)
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSpouseGivenName", given_val)
+        print(f"✅ Spouse isim bölündü → Given: '{given_val}' | Surname: '{surname_val}' (kaynak: '{combined_name}')")
+
+        # ---- DOB ----
         raw_dob = str(data.get("SPOUSE_DOB", data.get("SPOUSE_DOB_DAY", "")))
         if "-" in raw_dob:
             parts = raw_dob.split("-")
@@ -4826,6 +5099,27 @@ def fill_spouse_info(wait, driver, data):
 
         if final_day in ["00", "0", ""]:
             final_day = "01"
+
+        # ---- 18 YAŞ ALTI KONTROLÜ ----
+        try:
+            mon_key = final_mon.strip().upper()
+            if mon_key.isdigit():
+                mon_num = int(mon_key)
+            else:
+                mon_num = MON_STR.index(mon_key[:3]) + 1
+            spouse_dob_date = datetime(int(final_year), mon_num, int(final_day))
+        except Exception:
+            spouse_dob_date = None
+
+        today = datetime.now()
+
+        if spouse_dob_date is None or calc_age(spouse_dob_date, today) < 18:
+            # 18 yaş altıysa (veya parse edilemiyorsa) → bugünden 25 yıl öncesine ayarla (güvenli yetişkin yaş)
+            corrected_year = today.year - 25
+            final_day  = str(today.day).zfill(2)
+            final_mon  = MON_STR[today.month - 1]
+            final_year = str(corrected_year)
+            print(f"⚠️ Spouse doğum tarihi 18 yaş altı/geçersiz → {final_day}-{final_mon}-{final_year} (25 yaşında) olarak ayarlandı")
 
         Select(wait.until(EC.element_to_be_clickable(
             (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
@@ -4877,14 +5171,18 @@ def fill_spouse_info(wait, driver, data):
     except Exception as e:
         print(f"❌ Spouse hatası: {str(e)}")
         raise e
-
+    
 
 def fill_widowed_spouse(wait, driver, data):
     print("⚰️ Widowed – Deceased Spouse başlıyor")
+    from datetime import datetime
 
     if str(data.get("MARITAL_STATUS", "")).upper() != "WIDOWED":
         print("⏭ Widowed değil, atlandı")
         return
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
 
     def js_fill(element_id, value):
         if not value:
@@ -4897,17 +5195,76 @@ def fill_widowed_spouse(wait, driver, data):
         """, el)
         el.send_keys(str(value))
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSURNAME", data.get("DECEASED_SPOUSE_SURNAME"))
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxGIVEN_NAME", data.get("DECEASED_SPOUSE_GIVEN"))
+    def split_name_parts(raw_name):
+        """
+        1 kelime  → tamamı ADA (given name)
+        2 kelime  → 1. kelime ADA, 2. kelime SOYADA
+        3+ kelime → son kelime SOYADA, geri kalanı ADA
+        """
+        words = [w for w in raw_name.strip().split() if w]
+        if len(words) == 0:
+            return "", ""
+        elif len(words) == 1:
+            return words[0], ""
+        else:
+            given = " ".join(words[:-1])
+            surname = words[-1]
+            return given, surname
 
-    raw_day = str(data.get("DECEASED_SPOUSE_DOB_DAY", "01")).strip()
-    day = raw_day.zfill(2) if raw_day not in ["0", "00", ""] else "01"
+    def calc_age(date_obj, today):
+        age = today.year - date_obj.year
+        if (today.month, today.day) < (date_obj.month, date_obj.day):
+            age -= 1
+        return age
+
+    # ---- İSİM BÖLME ----
+    raw_surname = str(data.get("DECEASED_SPOUSE_SURNAME", "") or "").strip()
+    raw_given   = str(data.get("DECEASED_SPOUSE_GIVEN", "") or "").strip()
+
+    combined_parts = [p for p in [raw_given, raw_surname] if p and p.upper() not in ("NA", "UNKNOWN")]
+    combined_name = " ".join(combined_parts).strip()
+
+    if combined_name:
+        given_val, surname_val = split_name_parts(combined_name)
+        given_val = given_val.upper()
+        surname_val = surname_val.upper()
+    else:
+        given_val, surname_val = "", ""
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxSURNAME", surname_val)
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxGIVEN_NAME", given_val)
+    print(f"✅ Deceased Spouse isim bölündü → Given: '{given_val}' | Surname: '{surname_val}' (kaynak: '{combined_name}')")
+
+    # ---- DOB ----
+    raw_day  = str(data.get("DECEASED_SPOUSE_DOB_DAY", "01")).strip()
+    day      = raw_day.zfill(2) if raw_day not in ["0", "00", ""] else "01"
+    mon_val  = str(data.get("DECEASED_SPOUSE_DOB_MONTH", "")).upper().strip()
+    year_val = str(data.get("DECEASED_SPOUSE_DOB_YEAR", "")).strip()
+
+    # ---- 18 YAŞ ALTI KONTROLÜ ----
+    try:
+        mon_key = mon_val
+        if mon_key.isdigit():
+            mon_num = int(mon_key)
+        else:
+            mon_num = MON_STR.index(mon_key[:3]) + 1
+        deceased_dob_date = datetime(int(year_val), mon_num, int(day))
+    except Exception:
+        deceased_dob_date = None
+
+    today = datetime.now()
+
+    if deceased_dob_date is None or calc_age(deceased_dob_date, today) < 18:
+        # 18 yaş altıysa (veya parse edilemiyorsa) → bugünden 25 yıl öncesine ayarla
+        day     = str(today.day).zfill(2)
+        mon_val = MON_STR[today.month - 1]
+        year_val = str(today.year - 25)
+        print(f"⚠️ Deceased Spouse doğum tarihi 18 yaş altı/geçersiz → {day}-{mon_val}-{year_val} (25 yaşında) olarak ayarlandı")
 
     Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBDay")
     ))).select_by_value(day)
 
-    mon_val = str(data.get("DECEASED_SPOUSE_DOB_MONTH", "")).upper()
     mon_dd = Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlDOBMonth")
     )))
@@ -4916,7 +5273,7 @@ def fill_widowed_spouse(wait, driver, data):
     except:
         mon_dd.select_by_visible_text(mon_val)
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear", data.get("DECEASED_SPOUSE_DOB_YEAR"))
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxDOBYear", year_val)
 
     nat_dropdown = Select(wait.until(EC.element_to_be_clickable(
         (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlSpouseNatDropDownList")
@@ -5238,6 +5595,37 @@ def fill_employer_or_school_info(wait, driver, data):
     print("🏢 Employer / School bilgileri dolduruluyor")
 
     from cleaner import translate_school_name
+    from datetime import datetime, timedelta
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    def parse_flex_date(raw):
+        """DD-MON-YYYY / YYYY-MM-DD / DD-MM-YYYY formatlarını dener."""
+        if not raw:
+            return None
+        raw = str(raw).strip().upper()
+        if "-" not in raw:
+            return None
+        parts = raw.split("-")
+        if len(parts) != 3:
+            return None
+        try:
+            if len(parts[0]) == 4:
+                year, mon, day = parts[0], parts[1], parts[2]
+            else:
+                day, mon, year = parts[0], parts[1], parts[2]
+            mon = mon.strip()
+            if mon.isdigit():
+                mon_num = int(mon)
+            else:
+                mon_num = MON_STR.index(mon[:3]) + 1
+            return datetime(int(year), mon_num, int(day))
+        except Exception:
+            return None
+
+    def format_date(d):
+        return f"{d.day}-{MON_STR[d.month-1]}-{d.year}"
 
     def js_fill(element_id, value):
         if not value:
@@ -5383,18 +5771,28 @@ def fill_employer_or_school_info(wait, driver, data):
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxWORK_EDUC_TEL", emp_phone)
     print(f"✅ Phone: {emp_phone}")
 
-    # ── START DATE ────────────────────────────────────────────
-    start_date = (data.get("EMP_SCH_START_DATE", "") or "").strip()
-    if start_date and start_date.upper() not in INVALID_VALS:
-        fill_date_dd_mmm_yyyy(
-            wait, driver,
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromDay",
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromMonth",
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpDateFromYear",
-            start_date
-        )
+    # ── START DATE — bugün veya ileri tarih olamaz → dün ────────
+    today = datetime.now()
+    start_date_raw = (data.get("EMP_SCH_START_DATE", "") or "").strip()
+    start_dt = parse_flex_date(start_date_raw) if start_date_raw and start_date_raw.upper() not in INVALID_VALS else None
+
+    if start_dt is None or start_dt.date() >= today.date():
+        yesterday = today - timedelta(days=1)
+        start_date_final = format_date(yesterday)
+        print(f"⚠️ EMP_SCH_START_DATE geçersiz/bugün/ileri ({start_date_raw}) → {start_date_final} (dün) olarak ayarlandı")
     else:
-        print("⚠️ EMP_SCH_START_DATE geçersiz, atlanıyor")
+        start_date_final = start_date_raw
+
+    # Sonraki fonksiyon (Previous Employment) bu tarihi referans alacak → geri yazıyoruz
+    data["EMP_SCH_START_DATE"] = start_date_final
+
+    fill_date_dd_mmm_yyyy(
+        wait, driver,
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromDay",
+        "ctl00_SiteContentPlaceHolder_FormView1_ddlEmpDateFromMonth",
+        "ctl00_SiteContentPlaceHolder_FormView1_tbxEmpDateFromYear",
+        start_date_final
+    )
 
     # ── MONTHLY SALARY ────────────────────────────────────────
     salary = str(data.get("EMP_MONTHLY_SALARY", "") or "").strip()
@@ -5431,7 +5829,6 @@ def fill_employer_or_school_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Employer / School bilgileri tamamlandı")
-
 
 def fill_present_occupation_section(wait, driver, data):
     print("🔍 Present Occupation bölümü işleniyor...")
@@ -5600,6 +5997,7 @@ def fill_previous_employment(wait, driver, data):
     print("🏢 Previous Employment bölümü başladı")
 
     from cleaner import translate_school_name
+    from datetime import datetime, timedelta
 
     prev = data.get("PREV_EMPLOYED", "NO").strip().upper()
     if prev not in ("YES", "NO"):
@@ -5622,6 +6020,35 @@ def fill_previous_employment(wait, driver, data):
 
     INVALID_VALS = {"", "X", "XX", "XXX", "XXXX", "XXXXX", "XXXXXXXXXX",
                     "NA", "N/A", "NONE", "DOES NOT APPLY", "YOK", "0", "NULL"}
+
+    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
+               "JUL","AUG","SEP","OCT","NOV","DEC"]
+
+    def parse_flex_date(raw):
+        if not raw:
+            return None
+        raw = str(raw).strip().upper()
+        if "-" not in raw:
+            return None
+        parts = raw.split("-")
+        if len(parts) != 3:
+            return None
+        try:
+            if len(parts[0]) == 4:
+                year, mon, day = parts[0], parts[1], parts[2]
+            else:
+                day, mon, year = parts[0], parts[1], parts[2]
+            mon = mon.strip()
+            if mon.isdigit():
+                mon_num = int(mon)
+            else:
+                mon_num = MON_STR.index(mon[:3]) + 1
+            return datetime(int(year), mon_num, int(day))
+        except Exception:
+            return None
+
+    def format_date(d):
+        return f"{d.day}-{MON_STR[d.month-1]}-{d.year}"
 
     def split(key):
         val = data.get(key, "")
@@ -5651,6 +6078,44 @@ def fill_previous_employment(wait, driver, data):
     sup_given   = split_by_count("PREV_SUPERVISOR_GIVEN", count)
     duties      = split_by_count("PREV_EMPLOY_DUTIES", count)
     country     = split_by_count("PREV_EMPLOYER_COUNTRY", count)
+
+    # ── TARİH ZİNCİRİ DÜZELTME ──────────────────────────────────
+    # index 0 = present job'a en yakın (en son) önceki iş varsayımı.
+    # Her önceki işin bitişi, kendinden önceki (present job veya bir sonraki index) işin
+    # başlangıcından önce olmak zorunda. Her işin kendi içinde from < to olmalı.
+    today = datetime.now()
+
+    present_start_raw = (data.get("EMP_SCH_START_DATE", "") or "").strip()
+    present_start_dt = parse_flex_date(present_start_raw)
+    if present_start_dt is None:
+        present_start_dt = today  # present job tarihi bulunamazsa bugünü referans al
+
+    max_end = present_start_dt - timedelta(days=1)  # bir önceki işin bitişi bundan sonra olamaz
+
+    for i in range(count):
+        to_dt = parse_flex_date(date_to[i]) if date_to[i] and date_to[i].upper() not in INVALID_VALS else None
+        from_dt = parse_flex_date(date_from[i]) if date_from[i] and date_from[i].upper() not in INVALID_VALS else None
+
+        # TO — yeni işten (veya bir önceki entry'nin başlangıcından) sonra olamaz
+        if to_dt is None or to_dt > max_end:
+            fixed_to = max_end
+            print(f"⚠️ PREV_EMPLOY_TO[{i}] geçersiz/tutarsız ({date_to[i]}) → {format_date(fixed_to)} olarak ayarlandı")
+            to_dt = fixed_to
+            date_to[i] = format_date(to_dt)
+        else:
+            date_to[i] = format_date(to_dt)
+
+        # FROM — TO'dan önce olmalı; değilse TO'dan 1 yıl öncesine ayarla
+        if from_dt is None or from_dt >= to_dt:
+            fixed_from = to_dt - timedelta(days=365)
+            print(f"⚠️ PREV_EMPLOY_FROM[{i}] geçersiz/tutarsız ({date_from[i]}) → {format_date(fixed_from)} olarak ayarlandı")
+            from_dt = fixed_from
+            date_from[i] = format_date(from_dt)
+        else:
+            date_from[i] = format_date(from_dt)
+
+        # Bir sonraki (daha eski) işin bitişi bu işin başlangıcından sonra olamaz
+        max_end = from_dt - timedelta(days=1)
 
     base = "ctl00_SiteContentPlaceHolder_FormView1_dtlPrevEmpl_ctl"
 
@@ -5825,7 +6290,7 @@ def fill_previous_employment(wait, driver, data):
             except Exception as e:
                 print(f"⚠️ Supervisor Given NA: {e}")
 
-        # DATES
+        # DATES — zaten yukarıda tutarlı hale getirildi
         fill_date_dd_mmm_yyyy(wait, driver,
             fid(i, "ddlEmpDateFromDay"),
             fid(i, "ddlEmpDateFromMonth"),
@@ -5889,41 +6354,37 @@ def fill_previous_employment(wait, driver, data):
 
     click_outside(driver)
     print("🟢 Previous Employment TAMAMLANDI")
+
 def fill_other_education(wait, driver, data):
     print("🎓 Other Education bölümü başladı")
 
     from cleaner import translate_school_name
     from datetime import date as dt, timedelta
 
-    def get_valid_to_date(raw_date):
-        """Bitiş tarihi bugün veya gelecekteyse dünü döndür."""
-        MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
-                  "JUL","AUG","SEP","OCT","NOV","DEC"]
-        today = dt.today()
+    MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
+              "JUL","AUG","SEP","OCT","NOV","DEC"]
 
-        if not raw_date or "-" not in raw_date:
-            yesterday = today - timedelta(days=2)
-            return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
-
+    def parse_edu_date(raw):
+        if not raw or "-" not in raw:
+            return None
+        parts = raw.strip().split("-")
+        if len(parts) != 3:
+            return None
         try:
-            parts = raw_date.strip().split("-")
-            day   = int(parts[0])
-            month = MONTHS.index(parts[1].upper()) + 1
-            year  = int(parts[2])
-            parsed = dt(year, month, day)
+            if len(parts[0]) == 4:
+                year, mon, day = int(parts[0]), parts[1], int(parts[2])
+            else:
+                day, mon, year = int(parts[0]), parts[1], int(parts[2])
+            mon = mon.strip().upper()
+            mon_num = int(mon) if mon.isdigit() else MONTHS.index(mon[:3]) + 1
+            return dt(year, mon_num, day)
         except Exception:
-            yesterday = today - timedelta(days=2)
-            return f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
+            return None
 
-        if parsed >= today:
-            yesterday = today - timedelta(days=2)
-            result = f"{yesterday.day:02d}-{MONTHS[yesterday.month-1]}-{yesterday.year}"
-            print(f"⚠️ Eğitim bitiş tarihi gelecekte ({raw_date}) → {result} yazıldı")
-            return result
+    def format_edu_date(d):
+        return f"{d.day:02d}-{MONTHS[d.month-1]}-{d.year}"
 
-        return raw_date
-
-    # Eğitim listesini topla
+    # Eğitim listesini topla (idx artan sırada = kronolojik: eski→yeni, yani lise→üniversite varsayımı)
     educations_list = []
     idx = 0
     while True:
@@ -5959,7 +6420,44 @@ def fill_other_education(wait, driver, data):
 
     time.sleep(1.5)
 
-    # En yeniden en eskiye sırala
+    # ── TARİH ZİNCİRİ DÜZELTME (kronolojik sırada: idx 0 = en eski / lise, sonrası üniversite vs.) ──
+    today = dt.today()
+    yesterday = today - timedelta(days=1)
+    prev_end = None  # bir önceki (daha eski) okulun bitiş tarihi
+
+    for edu in educations_list:
+        from_dt = parse_edu_date(edu["from"])
+        to_dt   = parse_edu_date(edu["to"])
+
+        # TO — dün veya öncesi olmalı (bugün/gelecek geçersiz)
+        if to_dt is None or to_dt > yesterday:
+            fixed_to = yesterday
+            print(f"⚠️ Eğitim bitiş tarihi geçersiz/bugün/gelecek ({edu['to']}) → {format_edu_date(fixed_to)} (dün) olarak ayarlandı")
+            to_dt = fixed_to
+
+        # FROM — bir önceki okulun bitişinden sonra olmalı (üniversite liseden önce okunamaz)
+        if prev_end is not None and (from_dt is None or from_dt <= prev_end):
+            fixed_from = prev_end + timedelta(days=1)
+            print(f"⚠️ Eğitim başlama tarihi önceki okuldan önce/geçersiz ({edu['from']}) → {format_edu_date(fixed_from)} olarak ayarlandı")
+            from_dt = fixed_from
+
+        # FROM — TO'dan önce olmalı
+        if from_dt is None or from_dt >= to_dt:
+            fixed_from = to_dt - timedelta(days=365 * 2)  # varsayılan 2 yıllık eğitim süresi
+            if prev_end is not None and fixed_from <= prev_end:
+                fixed_from = prev_end + timedelta(days=1)
+            print(f"⚠️ Eğitim başlama tarihi bitişten sonra/geçersiz ({edu['from']}) → {format_edu_date(fixed_from)} olarak ayarlandı")
+            from_dt = fixed_from
+
+            # from düzeltmesi to'yu geçtiyse to'yu da makul şekilde ileri al (dünü aşmadan)
+            if from_dt >= to_dt:
+                to_dt = min(from_dt + timedelta(days=365), yesterday)
+
+        edu["from"] = format_edu_date(from_dt)
+        edu["to"]   = format_edu_date(to_dt)
+        prev_end = to_dt
+
+    # En yeniden en eskiye sırala (form bu sırayla dolduruluyor)
     educations_list = list(reversed(educations_list))
     print(f"✅ Other Education: YES ({len(educations_list)} okul)")
 
@@ -5985,12 +6483,10 @@ def fill_other_education(wait, driver, data):
     for i, edu in enumerate(educations_list):
         print(f"➡️ Education #{i+1}: {edu['school_name']}")
 
-        # Satır hazır mı bekle
         wait.until(lambda d: len(d.find_elements(
             By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
         )) > i)
 
-        # Okul adı
         js_fill(educ_id(i, "tbxSchoolName"),
                 translate_school_name(edu["school_name"])[:75])
 
@@ -6066,7 +6562,7 @@ def fill_other_education(wait, driver, data):
         js_fill(educ_id(i, "tbxSchoolCourseOfStudy"),
                 edu["course"][:66] if edu["course"] else "ACADEMIC")
 
-        # FROM DATE
+        # FROM DATE — yukarıda zincir mantığıyla düzeltildi
         fill_date_dd_mmm_yyyy(wait, driver,
             educ_id(i, "ddlSchoolFromDay"),
             educ_id(i, "ddlSchoolFromMonth"),
@@ -6074,17 +6570,16 @@ def fill_other_education(wait, driver, data):
             edu["from"]
         )
 
-        # TO DATE — gelecekteyse dün yaz
+        # TO DATE — yukarıda zincir mantığıyla düzeltildi (dün/öncesi)
         fill_date_dd_mmm_yyyy(wait, driver,
             educ_id(i, "ddlSchoolToDay"),
             educ_id(i, "ddlSchoolToMonth"),
             educ_id(i, "tbxSchoolToYear"),
-            get_valid_to_date(edu["to"])
+            edu["to"]
         )
 
         print(f"✅ Education #{i+1} dolduruldu")
 
-        # Yeni satır ekle — sadece gerekiyorsa
         if i < len(educations_list) - 1:
             mevcut = len(driver.find_elements(
                 By.XPATH, "//input[contains(@id,'tbxSchoolName')]"
@@ -6125,6 +6620,7 @@ def fill_other_education(wait, driver, data):
 
     click_outside(driver)
     print("🟢 Other Education TAMAMLANDI")
+
 def fill_clan_tribe(wait, driver, data):
     val = data.get("CLAN_TRIBE", "NO").upper()
 
