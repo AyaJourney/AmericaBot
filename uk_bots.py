@@ -758,6 +758,221 @@ def safe_click(driver, element):
 # YARDIMCI FONKSIYONLAR (tekrar eden islemleri birlestir)
 # ============================================================
 
+def wait_for_element(driver, element_id, timeout=15):
+    """Element DOM'da olana VE gorunur olana kadar bekle. None donerse bulunamadi."""
+    for _ in range(timeout):
+        try:
+            found = driver.execute_script(f"""
+                var el = document.getElementById('{element_id}');
+                if (!el) return 0;
+                var style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') return 1;
+                if (el.closest('[hidden]')) return 1;
+                return 2;
+            """)
+            if found == 2:
+                return driver.find_element(By.ID, element_id)
+            elif found == 1:
+                pass  # var ama gorunmuyor, bekle
+        except:
+            pass
+        time.sleep(1)
+    return None
+
+
+def smart_radio(driver, radio_id, max_retries=3):
+    """Radio sec ve secildigini DOGRULA. Basarisizsa tekrar dene."""
+    for attempt in range(max_retries):
+        # JS ile sec
+        driver.execute_script(f"""
+            var r = document.getElementById('{radio_id}');
+            if (r) {{
+                r.scrollIntoView({{block: 'center'}});
+                r.checked = true;
+                r.click();
+                r.dispatchEvent(new Event('change', {{bubbles: true}}));
+            }}
+        """)
+        time.sleep(0.5)
+        
+        # Dogrula
+        is_checked = driver.execute_script(f"var r=document.getElementById('{radio_id}'); return r && r.checked;")
+        if is_checked:
+            return True
+        
+        print(f"[SMART] Radio {radio_id} secilemedi, deneme {attempt+1}/{max_retries}")
+        time.sleep(1)
+    
+    return False
+
+
+def smart_autocomplete(driver, select_id, ui_id, search_text, target_code, max_retries=3):
+    """Autocomplete dropdown doldur ve dogrula. En guvenilir yontem."""
+    for attempt in range(max_retries):
+        # Container hidden ise ac
+        driver.execute_script(f"""
+            var sel = document.getElementById('{select_id}');
+            if (sel) {{
+                var container = sel.closest('[hidden], [aria-hidden="true"]');
+                if (container) {{
+                    container.removeAttribute('hidden');
+                    container.removeAttribute('aria-hidden');
+                    container.style.display = '';
+                }}
+            }}
+        """)
+        time.sleep(0.5)
+        
+        # Yontem 1: send_keys ile autocomplete
+        try:
+            ui = driver.find_element(By.ID, ui_id)
+            safe_click(driver, ui)
+            time.sleep(0.3)
+            ui.clear()
+            time.sleep(0.2)
+            ui.send_keys(search_text)
+            time.sleep(2)  # autocomplete icin bekle
+            
+            # Autocomplete listesinden sec
+            try:
+                items = driver.find_elements(By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")
+                if items:
+                    safe_click(driver, items[0])
+                    time.sleep(0.5)
+                else:
+                    ui.send_keys(Keys.ARROW_DOWN)
+                    time.sleep(0.3)
+                    ui.send_keys(Keys.ENTER)
+                    time.sleep(0.5)
+            except:
+                ui.send_keys(Keys.ARROW_DOWN)
+                time.sleep(0.3)
+                ui.send_keys(Keys.ENTER)
+                time.sleep(0.5)
+        except Exception as e:
+            print(f"[SMART] Autocomplete send_keys hatasi: {e}")
+        
+        # Dogrula
+        sel_val = driver.execute_script(f"var s=document.getElementById('{select_id}'); return s?s.value:'';")
+        if sel_val == target_code:
+            print(f"[SMART] Autocomplete OK: {select_id}={sel_val}")
+            return True
+        
+        # Yontem 2: Direkt JS ile set (fallback)
+        print(f"[SMART] Autocomplete dogrulama basarisiz ({sel_val}!={target_code}), JS fallback deneniyor... (deneme {attempt+1})")
+        driver.execute_script(f"""
+            var s = document.getElementById('{select_id}');
+            if (s) {{
+                s.value = '{target_code}';
+                var opt = s.querySelector('option[value="{target_code}"]');
+                if (opt) {{ opt.selected = true; }}
+                s.dispatchEvent(new Event('change', {{bubbles: true}}));
+            }}
+            var u = document.getElementById('{ui_id}');
+            if (u) {{
+                var opt2 = s ? s.querySelector('option[value="{target_code}"]') : null;
+                u.value = opt2 ? opt2.textContent.trim() : '{search_text}';
+                u.dispatchEvent(new Event('change', {{bubbles: true}}));
+            }}
+        """)
+        time.sleep(0.5)
+        
+        # Tekrar dogrula
+        sel_val2 = driver.execute_script(f"var s=document.getElementById('{select_id}'); return s?s.value:'';")
+        if sel_val2 == target_code:
+            print(f"[SMART] JS fallback OK: {select_id}={sel_val2}")
+            return True
+        
+        time.sleep(1)
+    
+    print(f"[SMART] Autocomplete BASARISIZ: {select_id} hedef={target_code}")
+    return False
+
+
+def get_validation_errors(driver):
+    """Sayfadaki validation hatalarini oku. Bos liste = hata yok."""
+    return driver.execute_script("""
+        var errors = [];
+        // .validation-message class'li gorunur elemanlar
+        document.querySelectorAll('.validation-message').forEach(function(el) {
+            if (el.offsetParent !== null && el.textContent.trim().length > 3) {
+                var text = el.textContent.trim();
+                // Hangi alana ait?
+                var parent = el.closest('.validation');
+                var fieldId = '';
+                if (parent) {
+                    var inp = parent.querySelector('input, select, textarea');
+                    if (inp) fieldId = inp.name || inp.id || '';
+                }
+                errors.push({text: text.substring(0, 100), field: fieldId});
+            }
+        });
+        // Error summary
+        var summary = document.querySelector('.govuk-error-summary');
+        if (summary && summary.offsetParent !== null) {
+            summary.querySelectorAll('a').forEach(function(a) {
+                var href = a.getAttribute('href') || '';
+                var field = href.replace('#', '').replace('_field', '');
+                errors.push({text: a.textContent.trim().substring(0, 100), field: field});
+            });
+        }
+        return errors;
+    """) or []
+
+
+def smart_submit(driver, wait, field_fillers=None, max_retries=3):
+    """
+    Submit et, validation hatasi varsa field_fillers'i tekrar calistir ve retry.
+    field_fillers: [{'name': 'alan_adi', 'filler': lambda: ...}, ...]
+    """
+    url_before = ""
+    try:
+        url_before = driver.current_url
+    except:
+        pass
+    
+    for attempt in range(max_retries):
+        # Submit
+        try:
+            btn = driver.find_element(By.CSS_SELECTOR, "input#submit[type='submit']")
+            safe_click(driver, btn)
+        except:
+            driver.execute_script("""
+                var btn = document.getElementById('submit');
+                if (btn) btn.click();
+                else { var f = document.querySelector('form'); if (f) f.submit(); }
+            """)
+        time.sleep(3)
+        
+        # Sayfa degisti mi?
+        try:
+            if driver.current_url != url_before:
+                return True
+        except:
+            pass
+        
+        # Validation hatalari
+        errors = get_validation_errors(driver)
+        if not errors:
+            return True
+        
+        print(f"[SMART-SUBMIT] Deneme {attempt+1}/{max_retries} - {len(errors)} hata: {[e.get('field','?') for e in errors]}")
+        
+        # field_fillers varsa tekrar calistir
+        if field_fillers and attempt < max_retries - 1:
+            print(f"[SMART-SUBMIT] Alanlar tekrar dolduruluyor...")
+            for ff in field_fillers:
+                try:
+                    ff()
+                except Exception as e:
+                    print(f"[SMART-SUBMIT] Filler hatasi: {e}")
+            time.sleep(1)
+        elif attempt >= max_retries - 1:
+            print(f"[SMART-SUBMIT] Max retry asildi, devam ediliyor...")
+            return False
+    
+    return False
+
 def wait_for_page(driver, keyword, timeout=10):
     """Form action veya URL keyword icerene kadar bekle."""
     kw = keyword.lower()
@@ -4401,7 +4616,7 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                     month_year = travel.get("monthYear", "").strip()
                     duration = travel.get("durationDays", "7").strip()
 
-                    # Hangi radio secilecek
+                    # --- Ulke radio ---
                     matched_radio = None
                     for key, val in country_to_radio.items():
                         if key in country:
@@ -4409,336 +4624,92 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             break
                     if not matched_radio:
                         matched_radio = "countryRef_schengen"
-
-                    # Ulke sec - JS ile tum radio'lari temizle, hedefi sec ve dogrula
-                    selected = driver.execute_script(f"""
-                        // Once tum countryRef radiolari temizle
-                        var radios = document.querySelectorAll('input[name="countryRef"]');
-                        radios.forEach(function(r) {{ r.checked = false; }});
-                        
-                        // Hedef radioyu bul ve sec
-                        var target = document.getElementById('{matched_radio}');
-                        if (target) {{
-                            target.scrollIntoView({{block: 'center'}});
-                            target.checked = true;
-                            target.click();
-                            target.dispatchEvent(new Event('change', {{bubbles: true}}));
-                            return '{matched_radio}';
-                        }}
-                        
-                        // Bulunamadiysa alternatif ID'leri dene (schengen icin)
-                        var alts = ['countryRef_schengen', 'countryRef_eea', 'countryRef_schengenEea', 'countryRef_schengenArea'];
-                        for (var i = 0; i < alts.length; i++) {{
-                            var alt = document.getElementById(alts[i]);
-                            if (alt) {{
-                                alt.scrollIntoView({{block: 'center'}});
-                                alt.checked = true;
-                                alt.click();
-                                alt.dispatchEvent(new Event('change', {{bubbles: true}}));
-                                return alts[i];
-                            }}
-                        }}
-                        
-                        // Hicbiri yoksa mevcut radiolarin listesini dondur
-                        var ids = [];
-                        radios.forEach(function(r) {{ ids.push(r.id); }});
-                        return 'NONE:' + ids.join(',');
-                    """)
-                    print(f"[FORM-34] Ulke radio: {country} -> {selected}")
-                    time.sleep(0.5)
-
-                    # Schengen secildiyse ulke dropdown doldur
-                    is_schengen = (selected and 'schengen' in str(selected).lower()) or (selected and 'eea' in str(selected).lower())
-                    if not is_schengen:
-                        # USA/Canada/Australia/NZ secildi - bunlar icin dropdown yok
-                        pass
                     
+                    is_schengen = "schengen" in matched_radio
+
+                    # --- Schengen ise code/name bul ---
+                    code = "DEU"
+                    name = "Germany"
                     if is_schengen:
-                        # Schengen radio'ya tiklaninca site otomatik gosterir - bekle
-                        time.sleep(2)
-                        
-                        # Schengen ulke kodunu ve ismini bul
-                        schengen_map = {"germany":("DEU","Germany"),"almanya":("DEU","Germany"),
+                        schengen_map_inline = {"germany":("DEU","Germany"),"almanya":("DEU","Germany"),
                             "france":("FRA","France"),"fransa":("FRA","France"),
-                            "spain":("ESP","Spain"),"ispanya":("ESP","Spain"),
-                            "italy":("ITA","Italy"),"italya":("ITA","Italy"),
+                            "spain":("ESP","Spain"),"italy":("ITA","Italy"),"italya":("ITA","Italy"),
                             "netherlands":("NLD","Netherlands"),"hollanda":("NLD","Netherlands"),
                             "greece":("GRC","Greece"),"yunanistan":("GRC","Greece"),
-                            "portugal":("PRT","Portugal"),"portekiz":("PRT","Portugal"),
-                            "austria":("AUT","Austria"),"avusturya":("AUT","Austria"),
-                            "belgium":("BEL","Belgium"),"belcika":("BEL","Belgium"),"belçika":("BEL","Belgium"),
-                            "sweden":("SWE","Sweden"),"isvec":("SWE","Sweden"),"isveç":("SWE","Sweden"),
-                            "norway":("NOR","Norway"),"norvec":("NOR","Norway"),"norveç":("NOR","Norway"),
-                            "denmark":("DNK","Denmark"),"danimarka":("DNK","Denmark"),
-                            "finland":("FIN","Finland"),"finlandiya":("FIN","Finland"),
-                            "poland":("POL","Poland"),"polonya":("POL","Poland"),
-                            "czech":("CZE","Czech Republic"),"cekya":("CZE","Czech Republic"),"çekya":("CZE","Czech Republic"),
-                            "hungary":("HUN","Hungary"),"macaristan":("HUN","Hungary"),
-                            "romania":("ROU","Romania"),"romanya":("ROU","Romania"),
-                            "croatia":("HRV","Croatia"),"hirvatistan":("HRV","Croatia"),"hırvatistan":("HRV","Croatia"),
-                            "bulgaria":("BGR","Bulgaria"),"bulgaristan":("BGR","Bulgaria"),
-                            "switzerland":("CHE","Switzerland"),"isvicre":("CHE","Switzerland"),"isviçre":("CHE","Switzerland"),
-                            "ireland":("IRL","Ireland"),"irlanda":("IRL","Ireland"),
-                            "iceland":("ISL","Iceland"),"izlanda":("ISL","Iceland"),
-                            "slovakia":("SVK","Slovakia"),"slovakya":("SVK","Slovakia"),
-                            "slovenia":("SVN","Slovenia"),"slovenya":("SVN","Slovenia"),
-                            "estonia":("EST","Estonia"),"estonya":("EST","Estonia"),
-                            "latvia":("LVA","Latvia"),"letonya":("LVA","Latvia"),
-                            "lithuania":("LTU","Lithuania"),"litvanya":("LTU","Lithuania"),
-                            "luxembourg":("LUX","Luxembourg"),"luksemburg":("LUX","Luxembourg"),"lüksemburg":("LUX","Luxembourg"),
-                            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus"),"kibris":("CYP","Cyprus"),"kıbrıs":("CYP","Cyprus")}
-                        code = None; name = None
-                        c_norm = country.strip().lower()
-                        if c_norm in schengen_map:
-                            code, name = schengen_map[c_norm]
-                        else:
-                            for key in sorted(schengen_map, key=len, reverse=True):
-                                if key in c_norm:
-                                    code, name = schengen_map[key]; break
-                        if not code:
-                            print(f"[FORM-34] ⚠️ Schengen disi, atlaniyor: '{country}'")
-                            continue
-                        
-                        # Container'i JS ile ac (site JS'i calismazsa diye)
-                        driver.execute_script("""
-                            var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                            if (el) { el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }
-                        """)
-                        time.sleep(0.5)
-                        
-                        # ONCELIK: send_keys ile autocomplete'den sec (en guvenilir)
-                        schengen_ok = False
-                        try:
-                            ui_input = driver.find_element(By.ID, "schengenCountry_ui")
-                            safe_click(driver, ui_input)
-                            time.sleep(0.3)
-                            ui_input.clear()
-                            time.sleep(0.2)
-                            ui_input.send_keys(name)
-                            time.sleep(1.5)
-                            # Autocomplete'den sec
-                            try:
-                                ac_item = wait.until(EC.element_to_be_clickable(
-                                    (By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
-                                safe_click(driver, ac_item)
-                                schengen_ok = True
-                                print(f"[FORM-34] Schengen: autocomplete ile {name} secildi")
-                            except:
-                                ui_input.send_keys(Keys.ARROW_DOWN)
-                                time.sleep(0.3)
-                                ui_input.send_keys(Keys.ENTER)
-                                schengen_ok = True
-                                print(f"[FORM-34] Schengen: ArrowDown+Enter ile {name} secildi")
-                        except Exception as e:
-                            print(f"[FORM-34] send_keys hatasi: {e}")
-                        
-                        # FALLBACK: JS ile hidden select'e value ata
-                        if not schengen_ok:
-                            driver.execute_script(f"""
-                                var sel = document.getElementById('schengenCountry');
-                                if (sel) {{
-                                    sel.value = '{code}';
-                                    var opt = sel.querySelector('option[value="{code}"]');
-                                    if (opt) {{ opt.selected = true; }}
-                                    sel.dispatchEvent(new Event('change', {{bubbles: true}}));
-                                    var ui = document.getElementById('schengenCountry_ui');
-                                    if (ui && opt) {{ ui.value = opt.textContent.trim(); }}
-                                }}
-                            """)
-                            print(f"[FORM-34] Schengen: JS fallback ile {code} secildi")
-                        
-                        # Dogrulama
-                        sel_val = driver.execute_script("var s=document.getElementById('schengenCountry'); return s?s.value:'';")
-                        print(f"[FORM-34] Schengen dogrulama: select={sel_val} (hedef={code})")
-                        
-                        time.sleep(0.5)
+                            "portugal":("PRT","Portugal"),"austria":("AUT","Austria"),
+                            "belgium":("BEL","Belgium"),"sweden":("SWE","Sweden"),
+                            "norway":("NOR","Norway"),"denmark":("DNK","Denmark"),"danimarka":("DNK","Denmark"),
+                            "finland":("FIN","Finland"),"poland":("POL","Poland"),
+                            "czech":("CZE","Czech Republic"),"hungary":("HUN","Hungary"),
+                            "romania":("ROU","Romania"),"croatia":("HRV","Croatia"),
+                            "bulgaria":("BGR","Bulgaria"),"switzerland":("CHE","Switzerland"),
+                            "ireland":("IRL","Ireland"),"iceland":("ISL","Iceland"),
+                            "slovakia":("SVK","Slovakia"),"slovenia":("SVN","Slovenia"),
+                            "estonia":("EST","Estonia"),"latvia":("LVA","Latvia"),
+                            "lithuania":("LTU","Lithuania"),"luxembourg":("LUX","Luxembourg"),
+                            "malta":("MLT","Malta"),"cyprus":("CYP","Cyprus")}
+                        for key, (c, n) in schengen_map_inline.items():
+                            if key in country:
+                                code = c
+                                name = n
+                                break
 
-                    # Sebep - Turkce destegi ekle
-                    reason_map = {"tourist":"tourist","turist":"tourist","turistik":"tourist",
-                                  "is":"business","business":"business","work":"business","fuar":"business","ticari":"business",
-                                  "study":"study","egitim":"study","eğitim":"study","education":"study",
-                                  "transit":"transit","gecis":"transit","geçiş":"transit",
-                                  "medical":"medicalTreatment","tedavi":"medicalTreatment",
-                                  "family":"visitingFamily","aile":"visitingFamily"}
+                    # --- Sebep radio ---
+                    reason_map_inline = {"tourist":"tourist","turist":"tourist","turistik":"tourist",
+                                  "business":"business","is":"business","fuar":"business",
+                                  "study":"study","egitim":"study","eğitim":"study",
+                                  "transit":"transit"}
                     reason_radio = "reasonRef_tourist"
-                    for key, val in reason_map.items():
+                    for key, val in reason_map_inline.items():
                         if key in purpose:
                             reason_radio = f"reasonRef_{val}"
                             break
-                    set_radio(driver, reason_radio)
-                    print(f"[FORM-34] Sebep: {purpose} -> {reason_radio}")
 
-                    # Tarih - CRM'den gelen startDate/monthYear'i parse et
-                    # Ayrica travel icinde startDate, start_date, gidis_tarihi de dene
+                    # --- Tarih ---
                     actual_date = (month_year or 
                                    travel.get("startDate", "") or 
                                    travel.get("start_date", "") or 
-                                   travel.get("gidis_tarihi", "")).strip()
-                    
+                                   travel.get("start", "")).strip()
                     if actual_date:
                         visit_dt = parse_date_safe(actual_date, f"EEA ziyaret {idx+1}")
                     else:
                         visit_dt = datetime.now() - relativedelta(years=1)
-                        print(f"[FORM-34] UYARI: Tarih bos, varsayilan kullaniliyor")
-                    
-                    # JS ile yaz (pre-fill 2020 yazmasin)
-                    driver.execute_script(f"""
-                        function setVal(id, val) {{
-                            var el = document.getElementById(id);
-                            if (!el) return;
-                            var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                            setter.call(el, String(val));
-                            el.dispatchEvent(new Event('input', {{bubbles: true}}));
-                            el.dispatchEvent(new Event('change', {{bubbles: true}}));
-                        }}
-                        setVal('date_month', '{visit_dt.month}');
-                        setVal('date_year', '{visit_dt.year}');
-                    """)
-                    print(f"[FORM-34] Tarih: {visit_dt.month}/{visit_dt.year} (kaynak: '{actual_date[:20]}')")
 
-                    # Sure - endDate'den hesapla
+                    # --- Sure ---
                     actual_end = (duration or
                                   travel.get("endDate", "") or
                                   travel.get("end_date", "") or
-                                  travel.get("donus_tarihi", "")).strip()
+                                  travel.get("end", "")).strip()
                     dur_days = 7
                     if actual_end:
                         try:
                             dur_days = int(actual_end)
                         except ValueError:
-                            # Tarih formati - bitis tarihi olarak parse et
                             try:
                                 end_dt = parse_date_safe(actual_end, f"EEA bitis {idx+1}")
                                 dur_days = max(1, (end_dt - visit_dt).days)
-                                print(f"[FORM-34] Sure hesaplandi: {dur_days} gun ({actual_end[:15]})")
                             except:
                                 dur_days = 7
-                    if dur_days < 1:
-                        dur_days = 7
-                    if dur_days > 365:
-                        dur_days = 30  # max 1 ay varsay
-                    if dur_days <= 7:
-                        set_select(driver, "durationOfStayUnit", "days")
-                        set_input(driver, "durationOfStay", str(dur_days if dur_days > 0 else 7))
-                    elif dur_days <= 30:
-                        set_select(driver, "durationOfStayUnit", "weeks")
-                        set_input(driver, "durationOfStay", str(max(1, dur_days // 7)))
-                    else:
-                        set_select(driver, "durationOfStayUnit", "months")
-                        set_input(driver, "durationOfStay", str(max(1, dur_days // 30)))
+                    if dur_days < 1: dur_days = 7
+                    if dur_days > 365: dur_days = 30
 
-                    print(f"[FORM-34b] Seyahat {idx+1}: {country} / {purpose} / {visit_dt.month}/{visit_dt.year} / {dur_days} gun")
-                    
-                    # Submit oncesi dogrulama - tum alanlar dolu mu?
-                    for _verify in range(3):
-                        # countryRef secili mi?
-                        cr_ok = driver.execute_script("""
-                            var radios = document.querySelectorAll('input[name="countryRef"]');
-                            for (var i = 0; i < radios.length; i++) { if (radios[i].checked) return true; }
-                            return false;
-                        """)
-                        if not cr_ok:
-                            print(f"[FORM-34] UYARI: countryRef secili degil, tekrar seciliyor... (deneme {_verify+1})")
-                            set_radio(driver, selected or matched_radio)
-                            time.sleep(1)
-                        
-                        # reasonRef secili mi?
-                        rr_ok = driver.execute_script("""
-                            var radios = document.querySelectorAll('input[name="reasonRef"]');
-                            for (var i = 0; i < radios.length; i++) { if (radios[i].checked) return true; }
-                            return false;
-                        """)
-                        if not rr_ok:
-                            print(f"[FORM-34] UYARI: reasonRef secili degil, tekrar seciliyor... (deneme {_verify+1})")
-                            set_radio(driver, reason_radio)
-                            time.sleep(0.5)
-                        
-                        # Schengen ise dropdown dolu mu?
-                        if is_schengen:
-                            sc_val = driver.execute_script("var s=document.getElementById('schengenCountry'); return s?s.value:'';")
-                            if not sc_val:
-                                print(f"[FORM-34] UYARI: Schengen dropdown bos, tekrar dolduruluyor... (deneme {_verify+1})")
-                                driver.execute_script(f"""
-                                    var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                                    if (el) {{ el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }}
-                                """)
-                                time.sleep(0.5)
-                                try:
-                                    ui = driver.find_element(By.ID, "schengenCountry_ui")
-                                    safe_click(driver, ui)
-                                    time.sleep(0.3)
-                                    ui.clear()
-                                    ui.send_keys(name)
-                                    time.sleep(1.5)
-                                    try:
-                                        ac = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
-                                        safe_click(driver, ac)
-                                    except:
-                                        ui.send_keys(Keys.ARROW_DOWN)
-                                        time.sleep(0.3)
-                                        ui.send_keys(Keys.ENTER)
-                                except:
-                                    driver.execute_script(f"""
-                                        var s=document.getElementById('schengenCountry');
-                                        if(s){{s.value='{code}';s.dispatchEvent(new Event('change',{{bubbles:true}}));}}
-                                        var u=document.getElementById('schengenCountry_ui');
-                                        if(u){{u.value='{name}';}}
-                                    """)
-                                time.sleep(0.5)
-                        
-                        if cr_ok and rr_ok:
-                            break
-                    
-                    # Submit - direkt form submit (pre-fill olmadan)
-                    driver.execute_script("""
-                        var btn = document.getElementById('submit');
-                        if (btn) btn.click();
-                    """)
-                    time.sleep(4)
-                    
-                    # Validation hatasi var mi? Varsa tekrar doldur
-                    has_error = driver.execute_script("""
-                        var errs = document.querySelectorAll('.validation-message');
-                        for (var i = 0; i < errs.length; i++) {
-                            if (errs[i].offsetParent !== null) return true;
-                        }
-                        return false;
-                    """)
-                    if has_error:
-                        print(f"[FORM-34] Validation hatasi, tekrar dolduruluyor...")
-                        # Sayfa re-render oldu, tum alanlari tekrar doldur
-                        set_radio(driver, selected or matched_radio)
-                        time.sleep(1)
-                        if is_schengen:
-                            driver.execute_script("""
-                                var el = document.querySelector('[data-toggled-by="countryRef_schengen"]');
-                                if (el) { el.removeAttribute('hidden'); el.removeAttribute('aria-hidden'); el.style.display = ''; }
-                            """)
-                            time.sleep(0.5)
-                            try:
-                                ui = driver.find_element(By.ID, "schengenCountry_ui")
-                                safe_click(driver, ui)
-                                ui.clear()
-                                time.sleep(0.2)
-                                ui.send_keys(name)
-                                time.sleep(1.5)
-                                try:
-                                    ac = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "ul.ui-autocomplete li.ui-menu-item")))
-                                    safe_click(driver, ac)
-                                except:
-                                    ui.send_keys(Keys.ARROW_DOWN)
-                                    time.sleep(0.3)
-                                    ui.send_keys(Keys.ENTER)
-                            except:
-                                driver.execute_script(f"""
-                                    var s=document.getElementById('schengenCountry');
-                                    if(s){{s.value='{code}';s.dispatchEvent(new Event('change',{{bubbles:true}}));}}
-                                    var u=document.getElementById('schengenCountry_ui');
-                                    if(u){{u.value='{name}';}}
-                                """)
-                            time.sleep(0.5)
-                        set_radio(driver, reason_radio)
+                    # --- FILLER fonksiyonu: tum alanlari doldur ---
+                    def fill_travel_fields(_matched=matched_radio, _is_sch=is_schengen, 
+                                           _code=code, _name=name, _reason=reason_radio,
+                                           _vdt=visit_dt, _dur=dur_days):
+                        # 1) Ulke radio
+                        smart_radio(driver, _matched)
                         time.sleep(0.5)
+                        
+                        # 2) Schengen dropdown
+                        if _is_sch:
+                            time.sleep(1)
+                            smart_autocomplete(driver, "schengenCountry", "schengenCountry_ui", _name, _code)
+                        
+                        # 3) Sebep radio
+                        smart_radio(driver, _reason)
+                        
+                        # 4) Tarih - JS ile
                         driver.execute_script(f"""
                             function setVal(id, val) {{
                                 var el = document.getElementById(id);
@@ -4748,13 +4719,28 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                                 el.dispatchEvent(new Event('input', {{bubbles: true}}));
                                 el.dispatchEvent(new Event('change', {{bubbles: true}}));
                             }}
-                            setVal('date_month', '{visit_dt.month}');
-                            setVal('date_year', '{visit_dt.year}');
+                            setVal('date_month', '{_vdt.month}');
+                            setVal('date_year', '{_vdt.year}');
                         """)
-                        time.sleep(0.3)
-                        # Tekrar submit
-                        driver.execute_script("var btn = document.getElementById('submit'); if (btn) btn.click();")
-                        time.sleep(4)
+                        
+                        # 5) Sure
+                        if _dur <= 7:
+                            set_select(driver, "durationOfStayUnit", "days")
+                            set_input(driver, "durationOfStay", str(_dur))
+                        elif _dur <= 30:
+                            set_select(driver, "durationOfStayUnit", "weeks")
+                            set_input(driver, "durationOfStay", str(max(1, _dur // 7)))
+                        else:
+                            set_select(driver, "durationOfStayUnit", "months")
+                            set_input(driver, "durationOfStay", str(max(1, _dur // 30)))
+
+                    # --- Doldur ve submit ---
+                    fill_travel_fields()
+                    print(f"[FORM-34] Seyahat {idx+1}: {country} / {purpose} / {visit_dt.month}/{visit_dt.year} / {dur_days} gun")
+                    
+                    # smart_submit: hata olursa fill_travel_fields tekrar calisir
+                    smart_submit(driver, wait, field_fillers=[fill_travel_fields], max_retries=3)
+                    time.sleep(2)
 
                     # Baska ekle?
                     if idx < len(entries_to_fill) - 1:
