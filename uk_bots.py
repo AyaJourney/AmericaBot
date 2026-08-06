@@ -1310,8 +1310,10 @@ def click_submit(driver, wait, max_retries=3):
                     var type = inp.type;
                     var val = '';
                     
-                    // givenName ve familyName'e UNKNOWN yazma - handler doldurmali
-                    if (id === 'givenname' || id === 'familyname' || id === 'singlename') return;
+                    // givenName, familyName ve partner isimlerine UNKNOWN yazma - handler doldurmali
+                    if (id === 'givenname' || id === 'familyname' || id === 'singlename' ||
+                        id === 'parent_givenname' || id === 'parent_familyname' ||
+                        id === 'payeename' || id === 'passportnumber') return;
                     
                     if (type === 'number') {
                         if (id === 'yearslived') val = '5';
@@ -1800,18 +1802,6 @@ def save_and_exit(driver, wait, job_id):
         if resume_url and job_id:
             save_resume_link(job_id, resume_url)
 
-        # Email link butonuna tikla
-        print("[SAVE] Email link gonderiliyor...")
-        try:
-            email_btn = wait.until(
-                EC.element_to_be_clickable((By.ID, "emailLink"))
-            )
-            safe_click(driver, email_btn)
-            time.sleep(3)
-            print("[SAVE] Email gonderildi!")
-        except Exception:
-            print("[SAVE] Email butonu bulunamadi, atlanıyor...")
-
         return resume_url
 
     except Exception as e:
@@ -1855,7 +1845,7 @@ def clean_money(val_str):
     return int(digits) if digits else 0
 
 
-def fill_form(driver, wait, form: VisaFormData, start_from=None):
+def fill_form(driver, wait, form: VisaFormData, start_from=None, job_id=None):
     """
     Sayfa tespit et -> handler cagir -> submit -> tekrarla.
     Site ne gosterirse onu doldurur, sira onemli degil.
@@ -1906,7 +1896,11 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
                 return
             stuck_count += 1
             if stuck_count > 5:
-                print("[FORM] Cok fazla bilinmeyen sayfa, durduruluyor...")
+                print("[FORM] Cok fazla bilinmeyen sayfa, kaydedilip durduruluyor...")
+                try:
+                    save_and_exit(driver, wait, job_id)
+                except:
+                    pass
                 return
             try:
                 click_submit(driver, wait)
@@ -1919,7 +1913,11 @@ def fill_form(driver, wait, form: VisaFormData, start_from=None):
         if page == last_page:
             stuck_count += 1
             if stuck_count > 4:
-                print(f"[FORM] {page} sayfasinda takildi, durduruluyor...")
+                print(f"[FORM] {page} sayfasinda takildi, kaydedilip durduruluyor...")
+                try:
+                    save_and_exit(driver, wait, job_id)
+                except:
+                    pass
                 return
         else:
             stuck_count = 0
@@ -2207,25 +2205,36 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 8b: Partner/Es bilgileri =====
     elif page == "partner":
         time.sleep(2)
-        is_correct_page = driver.execute_script("""
-            var url = window.location.href.toLowerCase();
-            var forms = document.querySelectorAll('form');
-            var foundForm = false;
-            for (var i = 0; i < forms.length; i++) {
-                var action = (forms[i].getAttribute('action') || '').toLowerCase();
-                if (action.includes('.partner') && !action.includes('partnertravel')) {
-                    foundForm = true;
-                    break;
-                }
-            }
-            var container = document.getElementById('partner');
-            var hasLiveWith = document.getElementById('liveWithYou_true') !== null;
-            return foundForm || (container !== null && hasLiveWith);
-        """)
-
-        if not is_correct_page:
-            print("[FORM-8b] Partner sayfasi degil, atlaniyor...")
+        
+        # Bekar ise partner sayfasi doldurmak gerekmiyor
+        marital = form.marital_status.upper()
+        if marital in ("BEKAR", "S", "SINGLE", ""):
+            print(f"[FORM-8b] Medeni durum: {marital or 'BOS'} - partner bilgisi yok, submit ile geciliyor...")
+            click_submit(driver, wait)
+            time.sleep(3)
         else:
+            is_correct_page = driver.execute_script("""
+                var url = window.location.href.toLowerCase();
+                var forms = document.querySelectorAll('form');
+                var foundForm = false;
+                for (var i = 0; i < forms.length; i++) {
+                    var action = (forms[i].getAttribute('action') || '').toLowerCase();
+                    if (action.includes('.partner') && !action.includes('partnertravel')) {
+                        foundForm = true;
+                        break;
+                    }
+                }
+                var container = document.getElementById('partner');
+                var hasLiveWith = document.getElementById('liveWithYou_true') !== null;
+                return foundForm || (container !== null && hasLiveWith);
+            """)
+
+            if not is_correct_page:
+                print("[FORM-8b] Partner sayfasi degil, atlaniyor...")
+                click_submit(driver, wait)
+                time.sleep(3)
+                return
+            
             print("[FORM-8b] Partner/es bilgileri giriliyor...")
 
             # Isim ve soyisim ayir
@@ -4079,6 +4088,22 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
                             travels_with = child.get("travels_with", False)
                             if travels_with:
                                 set_radio(driver, "travelling_true")
+                                time.sleep(1)
+                                # Seyahat ediyorsa uyruk ve pasaport gerekli
+                                unhide_toggled(driver, "travelling_true")
+                                time.sleep(0.5)
+                                # Uyruk
+                                set_select(driver, "nationalityRef", "TUR", "Turkey Türkiye")
+                                # Pasaport numarasi - CRM'den al
+                                child_passports = form.step2.get("child_passport_numbers", [])
+                                pp_num = child_passports[child_idx] if child_idx < len(child_passports) else ""
+                                if not pp_num:
+                                    pp_num = child.get("passport_number", "")
+                                if pp_num:
+                                    set_input(driver, "passportNumber", pp_num.strip(), wait)
+                                    print(f"[FORM-26b] Pasaport: {pp_num.strip()}")
+                                else:
+                                    print("[FORM-26b] UYARI: Cocuk pasaport numarasi CRM'de yok")
                             else:
                                 set_radio(driver, "travelling_false")
                             print(f"[FORM-26b] Seyahat: {travels_with}")
@@ -4274,22 +4299,99 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         if has_family:
             print("[FORM-29] UK'da aile VAR, Yes seciliyor...")
             set_radio(driver, "value_true")
+            time.sleep(0.5)
+            click_submit(driver, wait)
+            time.sleep(3)
+            
+            # Detay sayfasi - aile bilgileri doldur
+            try:
+                time.sleep(2)
+                uk_fam_name = form.step5.get("uk_family_fullname", "").strip()
+                uk_fam_relation = form.step5.get("uk_family_relation", "").strip()
+                uk_fam_passport = form.step5.get("uk_family_passport", "").strip()
+                uk_fam_nationality = form.step5.get("uk_family_nationality", "").strip()
+                
+                if uk_fam_name:
+                    parts = uk_fam_name.split()
+                    given = parts[0] if parts else "UNKNOWN"
+                    family = " ".join(parts[1:]) if len(parts) > 1 else "UNKNOWN"
+                    set_input(driver, "givenName", given, wait)
+                    set_input(driver, "familyName", family, wait)
+                    print(f"[FORM-29a] Aile: {given} {family}")
+                
+                # Iliski
+                rel_map = {"ANNE":"Mo","BABA":"Fa","KARDES":"Br","KARDEŞ":"Br","BROTHER":"Br",
+                           "SISTER":"Si","KIZKARDES":"Si","ABLA":"Si","ABI":"Br",
+                           "AMCA":"Un","DAYI":"Un","UNCLE":"Un","TEYZE":"Au","HALA":"Au","AUNT":"Au",
+                           "KUZEN":"Co","COUSIN":"Co","CHILD":"Ch","COCUK":"Ch","ÇOCUK":"Ch",
+                           "SPOUSE":"Sp","ES":"Sp","EŞ":"Sp"}
+                rel_val = rel_map.get(uk_fam_relation.upper(), "Ot")
+                try:
+                    set_select(driver, "relationshipRef", rel_val)
+                    print(f"[FORM-29a] Iliski: {uk_fam_relation} -> {rel_val}")
+                except:
+                    pass
+                
+                # Uyruk
+                nat_code = "GBR" if "UK" in uk_fam_nationality.upper() or "BRITISH" in uk_fam_nationality.upper() else "TUR"
+                try:
+                    set_select(driver, "nationalityRef", nat_code)
+                except:
+                    pass
+                
+                # Pasaport
+                if uk_fam_passport:
+                    set_input(driver, "passportNumber", uk_fam_passport, wait)
+                
+                # UK'daki yasal durumu
+                uk_legal = form.step5.get("uk_family_legal_status", "").strip()
+                if uk_legal:
+                    try:
+                        set_select(driver, "legalStatusRef", uk_legal[:20])
+                    except:
+                        pass
+                
+                click_submit(driver, wait)
+                time.sleep(3)
+                
+                # addAnother - No
+                try:
+                    set_radio(driver, "addAnother_false")
+                    click_submit(driver, wait)
+                    time.sleep(3)
+                except:
+                    pass
+                    
+                print("[FORM-29a] UK aile detaylari tamamlandi!")
+            except Exception as e:
+                print(f"[FORM-29a] UK aile detay hatasi: {e}")
+                try:
+                    click_submit(driver, wait)
+                    time.sleep(3)
+                except:
+                    pass
         else:
             print("[FORM-29] UK'da aile YOK, No seciliyor...")
             set_radio(driver, "value_false")
-        time.sleep(0.5)
+            time.sleep(0.5)
+            click_submit(driver, wait)
+            time.sleep(3)
 
-        click_submit(driver, wait)
-        time.sleep(3)
         print("[FORM-29] UK'da aile tamamlandi!")
 
     # ===== SAYFA 30: Grup seyahati =====
     elif page == "travelling_group":
         print("[FORM-30] Grup seyahati sorusu...")
 
-        # Hayir sec
-        set_radio(driver, "isTravellingWithOtherPeople_false")
-        print("[FORM-30] Grup seyahati: No")
+        # CRM'den kontrol et
+        is_group = form.step5.get("boolean_travel_group", "").strip().upper() == "EVET"
+        
+        if is_group:
+            set_radio(driver, "isTravellingWithOtherPeople_true")
+            print("[FORM-30] Grup seyahati: Yes")
+        else:
+            set_radio(driver, "isTravellingWithOtherPeople_false")
+            print("[FORM-30] Grup seyahati: No")
         time.sleep(0.5)
 
         click_submit(driver, wait)
@@ -4299,14 +4401,71 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
     # ===== SAYFA 31: Baska biriyle seyahat =====
     elif page == "travelling_companion":
         print("[FORM-31] Baska biriyle seyahat sorusu...")
-
-        # No sec
-        set_radio(driver, "isTravellingWithSomeOneNotPartnerOrSpouse_false")
-        print("[FORM-31] Baska biriyle seyahat: No")
-        time.sleep(0.5)
-
-        click_submit(driver, wait)
-        time.sleep(3)
+        
+        # CRM'den kontrol et
+        travels_with_other = form.step5.get("travel_with_non_family", "").strip().upper() == "EVET"
+        companion_name = form.step5.get("travel_non_family_fullname", "").strip()
+        
+        if travels_with_other and companion_name:
+            set_radio(driver, "isTravellingWithSomeOneNotPartnerOrSpouse_true")
+            print(f"[FORM-31] Baska biriyle seyahat: Yes ({companion_name})")
+            time.sleep(1)
+            click_submit(driver, wait)
+            time.sleep(3)
+            
+            # Detay sayfasi - arkadas bilgileri
+            try:
+                parts = companion_name.split()
+                given = parts[0] if parts else "UNKNOWN"
+                family = " ".join(parts[1:]) if len(parts) > 1 else "UNKNOWN"
+                
+                set_input(driver, "givenName", given, wait)
+                set_input(driver, "familyName", family, wait)
+                
+                # Iliski
+                relation = form.step5.get("travel_non_family_relation", "").strip().upper()
+                rel_map = {"ES":"Sp","EŞ":"Sp","ARKADAS":"Fr","ARKADAŞ":"Fr","FRIEND":"Fr",
+                           "AILE":"Fm","AİLE":"Fm","FAMILY":"Fm","IS":"Co","İŞ":"Co","COLLEAGUE":"Co"}
+                rel_val = rel_map.get(relation, "Fr")
+                set_select(driver, "relationshipRef", rel_val)
+                
+                # Pasaport
+                companion_pp = form.step5.get("travel_non_family_passport_number", "").strip()
+                if companion_pp:
+                    set_input(driver, "passportNumber", companion_pp, wait)
+                
+                # Uyruk - Turkey
+                set_select(driver, "nationalityRef", "TUR", "Turkey Türkiye")
+                
+                # Vize var mi
+                has_visa = form.step5.get("travel_with_non_family_visa", "").strip().upper() == "EVET"
+                if has_visa:
+                    set_radio(driver, "hasVisa_true")
+                else:
+                    set_radio(driver, "hasVisa_false")
+                
+                print(f"[FORM-31a] Arkadas: {given} {family} / {rel_val} / PP:{companion_pp[:8] if companion_pp else 'YOK'}")
+                click_submit(driver, wait)
+                time.sleep(3)
+                
+                # addAnother - No
+                try:
+                    set_radio(driver, "addAnother_false")
+                    click_submit(driver, wait)
+                    time.sleep(3)
+                except:
+                    pass
+            except Exception as e:
+                print(f"[FORM-31a] Arkadas detay hatasi: {e}")
+                click_submit(driver, wait)
+                time.sleep(3)
+        else:
+            set_radio(driver, "isTravellingWithSomeOneNotPartnerOrSpouse_false")
+            print("[FORM-31] Baska biriyle seyahat: No")
+            time.sleep(0.5)
+            click_submit(driver, wait)
+            time.sleep(3)
+        
         print("[FORM-31] Baska biriyle seyahat tamamlandi!")
 
     # ===== SAYFA 32: Konaklama =====
@@ -5239,8 +5398,29 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
             print("[FORM-47] Gocmenlik problemleri sayfasi degil, atlaniyor...")
         else:
             print("[FORM-47] Gocmenlik problemleri...")
-            set_radio(driver, "value_false")
-            print("[FORM-47] Gocmenlik sorunlari: No")
+            # CRM'den vize reddi kontrolu
+            visa_refused = form.step5.get("visa_refused_or_banned", "").strip().upper() == "EVET"
+            boolean_refused = form.step5.get("boolean_refused_visa", "").strip().upper() == "EVET"
+            
+            if visa_refused or boolean_refused:
+                set_radio(driver, "value_true")
+                print("[FORM-47] Gocmenlik sorunlari: YES (vize reddi var)")
+                time.sleep(1)
+                # Detay sayfasi acilirsa doldur
+                try:
+                    refused_details = form.step5.get("visa_refused_details", "").strip()
+                    when_refused = form.step5.get("when_refused", "").strip()
+                    refused_about = form.step5.get("refused_about", "").strip()
+                    detail_text = refused_details or refused_about or when_refused or "VISA REFUSED"
+                    details_el = driver.find_element(By.CSS_SELECTOR, "textarea[aria-required='true'], textarea#details, textarea#reason")
+                    details_el.clear()
+                    details_el.send_keys(detail_text[:500])
+                    print(f"[FORM-47] Detay: {detail_text[:50]}")
+                except:
+                    pass
+            else:
+                set_radio(driver, "value_false")
+                print("[FORM-47] Gocmenlik sorunlari: No")
             time.sleep(0.5)
             click_submit(driver, wait)
             time.sleep(3)
@@ -5479,10 +5659,103 @@ def _run_handler(driver, wait, form, page, parse_date_safe, PASSWORD):
         time.sleep(3)
         print("[FORM-34b] Tamamlandi!")
 
+    # ===== UK aile detay sayfasi =====
+    elif page == "family_in_uk_details":
+        print("[FORM-29b] UK aile detaylari giriliyor...")
+        
+        uk_family_name = form.step5.get("uk_family_fullname", "").strip()
+        uk_family_rel = form.step5.get("uk_family_relation", "").strip()
+        uk_family_pp = form.step5.get("uk_family_passport", "").strip()
+        uk_family_nat = form.step5.get("uk_family_nationality", "").strip()
+        
+        if uk_family_name:
+            parts = uk_family_name.split()
+            given = parts[0] if parts else "UNKNOWN"
+            family = " ".join(parts[1:]) if len(parts) > 1 else "UNKNOWN"
+        else:
+            given = "UNKNOWN"
+            family = "UNKNOWN"
+        
+        set_input(driver, "givenName", given, wait)
+        set_input(driver, "familyName", family, wait)
+        print(f"[FORM-29b] Isim: {given} {family}")
+        
+        # Iliski
+        rel_map = {"ES":"Sp","EŞ":"Sp","SPOUSE":"Sp","KARDES":"Si","KARDEŞ":"Si","SIBLING":"Si",
+                   "ANNE":"Pa","BABA":"Pa","PARENT":"Pa","COCUK":"Ch","ÇOCUK":"Ch","CHILD":"Ch",
+                   "AMCA":"Un","DAYI":"Un","UNCLE":"Un","TEYZE":"Au","HALA":"Au","AUNT":"Au"}
+        rel_val = rel_map.get(uk_family_rel.upper(), "Ot")
+        try:
+            set_select(driver, "relationshipRef", rel_val)
+        except:
+            pass
+        
+        # Uyruk
+        nat_code = "TUR" if not uk_family_nat or "TURK" in uk_family_nat.upper() else uk_family_nat
+        set_select(driver, "nationalityRef", nat_code, "Turkey Türkiye")
+        
+        # Pasaport
+        if uk_family_pp:
+            set_input(driver, "passportNumber", uk_family_pp, wait)
+        
+        # UK'da yasama durumu
+        uk_legal = form.step5.get("uk_family_legal_status", "").strip()
+        is_resident = form.step5.get("uk_family_is_resident", "").strip().upper() == "EVET"
+        if is_resident:
+            set_radio(driver, "settledInUk_true")
+        else:
+            set_radio(driver, "settledInUk_false")
+        
+        click_submit(driver, wait)
+        time.sleep(3)
+        
+        # addAnother - No
+        try:
+            set_radio(driver, "addAnother_false")
+            click_submit(driver, wait)
+            time.sleep(3)
+        except:
+            pass
+        
+        print("[FORM-29b] UK aile detaylari tamamlandi!")
+
+    # ===== Declaration sayfasi =====
+    elif page == "declaration":
+        print("[FORM-DEC] Declaration sayfasi...")
+        # Tum onay checkbox'larini isaretle
+        driver.execute_script("""
+            var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(function(cb) {
+                if (!cb.checked) {
+                    cb.scrollIntoView({block: 'center'});
+                    cb.checked = true;
+                    cb.click();
+                    cb.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            });
+        """)
+        time.sleep(1)
+        
+        # readAll / confirm / agree checkbox'lari
+        for cb_id in ["readAll_iConfirm", "readAllInfo_iConfirm", "declaration_confirm", 
+                       "confirm", "agree", "declaration_declaration"]:
+            try:
+                cb = driver.find_element(By.ID, cb_id)
+                if not cb.is_selected():
+                    safe_click(driver, cb)
+                    print(f"[FORM-DEC] Checkbox isaretlendi: {cb_id}")
+            except:
+                pass
+        
+        time.sleep(0.5)
+        click_submit(driver, wait)
+        time.sleep(3)
+        print("[FORM-DEC] Declaration tamamlandi!")
+
     # ===== Alt sayfalar - submit ile gec =====
     elif page in ("dependant_detail", "accommodation_plans", "accommodation_details",
                    "paying_visit_details", "uk_travel_detail",
-                   "world_travel_detail", "family_in_uk_details", "declaration"):
+                   "world_travel_detail"):
         print(f"[FORM] Alt sayfa: {page}, submit ile geciliyor...")
         click_submit(driver, wait)
         time.sleep(3)
@@ -5568,7 +5841,7 @@ def main():
                 update_job_status(job_id, "processing", f"Kaldigi sayfa: {start_page}, devam ediliyor")
 
                 # Isim sayfasindan bastan doldur (arada degisen bilgiler guncellenir)
-                fill_form(driver, wait, form, start_from=start_page)
+                fill_form(driver, wait, form, start_from=start_page, job_id=job_id)
 
                 # Save for later yap
                 print("[BOT] Resume devam tamamlandi, kaydediliyor...")
@@ -5582,7 +5855,7 @@ def main():
                 navigate_to_form(driver, wait)
 
                 update_job_status(job_id, "processing", "Form dolduruluyor")
-                fill_form(driver, wait, form)
+                fill_form(driver, wait, form, job_id=job_id)
 
                 # Form doldurma bitti - save for later yap
                 print("[BOT] Form doldurma tamamlandi, kaydediliyor...")
