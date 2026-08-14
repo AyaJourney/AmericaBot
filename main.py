@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
 os.environ["PYTHONIOENCODING"] = "utf-8"
-
+from dotenv import load_dotenv
+load_dotenv("/home/rdpuser/Desktop/AmericaBot/.env")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 import sys
 import io
 import argparse
@@ -316,7 +318,46 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
 ]
+def solve_captcha_with_claude(captcha_b64: str):
+    """Claude Vision ile captcha çöz. Başarısızsa None döner."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=50,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": captcha_b64,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": "This is a CAPTCHA image from a US visa application form. Read ONLY the alphanumeric characters shown in the image. Return ONLY those characters, nothing else. No spaces, no explanation."
+                        }
+                    ],
+                }
+            ],
+        )
+        
+        result = message.content[0].text.strip().replace(" ", "")
+        print(f"[BOT-{BOT_ID}] Claude captcha çözdü: '{result}'")
+        return result if result else None
 
+    except Exception as e:
+        if "credit" in str(e).lower() or "billing" in str(e).lower():
+            print(f"[BOT-{BOT_ID}] Claude kredi yok, manuel moda geçiliyor")
+        else:
+            print(f"[BOT-{BOT_ID}] Claude captcha hatası: {e}")
+        return None
 def make_driver():
     options = webdriver.ChromeOptions()
     options.add_argument("--no-sandbox")
