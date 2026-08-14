@@ -405,7 +405,7 @@ def run_ds160_until_captcha(job: dict):
     # 1. Ham veriyi düzleştir
     data = flatten_job_data(data)
 
-    # 2. Temizle — Türkçe karakter, tarih, okul/şirket isimleri
+    # 2. Temizle
     try:
         data = clean_all(data)
         print(f"[BOT-{BOT_ID}] Veri temizlendi ({len(data)} alan)")
@@ -423,15 +423,28 @@ def run_ds160_until_captcha(job: dict):
 
     update_job_status(job_id, "processing")
 
+    print(f"[BOT-{BOT_ID}] Driver olusturuluyor...")
     driver = make_driver()
     wait   = WebDriverWait(driver, 120)
 
     try:
-        # 1. SITE
+        # ── 1. SİTE ───────────────────────────────────────────
         driver.get("https://ceac.state.gov/GenNIV/Default.aspx")
         wait_document_ready(driver, 90)
 
-        # 2. LOCATION (sadece NEW)
+        # Ekstra tab'ları kapat
+        if len(driver.window_handles) > 1:
+            main_handle = driver.window_handles[0]
+            for handle in driver.window_handles[1:]:
+                try:
+                    driver.switch_to.window(handle)
+                    driver.close()
+                except Exception:
+                    pass
+            driver.switch_to.window(main_handle)
+            print(f"[BOT-{BOT_ID}] Ekstra tab'lar kapatıldı")
+
+        # ── 2. LOCATION (sadece NEW) ───────────────────────────
         if not IS_RETRIEVE:
             print(f"[BOT-{BOT_ID}] Location seciliyor")
             location_select = wait_clickable_safe(
@@ -446,61 +459,85 @@ def run_ds160_until_captcha(job: dict):
         else:
             print(f"[BOT-{BOT_ID}] Retrieve mode -> location atlandi")
 
-        # 3. CAPTCHA GONDER
+        # ── 3. CAPTCHA ────────────────────────────────────────
         captcha_b64 = get_captcha_image_base64(driver)
-        send_captcha_to_crm(job_id, captcha_b64, refreshed=False)
-        print(f"[BOT-{BOT_ID}] CAPTCHA bekleniyor...")
 
-        refresh_count = 0
-        while True:
-            time.sleep(POLL_INTERVAL)
-            payload = poll_captcha_state(job_id)
-            if not payload:
-                continue
-            answer = payload.get("captcha_answer")
-            if answer:
-                captcha_value = str(answer).strip()
-                break
-            if read_refresh_flag(payload):
-                refresh_count += 1
-                if refresh_count > 20:
-                    raise RuntimeError("Captcha refresh limit asildi")
-                new_b64 = refresh_captcha_and_get_base64(driver)
-                if new_b64:
-                    send_captcha_to_crm(job_id, new_b64, refreshed=True)
-                ack_captcha_refresh(job_id)
+        # Önce Claude ile otomatik dene
+        captcha_value = solve_captcha_with_claude(captcha_b64)
 
-        # 4. CAPTCHA INPUT + RETRY LOOP
+        if captcha_value:
+            print(f"[BOT-{BOT_ID}] Otomatik captcha: '{captcha_value}'")
+            send_captcha_to_crm(job_id, captcha_b64, refreshed=False)
+            update_job_status(job_id, "captcha_auto_solved")
+        else:
+            # Manuel mod — CRM'e gönder, insan çözsün
+            send_captcha_to_crm(job_id, captcha_b64, refreshed=False)
+            print(f"[BOT-{BOT_ID}] Manuel captcha bekleniyor...")
+
+            refresh_count = 0
+            while True:
+                time.sleep(POLL_INTERVAL)
+                payload = poll_captcha_state(job_id)
+                if not payload:
+                    continue
+                answer = payload.get("captcha_answer")
+                if answer:
+                    captcha_value = str(answer).strip()
+                    break
+                if read_refresh_flag(payload):
+                    refresh_count += 1
+                    if refresh_count > 20:
+                        raise RuntimeError("Captcha refresh limit asildi")
+                    new_b64 = refresh_captcha_and_get_base64(driver)
+                    if new_b64:
+                        send_captcha_to_crm(job_id, new_b64, refreshed=True)
+                    ack_captcha_refresh(job_id)
+
+        # ── 4. CAPTCHA GİR + RETRY LOOP ───────────────────────
         captcha_attempts = 0
         while True:
             captcha_attempts += 1
             if captcha_attempts > 10:
                 raise RuntimeError("Captcha max deneme asildi (10)")
 
-            captcha_input = wait.until(EC.element_to_be_clickable(
-                (By.ID, "ctl00_SiteContentPlaceHolder_ucLocation_IdentifyCaptcha1_txtCodeTextBox")
-            ))
-            captcha_input.clear()
-            captcha_input.send_keys(captcha_value)
+            try:
+                captcha_input = WebDriverWait(driver, 30).until(
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_ucLocation_IdentifyCaptcha1_txtCodeTextBox")
+                    )
+                )
+                captcha_input.clear()
+                time.sleep(0.3)
+                captcha_input.send_keys(captcha_value)
+                print(f"[BOT-{BOT_ID}] Captcha girildi (deneme {captcha_attempts}): '{captcha_value}'")
+            except Exception as e:
+                print(f"[BOT-{BOT_ID}] Captcha input hatasi: {e}")
+                raise
 
             if IS_RETRIEVE:
                 print(f"[BOT-{BOT_ID}] Retrieve akisi (deneme {captcha_attempts})")
-                wait.until(EC.element_to_be_clickable(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_lnkRetrieve")
-                )).click()
+                WebDriverWait(driver, 30).until(
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_lnkRetrieve")
+                    )
+                ).click()
             else:
                 print(f"[BOT-{BOT_ID}] New Application (deneme {captcha_attempts})")
-                wait.until(EC.element_to_be_clickable(
-                    (By.ID, "ctl00_SiteContentPlaceHolder_lnkNew")
-                )).click()
+                WebDriverWait(driver, 30).until(
+                    EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_lnkNew")
+                    )
+                ).click()
 
             time.sleep(2)
-            wait_document_ready(driver, 15)
+            wait_document_ready(driver, 30)
 
+            # Captcha hatası var mı?
             captcha_error = False
             try:
                 err_el = driver.find_element(
-                    By.ID, "ctl00_SiteContentPlaceHolder_ucLocation_IdentifyCaptcha1_ValidationSummary"
+                    By.ID,
+                    "ctl00_SiteContentPlaceHolder_ucLocation_IdentifyCaptcha1_ValidationSummary"
                 )
                 if err_el.is_displayed() and err_el.text.strip():
                     captcha_error = True
@@ -512,69 +549,70 @@ def run_ds160_until_captcha(job: dict):
                 print(f"[BOT-{BOT_ID}] Captcha gecti (deneme {captcha_attempts})")
                 break
 
+            # Yeni captcha al — önce Claude dene
             print(f"[BOT-{BOT_ID}] Yeni captcha aliniyor...")
             new_b64 = refresh_captcha_and_get_base64(driver)
-            if new_b64:
-                send_captcha_to_crm(job_id, new_b64, refreshed=True)
-                update_job_status(job_id, "captcha_refresh")
 
-            print(f"[BOT-{BOT_ID}] Yeni captcha cevabi bekleniyor...")
-            time.sleep(3)
-            while True:
-                time.sleep(POLL_INTERVAL)
-                payload = poll_captcha_state(job_id)
-                if not payload:
-                    continue
-                answer = payload.get("captcha_answer")
-                if answer and str(answer).strip():
-                    captcha_value = str(answer).strip()
-                    print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi")
-                    break
+            if new_b64:
+                captcha_value = solve_captcha_with_claude(new_b64)
+                if captcha_value:
+                    print(f"[BOT-{BOT_ID}] Claude yeni captcha çözdü: '{captcha_value}'")
+                    send_captcha_to_crm(job_id, new_b64, refreshed=True)
+                else:
+                    send_captcha_to_crm(job_id, new_b64, refreshed=True)
+                    update_job_status(job_id, "captcha_refresh")
+                    print(f"[BOT-{BOT_ID}] Yeni captcha cevabi bekleniyor...")
+                    while True:
+                        time.sleep(POLL_INTERVAL)
+                        payload = poll_captcha_state(job_id)
+                        if not payload:
+                            continue
+                        answer = payload.get("captcha_answer")
+                        if answer and str(answer).strip():
+                            captcha_value = str(answer).strip()
+                            print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi: '{captcha_value}'")
+                            break
 
         update_job_status(job_id, "captcha_verified")
 
-        # 5. RETRIEVE AKISI
+        # ── 5. RETRIEVE AKIŞI ─────────────────────────────────
         if IS_RETRIEVE:
             surname    = get_field(data, "SURNAME", "XXXXX")[:5].upper()
             birth_year = get_field(data, "BIRTH_YEAR", "1990")
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_tbxApplicationID")
             )).send_keys(barcode_from_crm)
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_btnBarcodeSubmit")
             )).click()
+            time.sleep(2)
+            wait_document_ready(driver, 30)
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbSurname")
             )).send_keys(surname)
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbDOBYear")
             )).send_keys(birth_year)
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_txbAnswer")
             )).send_keys(barcode_from_crm)
 
-            wait.until(EC.element_to_be_clickable(
+            WebDriverWait(driver, 30).until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_btnRetrieve")
             )).click()
-            print(f"[BOT-{BOT_ID}] Retrieve bitti")
-            wait.until(EC.element_to_be_clickable(
-            (By.ID, "ctl00_SiteContentPlaceHolder_ApplicationRecovery1_btnRetrieve")
-        )).click()
-        print(f"[BOT-{BOT_ID}] Retrieve bitti")
+            print(f"[BOT-{BOT_ID}] Retrieve tıklandı, sayfa bekleniyor...")
 
-        # ── Sayfa tam yüklenene kadar bekle ──
-        time.sleep(3)
-        wait_document_ready(driver, 60)
-        time.sleep(2)
-        print(f"[BOT-{BOT_ID}] Retrieve sonrası URL: {driver.current_url}")
-        wait_document_ready(driver, 90)
+            time.sleep(3)
+            wait_document_ready(driver, 60)
+            time.sleep(2)
+            print(f"[BOT-{BOT_ID}] Retrieve sonrası URL: {driver.current_url}")
 
-        # 6. BARCODE + PRIVACY
+        # ── 6. BARCODE + PRIVACY ──────────────────────────────
         barcode_value = None
 
         if IS_RETRIEVE:
@@ -597,11 +635,17 @@ def run_ds160_until_captcha(job: dict):
                 time.sleep(0.2)
                 privacy_cb.click()
 
-            answer_input = wait.until(EC.element_to_be_clickable(
-                (By.ID, "ctl00_SiteContentPlaceHolder_txtAnswer")
-            ))
-            answer_input.clear()
-            answer_input.send_keys(barcode_value)
+            for attempt in range(3):
+                try:
+                    answer_input = wait.until(EC.element_to_be_clickable(
+                        (By.ID, "ctl00_SiteContentPlaceHolder_txtAnswer")
+                    ))
+                    answer_input.clear()
+                    answer_input.send_keys(barcode_value)
+                    break
+                except StaleElementReferenceException:
+                    print(f"[BOT-{BOT_ID}] answer_input stale retry {attempt+1}/3")
+                    time.sleep(0.5)
 
             continue_btn = wait.until(EC.element_to_be_clickable(
                 (By.ID, "ctl00_SiteContentPlaceHolder_btnContinue")
@@ -616,7 +660,7 @@ def run_ds160_until_captcha(job: dict):
         if not barcode_value:
             raise RuntimeError("barcode_value set edilmedi")
 
-        # 7. BARCODE CRM'E BILDIR
+        # ── 7. BARCODE CRM'E BİLDİR ──────────────────────────
         update_job_status(job_id, "barcode_received", {"barcode": barcode_value})
         try:
             r = requests.post(
@@ -630,12 +674,12 @@ def run_ds160_until_captcha(job: dict):
 
         update_job_status(job_id, "entered_form")
 
-        # 8. RETRIEVE ISE: Privacy + Personal1'e gec
+        # ── 8. RETRIEVE İSE: Privacy + Personal1'e geç ────────
         if IS_RETRIEVE:
             handle_privacy_and_continue(wait, driver)
             clear_personal_1_form(wait, driver)
 
-        # 9. FORM DOLDUR — HER ZAMAN FULL FLOW
+        # ── 9. FORM DOLDUR ────────────────────────────────────
         print(f"[BOT-{BOT_ID}] FULL FLOW baslatiliyor...")
         from ds160_full_flow import fill_ds160_full_application
 
@@ -648,31 +692,26 @@ def run_ds160_until_captcha(job: dict):
 
             import urllib.request
 
-            PHOTO_DIR = os.path.join(
-                os.path.expanduser("~"),
-                "OneDrive", "Desktop", "amerika bot", "AmericaBot", "photos"
-            )
+            PHOTO_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "AmericaBot", "photos")
             os.makedirs(PHOTO_DIR, exist_ok=True)
-            print(f"[BOT-{BOT_ID}] Fotoğraf klasörü: {PHOTO_DIR}")
 
             photo_path = None
             tmp_path   = None
 
             try:
-                # ── Fotoğrafı bul / indir ────────────────────────────
                 photo_url = data.get("PHOTO_URL") or data.get("photo_url") or ""
                 print(f"[BOT-{BOT_ID}] PHOTO_URL: '{photo_url[:80] if photo_url else 'BOŞ'}'")
 
                 if photo_url and photo_url.startswith("http"):
                     tmp_path = os.path.join(PHOTO_DIR, f"ds160_photo_{BOT_ID}.jpg")
-                    print(f"[BOT-{BOT_ID}] 📥 İndiriliyor → {tmp_path}")
+                    print(f"[BOT-{BOT_ID}] İndiriliyor → {tmp_path}")
                     urllib.request.urlretrieve(photo_url, tmp_path)
                     size = os.path.getsize(tmp_path)
-                    print(f"[BOT-{BOT_ID}] ✅ İndirildi: {size} bytes")
+                    print(f"[BOT-{BOT_ID}] İndirildi: {size} bytes")
                     if size > 1000:
                         photo_path = tmp_path
                     else:
-                        print(f"[BOT-{BOT_ID}] ⚠️ Dosya çok küçük, geçersiz")
+                        print(f"[BOT-{BOT_ID}] Dosya çok küçük, geçersiz")
                         os.unlink(tmp_path)
                         tmp_path = None
 
@@ -682,35 +721,25 @@ def run_ds160_until_captcha(job: dict):
                         f"{data.get('GIVEN_NAME', '')} {data.get('SURNAME', '')}".strip()
                     print(f"[BOT-{BOT_ID}] Klasörde aranıyor: '{full_name}'")
                     fname, score = _find_best_photo(PHOTO_DIR, full_name)
-                    print(f"[BOT-{BOT_ID}] Arama sonucu: fname={fname} score={score:.2f}")
                     if fname and score >= 0.70:
                         photo_path = os.path.join(PHOTO_DIR, fname)
 
                 if not photo_path:
-                    raise Exception(
-                        f"Fotoğraf bulunamadı — PHOTO_URL boş ve klasörde eşleşme yok. "
-                        f"Fotoğrafı {PHOTO_DIR} klasörüne koy."
-                    )
+                    raise Exception("Fotoğraf bulunamadı")
 
-                print(f"[BOT-{BOT_ID}] 📸 Kullanılacak fotoğraf: {photo_path}")
+                print(f"[BOT-{BOT_ID}] Kullanılacak fotoğraf: {photo_path}")
 
-                # ── ADIM 1: Upload Photo butonuna tıkla ─────────────
                 upload_btn = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable(
                         (By.ID, "ctl00_SiteContentPlaceHolder_btnUploadPhoto")
                     )
                 )
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block:'center'});", upload_btn
-                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", upload_btn)
                 upload_btn.click()
-                print(f"[BOT-{BOT_ID}] ✅ Upload Photo tıklandı")
+                print(f"[BOT-{BOT_ID}] Upload Photo tıklandı")
                 time.sleep(3)
                 wait_document_ready(driver, 30)
-                print(f"[BOT-{BOT_ID}] Upload sayfası URL: {driver.current_url}")
 
-                # ── ADIM 2: File input'a dosyayı gönder ─────────────
-                # id = ctl00_cphMain_imageFileUpload
                 file_input = WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located(
                         (By.ID, "ctl00_cphMain_imageFileUpload")
@@ -718,54 +747,39 @@ def run_ds160_until_captcha(job: dict):
                 )
                 driver.execute_script("""
                     arguments[0].removeAttribute('disabled');
-                    arguments[0].style.display      = 'block';
-                    arguments[0].style.visibility   = 'visible';
-                    arguments[0].style.opacity      = '1';
+                    arguments[0].style.display    = 'block';
+                    arguments[0].style.visibility = 'visible';
+                    arguments[0].style.opacity    = '1';
                 """, file_input)
                 time.sleep(0.3)
 
                 abs_path = os.path.abspath(photo_path)
                 file_input.send_keys(abs_path)
-                print(f"[BOT-{BOT_ID}] ✅ Dosya seçildi: {abs_path}")
+                print(f"[BOT-{BOT_ID}] Dosya seçildi: {abs_path}")
                 time.sleep(1.5)
 
-                val = file_input.get_attribute("value")
-                print(f"[BOT-{BOT_ID}] Input value: '{val}'")
-
-                # ── ADIM 3: Upload butonu tıkla ──────────────────────
-                # id = ctl00_cphButtons_btnUpload  (type=image)
                 upload_submit = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable(
                         (By.ID, "ctl00_cphButtons_btnUpload")
                     )
                 )
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block:'center'});", upload_submit
-                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", upload_submit)
                 driver.execute_script("arguments[0].click();", upload_submit)
-                print(f"[BOT-{BOT_ID}] ✅ Upload tıklandı, sonuç bekleniyor...")
+                print(f"[BOT-{BOT_ID}] Upload tıklandı")
                 time.sleep(5.0)
                 wait_document_ready(driver, 30)
-                print(f"[BOT-{BOT_ID}] Result URL: {driver.current_url}")
 
-                # ── ADIM 4: Result sayfası — "Use This Photo" ────────
-                # id = ctl00_cphButtons_btnContinue  (type=image)
                 continue_btn = WebDriverWait(driver, 15).until(
                     EC.element_to_be_clickable(
                         (By.ID, "ctl00_cphButtons_btnContinue")
                     )
                 )
-                driver.execute_script(
-                    "arguments[0].scrollIntoView({block:'center'});", continue_btn
-                )
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", continue_btn)
                 driver.execute_script("arguments[0].click();", continue_btn)
-                print(f"[BOT-{BOT_ID}] ✅ Use This Photo tıklandı")
+                print(f"[BOT-{BOT_ID}] Use This Photo tıklandı")
                 time.sleep(4.0)
                 wait_document_ready(driver, 30)
-                print(f"[BOT-{BOT_ID}] Confirm Photo URL: {driver.current_url}")
 
-                # ── ADIM 5: Confirm Photo — Next: REVIEW ─────────────
-                # id = ctl00_SiteContentPlaceHolder_UpdateButton3
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located(
                         (By.ID, "ctl00_SiteContentPlaceHolder_UpdateButton3")
@@ -776,26 +790,24 @@ def run_ds160_until_captcha(job: dict):
                     ".disabled = false;"
                     "__doPostBack('ctl00$SiteContentPlaceHolder$UpdateButton3','');"
                 )
-                print(f"[BOT-{BOT_ID}] ✅ Next: REVIEW tıklandı — fotoğraf tamamlandı!")
+                print(f"[BOT-{BOT_ID}] Next: REVIEW tıklandı — fotoğraf tamamlandı!")
                 time.sleep(3.0)
 
             except Exception as e:
                 import traceback as _tb
-                print(f"[BOT-{BOT_ID}] ❌ Fotoğraf yükleme hatası: {e}")
+                print(f"[BOT-{BOT_ID}] Fotoğraf yükleme hatası: {e}")
                 print(_tb.format_exc())
                 take_and_send_screenshot(driver, job_id)
                 wait_for_close_command(driver, job_id)
 
             finally:
-                # Geçici dosyayı sil
                 try:
                     if tmp_path and os.path.exists(tmp_path):
                         os.unlink(tmp_path)
-                        print(f"[BOT-{BOT_ID}] 🗑️ Geçici dosya silindi: {tmp_path}")
+                        print(f"[BOT-{BOT_ID}] Geçici dosya silindi: {tmp_path}")
                 except Exception:
                     pass
-        
-        
+
         fill_ds160_full_application(
             driver, wait, data,
             on_personal1_saved=on_personal1_saved,
@@ -814,8 +826,6 @@ def run_ds160_until_captcha(job: dict):
             driver.quit()
         except Exception:
             pass
-
-
 # =====================================================
 # HELPERS
 # =====================================================
