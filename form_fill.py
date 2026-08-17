@@ -4303,6 +4303,22 @@ def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
 def fill_parents_info(wait, driver, data):
     print("👨‍👩‍👦 Parents bilgileri dolduruluyor...")
 
+    # Sayfa tam yüklensin
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    time.sleep(1.5)
+
+    # Father surname elementi görünene kadar bekle
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((
+                By.ID,
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherSurname"
+            ))
+        )
+        print("✅ Family sayfası yüklendi")
+    except Exception as e:
+        print(f"⚠️ Family sayfası beklenemedi: {e}")
+
     def fix_parent_dob(parent_dob: str, applicant_birth_year: str) -> str:
         MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
                   "JUL","AUG","SEP","OCT","NOV","DEC"]
@@ -4342,7 +4358,8 @@ def fill_parents_info(wait, driver, data):
         if not value:
             return
         try:
-            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
+            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
             driver.execute_script("""
                 arguments[0].removeAttribute('disabled');
                 arguments[0].removeAttribute('readonly');
@@ -4359,13 +4376,16 @@ def fill_parents_info(wait, driver, data):
         val = (val or "").strip().upper()
         return val if val and val not in INVALID else fallback
 
-    birth_year = data.get("BIRTH_YEAR", "1990")
+    birth_year = str(data.get("BIRTH_YEAR", "1990")).strip()
 
-    # ── BABA ─────────────────────────────────────────────────
-    father_surname  = clean_name(data.get("FATHER_SURNAME", ""))
-    father_given    = clean_name(data.get("FATHER_GIVEN_NAME", ""))
-    father_dob_na   = str(data.get("FATHER_DOB_NA", "NO")).strip().upper()
-    father_in_us    = str(data.get("FATHER_IN_US", "NO")).strip().upper()
+    # ── BABA ──────────────────────────────────────────────────
+    father_surname = clean_name(data.get("FATHER_SURNAME", ""))
+    father_given   = clean_name(data.get("FATHER_GIVEN_NAME", ""))
+    father_dob_na  = str(data.get("FATHER_DOB_NA", "NO")).strip().upper()
+    father_in_us   = str(data.get("FATHER_IN_US", "NO")).strip().upper()
+
+    if father_in_us not in ("YES", "NO"):
+        father_in_us = "NO"
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherSurname", father_surname)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherGivenName", father_given)
@@ -4384,20 +4404,21 @@ def fill_parents_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Baba DOB NA: {e}")
     else:
-        father_dob = fix_parent_dob(data.get("FATHER_DOB", ""), birth_year)
-        fill_date_dd_mmm_yyyy(
-            wait, driver,
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
-            father_dob
-        )
-        print(f"✅ Baba DOB: {father_dob}")
+        raw_father_dob = (data.get("FATHER_DOB") or "").strip()
+        father_dob = fix_parent_dob(raw_father_dob, birth_year)
+        try:
+            fill_date_dd_mmm_yyyy(
+                wait, driver,
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
+                father_dob
+            )
+            print(f"✅ Baba DOB: {father_dob}")
+        except Exception as e:
+            print(f"⚠️ Baba DOB doldurulamadı: {e}")
 
     # Baba US'te mi?
-    if father_in_us not in ("YES", "NO"):
-        father_in_us = "NO"
-
     father_in_us_radio = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_0"
         if father_in_us == "YES"
@@ -4411,12 +4432,13 @@ def fill_parents_info(wait, driver, data):
         print(f"⚠️ Baba US radio: {e}")
 
     if father_in_us == "YES":
-        father_us_status = data.get("FATHER_US_STATUS", "O").strip().upper()
+        father_us_status = str(data.get("FATHER_US_STATUS", "O")).strip().upper()
         FATHER_STATUS_MAP = {
-            "U.S. CITIZEN": "C",
+            "U.S. CITIZEN":                        "C",
             "U.S. LEGAL PERMANENT RESIDENT (LPR)": "P",
-            "NONIMMIGRANT": "N",
-            "OTHER/I DON'T KNOW": "O",
+            "NONIMMIGRANT":                         "N",
+            "OTHER/I DON'T KNOW":                   "O",
+            "CITIZEN": "C", "LPR": "P",
             "C": "C", "P": "P", "N": "N", "O": "O",
         }
         status_val = FATHER_STATUS_MAP.get(father_us_status, "O")
@@ -4428,11 +4450,14 @@ def fill_parents_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Baba US statüsü: {e}")
 
-    # ── ANNE ─────────────────────────────────────────────────
-    mother_surname  = clean_name(data.get("MOTHER_SURNAME", ""))
-    mother_given    = clean_name(data.get("MOTHER_GIVEN_NAME", ""))
-    mother_dob_na   = str(data.get("MOTHER_DOB_NA", "NO")).strip().upper()
-    mother_in_us    = str(data.get("MOTHER_IN_US", "NO")).strip().upper()
+    # ── ANNE ──────────────────────────────────────────────────
+    mother_surname = clean_name(data.get("MOTHER_SURNAME", ""))
+    mother_given   = clean_name(data.get("MOTHER_GIVEN_NAME", ""))
+    mother_dob_na  = str(data.get("MOTHER_DOB_NA", "NO")).strip().upper()
+    mother_in_us   = str(data.get("MOTHER_IN_US", "NO")).strip().upper()
+
+    if mother_in_us not in ("YES", "NO"):
+        mother_in_us = "NO"
 
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherSurname", mother_surname)
     js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherGivenName", mother_given)
@@ -4451,20 +4476,21 @@ def fill_parents_info(wait, driver, data):
         except Exception as e:
             print(f"⚠️ Anne DOB NA: {e}")
     else:
-        mother_dob = fix_parent_dob(data.get("MOTHER_DOB", ""), birth_year)
-        fill_date_dd_mmm_yyyy(
-            wait, driver,
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
-            "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
-            "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
-            mother_dob
-        )
-        print(f"✅ Anne DOB: {mother_dob}")
+        raw_mother_dob = (data.get("MOTHER_DOB") or "").strip()
+        mother_dob = fix_parent_dob(raw_mother_dob, birth_year)
+        try:
+            fill_date_dd_mmm_yyyy(
+                wait, driver,
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
+                mother_dob
+            )
+            print(f"✅ Anne DOB: {mother_dob}")
+        except Exception as e:
+            print(f"⚠️ Anne DOB doldurulamadı: {e}")
 
     # Anne US'te mi?
-    if mother_in_us not in ("YES", "NO"):
-        mother_in_us = "NO"
-
     mother_in_us_radio = (
         "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_0"
         if mother_in_us == "YES"
@@ -4478,12 +4504,13 @@ def fill_parents_info(wait, driver, data):
         print(f"⚠️ Anne US radio: {e}")
 
     if mother_in_us == "YES":
-        mother_us_status = data.get("MOTHER_US_STATUS", "O").strip().upper()
+        mother_us_status = str(data.get("MOTHER_US_STATUS", "O")).strip().upper()
         MOTHER_STATUS_MAP = {
-            "U.S. CITIZEN": "C",
+            "U.S. CITIZEN":                        "C",
             "U.S. LEGAL PERMANENT RESIDENT (LPR)": "P",
-            "NONIMMIGRANT": "N",
-            "OTHER/I DON'T KNOW": "O",
+            "NONIMMIGRANT":                         "N",
+            "OTHER/I DON'T KNOW":                   "O",
+            "CITIZEN": "C", "LPR": "P",
             "C": "C", "P": "P", "N": "N", "O": "O",
         }
         status_val = MOTHER_STATUS_MAP.get(mother_us_status, "O")
@@ -4497,7 +4524,6 @@ def fill_parents_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Parents bilgileri tamamlandı")
-
 def fill_us_immediate_relatives(wait, driver, data):
     print("👪 Immediate Relatives başladı")
 
