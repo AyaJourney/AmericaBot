@@ -4305,9 +4305,9 @@ def fill_parents_info(wait, driver, data):
 
     # Sayfa tam yüklensin
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-    time.sleep(1.5)
+    time.sleep(2)
 
-    # Father surname elementi görünene kadar bekle
+    # Father surname elementi gelene kadar bekle
     try:
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((
@@ -4357,17 +4357,61 @@ def fill_parents_info(wait, driver, data):
     def js_fill(element_id, value):
         if not value:
             return
-        try:
-            el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-            driver.execute_script("""
-                arguments[0].removeAttribute('disabled');
-                arguments[0].removeAttribute('readonly');
-                arguments[0].value = '';
-            """, el)
-            el.send_keys(str(value))
-        except Exception as e:
-            print(f"⚠️ js_fill {element_id.split('_')[-1]}: {e}")
+        for attempt in range(3):
+            try:
+                el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+
+                # Unlock + temizle
+                driver.execute_script("""
+                    arguments[0].removeAttribute('disabled');
+                    arguments[0].removeAttribute('readonly');
+                    arguments[0].value = '';
+                    arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                """, el)
+                time.sleep(0.2)
+
+                el.click()
+                el.clear()
+                time.sleep(0.1)
+                el.send_keys(str(value))
+                time.sleep(0.2)
+
+                # Doğrula
+                written = (el.get_attribute("value") or "").strip()
+                if written:
+                    print(f"✍️ {element_id.split('_')[-1]} = {value}")
+                    return
+                else:
+                    # JS fallback
+                    driver.execute_script("""
+                        arguments[0].value = arguments[1];
+                        arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
+                        arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
+                    """, el, str(value))
+                    print(f"✍️ {element_id.split('_')[-1]} = {value} (JS)")
+                    return
+
+            except StaleElementReferenceException:
+                print(f"⚠️ js_fill stale retry {attempt+1}: {element_id.split('_')[-1]}")
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ js_fill {element_id.split('_')[-1]}: {e}")
+                return
+
+    def safe_click_radio(radio_id):
+        for attempt in range(3):
+            try:
+                el = wait.until(EC.element_to_be_clickable((By.ID, radio_id)))
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+                if not el.is_selected():
+                    driver.execute_script("arguments[0].click();", el)
+                return
+            except StaleElementReferenceException:
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"⚠️ radio {radio_id.split('_')[-1]}: {e}")
+                return
 
     INVALID = {"", "X", "XX", "XXX", "XXXX", "XXXXXXXXXX",
                "NA", "N/A", "NONE", "YOK", "0", "NULL", "UNKNOWN"}
@@ -4407,6 +4451,23 @@ def fill_parents_info(wait, driver, data):
         raw_father_dob = (data.get("FATHER_DOB") or "").strip()
         father_dob = fix_parent_dob(raw_father_dob, birth_year)
         try:
+            # Önce mevcut değeri temizle
+            for field_id in [
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
+            ]:
+                try:
+                    el = driver.find_element(By.ID, field_id)
+                    tag = el.tag_name.lower()
+                    if tag == "select":
+                        Select(el).select_by_index(0)
+                    else:
+                        driver.execute_script("arguments[0].value = '';", el)
+                except Exception:
+                    pass
+            time.sleep(0.3)
+
             fill_date_dd_mmm_yyyy(
                 wait, driver,
                 "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
@@ -4419,17 +4480,13 @@ def fill_parents_info(wait, driver, data):
             print(f"⚠️ Baba DOB doldurulamadı: {e}")
 
     # Baba US'te mi?
-    father_in_us_radio = (
+    safe_click_radio(
         "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_0"
         if father_in_us == "YES"
         else "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_1"
     )
-    try:
-        wait.until(EC.element_to_be_clickable((By.ID, father_in_us_radio))).click()
-        time.sleep(1)
-        print(f"✅ Baba US'te: {father_in_us}")
-    except Exception as e:
-        print(f"⚠️ Baba US radio: {e}")
+    time.sleep(1)
+    print(f"✅ Baba US'te: {father_in_us}")
 
     if father_in_us == "YES":
         father_us_status = str(data.get("FATHER_US_STATUS", "O")).strip().upper()
@@ -4479,6 +4536,23 @@ def fill_parents_info(wait, driver, data):
         raw_mother_dob = (data.get("MOTHER_DOB") or "").strip()
         mother_dob = fix_parent_dob(raw_mother_dob, birth_year)
         try:
+            # Önce mevcut değeri temizle
+            for field_id in [
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
+            ]:
+                try:
+                    el = driver.find_element(By.ID, field_id)
+                    tag = el.tag_name.lower()
+                    if tag == "select":
+                        Select(el).select_by_index(0)
+                    else:
+                        driver.execute_script("arguments[0].value = '';", el)
+                except Exception:
+                    pass
+            time.sleep(0.3)
+
             fill_date_dd_mmm_yyyy(
                 wait, driver,
                 "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
@@ -4491,17 +4565,13 @@ def fill_parents_info(wait, driver, data):
             print(f"⚠️ Anne DOB doldurulamadı: {e}")
 
     # Anne US'te mi?
-    mother_in_us_radio = (
+    safe_click_radio(
         "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_0"
         if mother_in_us == "YES"
         else "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_1"
     )
-    try:
-        wait.until(EC.element_to_be_clickable((By.ID, mother_in_us_radio))).click()
-        time.sleep(1)
-        print(f"✅ Anne US'te: {mother_in_us}")
-    except Exception as e:
-        print(f"⚠️ Anne US radio: {e}")
+    time.sleep(1)
+    print(f"✅ Anne US'te: {mother_in_us}")
 
     if mother_in_us == "YES":
         mother_us_status = str(data.get("MOTHER_US_STATUS", "O")).strip().upper()
@@ -4524,6 +4594,7 @@ def fill_parents_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Parents bilgileri tamamlandı")
+
 def fill_us_immediate_relatives(wait, driver, data):
     print("👪 Immediate Relatives başladı")
 
