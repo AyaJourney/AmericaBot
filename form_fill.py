@@ -4299,47 +4299,7 @@ def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     except Exception as e:
         print(f"❌ Tarih girilirken hata ({day_id}): {str(e)}")
 
-def fix_parent_dob(parent_dob: str, applicant_birth_year: str) -> str:
-    """
-    Ebeveyn doğum tarihi başvurandan sonraysa veya geçersizse
-    başvuranın doğum yılından 25 yıl öncesine ayarla.
-    Format: DD-MMM-YYYY
-    """
-    MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
-              "JUL","AUG","SEP","OCT","NOV","DEC"]
-    try:
-        app_year = int(applicant_birth_year)
-    except Exception:
-        app_year = 1990
 
-    fallback_year = app_year - 25
-    fallback = f"01-JAN-{fallback_year}"
-
-    if not parent_dob or "-" not in parent_dob:
-        print(f"⚠️ Ebeveyn DOB boş → {fallback}")
-        return fallback
-
-    try:
-        parts = parent_dob.strip().split("-")
-        day   = int(parts[0])
-        month = MONTHS.index(parts[1].upper()) + 1
-        year  = int(parts[2])
-
-        # Ebeveyn başvurandan sonra doğmuşsa → 25 yıl önce
-        if year >= app_year:
-            print(f"⚠️ Ebeveyn DOB ({parent_dob}) başvurandan sonra → {fallback}")
-            return fallback
-
-        # Ebeveyn başvurandan 100 yıldan fazla önce doğmuşsa → 25 yıl önce
-        if app_year - year > 100:
-            print(f"⚠️ Ebeveyn DOB ({parent_dob}) çok eski → {fallback}")
-            return fallback
-
-        return parent_dob
-
-    except Exception as e:
-        print(f"⚠️ Ebeveyn DOB parse hatası ({parent_dob}): {e} → {fallback}")
-        return fallback
 def fill_parents_info(wait, driver, data):
     print("👨‍👩‍👦 Parents bilgileri dolduruluyor...")
 
