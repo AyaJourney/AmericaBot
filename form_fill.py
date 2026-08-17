@@ -4299,196 +4299,245 @@ def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
     except Exception as e:
         print(f"❌ Tarih girilirken hata ({day_id}): {str(e)}")
 
+def fix_parent_dob(parent_dob: str, applicant_birth_year: str) -> str:
+    """
+    Ebeveyn doğum tarihi başvurandan sonraysa veya geçersizse
+    başvuranın doğum yılından 25 yıl öncesine ayarla.
+    Format: DD-MMM-YYYY
+    """
+    MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
+              "JUL","AUG","SEP","OCT","NOV","DEC"]
+    try:
+        app_year = int(applicant_birth_year)
+    except Exception:
+        app_year = 1990
 
+    fallback_year = app_year - 25
+    fallback = f"01-JAN-{fallback_year}"
+
+    if not parent_dob or "-" not in parent_dob:
+        print(f"⚠️ Ebeveyn DOB boş → {fallback}")
+        return fallback
+
+    try:
+        parts = parent_dob.strip().split("-")
+        day   = int(parts[0])
+        month = MONTHS.index(parts[1].upper()) + 1
+        year  = int(parts[2])
+
+        # Ebeveyn başvurandan sonra doğmuşsa → 25 yıl önce
+        if year >= app_year:
+            print(f"⚠️ Ebeveyn DOB ({parent_dob}) başvurandan sonra → {fallback}")
+            return fallback
+
+        # Ebeveyn başvurandan 100 yıldan fazla önce doğmuşsa → 25 yıl önce
+        if app_year - year > 100:
+            print(f"⚠️ Ebeveyn DOB ({parent_dob}) çok eski → {fallback}")
+            return fallback
+
+        return parent_dob
+
+    except Exception as e:
+        print(f"⚠️ Ebeveyn DOB parse hatası ({parent_dob}): {e} → {fallback}")
+        return fallback
 def fill_parents_info(wait, driver, data):
-    print("👨‍👩‍👧‍👦 Parents info başladı...")
-    from datetime import datetime
+    print("👨‍👩‍👦 Parents bilgileri dolduruluyor...")
 
-    MON_STR = ["JAN","FEB","MAR","APR","MAY","JUN",
-               "JUL","AUG","SEP","OCT","NOV","DEC"]
-
-    def parse_flex_date(day, mon, year):
-        """day/month/year parçalarından datetime üretir. Ay isim veya sayı olabilir."""
+    def fix_parent_dob(parent_dob: str, applicant_birth_year: str) -> str:
+        MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN",
+                  "JUL","AUG","SEP","OCT","NOV","DEC"]
         try:
-            mon = str(mon).strip().upper()
-            if mon.isdigit():
-                mon_num = int(mon)
-            else:
-                mon_num = MON_STR.index(mon[:3]) + 1
-            return datetime(int(year), mon_num, int(day))
+            app_year = int(applicant_birth_year)
         except Exception:
-            return None
+            app_year = 1990
 
-    def parse_flex_date_str(val):
-        """Tek string tarih ('15-JAN-1980' gibi) parse eder."""
-        if not val:
-            return None
-        val = str(val).strip().upper()
-        fmts = ["%d-%b-%Y", "%d-%B-%Y", "%d/%m/%Y", "%d.%m.%Y",
-                "%d %b %Y", "%d %B %Y", "%Y-%m-%d", "%m/%d/%Y"]
-        for fmt in fmts:
-            try:
-                return datetime.strptime(val, fmt)
-            except Exception:
-                continue
-        return None
+        fallback_year = app_year - 25
+        fallback = f"01-JAN-{fallback_year}"
 
-    def subtract_years(date_obj, years):
-        """Yıl bazında doğru çıkarma (29 Şubat gibi durumları güvenli yönetir)."""
-        year = date_obj.year - years
-        month = date_obj.month
-        day = date_obj.day
-        if month == 2 and day == 29 and not (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)):
-            day = 28
-        return date_obj.replace(year=year, month=month, day=day)
+        if not parent_dob or "-" not in parent_dob:
+            print(f"⚠️ Ebeveyn DOB boş → {fallback}")
+            return fallback
 
-    def format_date_ddmmmyyyy(date_obj):
-        return f"{date_obj.day}-{MON_STR[date_obj.month - 1]}-{date_obj.year}"
+        try:
+            parts = parent_dob.strip().split("-")
+            day   = int(parts[0])
+            month = MONTHS.index(parts[1].upper()) + 1
+            year  = int(parts[2])
 
-    def split_name_parts(raw_name):
-        """
-        1 kelime  → tamamı ADA (given name)
-        2 kelime  → 1. kelime ADA, 2. kelime SOYADA
-        3+ kelime → son kelime SOYADA, geri kalanı ADA
-        """
-        words = [w for w in raw_name.strip().split() if w]
-        if len(words) == 0:
-            return "", ""
-        elif len(words) == 1:
-            return words[0], ""
-        else:
-            given = " ".join(words[:-1])
-            surname = words[-1]
-            return given, surname
+            if year >= app_year:
+                print(f"⚠️ Ebeveyn DOB ({parent_dob}) başvurandan sonra → {fallback}")
+                return fallback
 
-    # ---- Kişinin (applicant) doğum tarihi — parent DOB kontrolü için referans ----
-    applicant_dob = parse_flex_date(
-        data.get("DOB_DAY", ""),
-        data.get("DOB_MONTH", ""),
-        data.get("DOB_YEAR", "")
-    )
+            if app_year - year > 100:
+                print(f"⚠️ Ebeveyn DOB ({parent_dob}) çok eski → {fallback}")
+                return fallback
 
-    def fill_parent(parent_type):
-        if parent_type == "FATHER":
-            surname_id   = "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME"
-            cb_surname_id = "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_SURNAME_UNK_IND"
-            given_id     = "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME"
-            cb_given_id  = "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_GIVEN_NAME_UNK_IND"
-            dob_day_id   = "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBDay"
-            dob_month_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBMonth"
-            dob_year_id  = "ctl00_SiteContentPlaceHolder_FormView1_tbxFathersDOBYear"
-            cb_dob_id    = "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_DOB_UNK_IND"
-            radio_yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblFATHER_LIVE_IN_US_IND_0"
-            radio_no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblFATHER_LIVE_IN_US_IND_1"
-        else:
-            surname_id   = "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME"
-            cb_surname_id = "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_SURNAME_UNK_IND"
-            given_id     = "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_GIVEN_NAME"
-            cb_given_id  = "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_GIVEN_NAME_UNK_IND"
-            dob_day_id   = "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBDay"
-            dob_month_id = "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBMonth"
-            dob_year_id  = "ctl00_SiteContentPlaceHolder_FormView1_tbxMothersDOBYear"
-            cb_dob_id    = "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_DOB_UNK_IND"
-            radio_yes_id = "ctl00_SiteContentPlaceHolder_FormView1_rblMOTHER_LIVE_IN_US_IND_0"
-            radio_no_id  = "ctl00_SiteContentPlaceHolder_FormView1_rblMOTHER_LIVE_IN_US_IND_1"
+            return parent_dob
 
-        def js_fill(element_id, value):
-            el = wait.until(EC.element_to_be_clickable((By.ID, element_id)))
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
+        except Exception as e:
+            print(f"⚠️ Ebeveyn DOB parse hatası ({parent_dob}): {e} → {fallback}")
+            return fallback
+
+    def js_fill(element_id, value):
+        if not value:
+            return
+        try:
+            el = wait.until(EC.visibility_of_element_located((By.ID, element_id)))
             driver.execute_script("""
                 arguments[0].removeAttribute('disabled');
                 arguments[0].removeAttribute('readonly');
                 arguments[0].value = '';
             """, el)
-            el.send_keys(value)
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ js_fill {element_id.split('_')[-1]}: {e}")
 
-        # ---- İSİM BÖLME: mevcut SURNAME/GIVEN alanlarını birleştirip kelime sayısına göre yeniden böl ----
-        raw_surname = data.get(f"{parent_type}_SURNAME", "").strip()
-        raw_given   = data.get(f"{parent_type}_GIVEN", "").strip()
+    INVALID = {"", "X", "XX", "XXX", "XXXX", "XXXXXXXXXX",
+               "NA", "N/A", "NONE", "YOK", "0", "NULL", "UNKNOWN"}
 
-        # Her iki alanda da veri varsa birleştir (given + surname sırasıyla), tek alanda varsa onu kullan
-        combined_parts = [p for p in [raw_given, raw_surname] if p and p.upper() not in ("NA", "UNKNOWN")]
-        combined_name = " ".join(combined_parts).strip()
+    def clean_name(val, fallback="UNKNOWN"):
+        val = (val or "").strip().upper()
+        return val if val and val not in INVALID else fallback
 
-        if combined_name:
-            given_val, surname_val = split_name_parts(combined_name)
-            given_val = given_val.upper()
-            surname_val = surname_val.upper()
-        else:
-            given_val, surname_val = "", ""
+    birth_year = data.get("BIRTH_YEAR", "1990")
 
-        # SURNAME
-        cb = wait.until(EC.presence_of_element_located((By.ID, cb_surname_id)))
-        if not surname_val:
+    # ── BABA ─────────────────────────────────────────────────
+    father_surname  = clean_name(data.get("FATHER_SURNAME", ""))
+    father_given    = clean_name(data.get("FATHER_GIVEN_NAME", ""))
+    father_dob_na   = str(data.get("FATHER_DOB_NA", "NO")).strip().upper()
+    father_in_us    = str(data.get("FATHER_IN_US", "NO")).strip().upper()
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherSurname", father_surname)
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherGivenName", father_given)
+    print(f"✅ Baba: {father_surname} {father_given}")
+
+    # Baba DOB
+    if father_dob_na == "YES":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_DOB_NA")
+            ))
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
-            print(f"ℹ️ {parent_type} Surname: bilinmiyor/tek kelime → Unknown işaretlendi")
-        else:
-            if cb.is_selected():
-                driver.execute_script("arguments[0].click();", cb)
-            time.sleep(0.3)
-            js_fill(surname_id, surname_val)
+                time.sleep(0.5)
+            print("ℹ️ Baba DOB: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Baba DOB NA: {e}")
+    else:
+        father_dob = fix_parent_dob(data.get("FATHER_DOB", ""), birth_year)
+        fill_date_dd_mmm_yyyy(
+            wait, driver,
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
+            father_dob
+        )
+        print(f"✅ Baba DOB: {father_dob}")
 
-        # GIVEN NAME
-        cb = wait.until(EC.presence_of_element_located((By.ID, cb_given_id)))
-        if not given_val:
+    # Baba US'te mi?
+    if father_in_us not in ("YES", "NO"):
+        father_in_us = "NO"
+
+    father_in_us_radio = (
+        "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_0"
+        if father_in_us == "YES"
+        else "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_1"
+    )
+    try:
+        wait.until(EC.element_to_be_clickable((By.ID, father_in_us_radio))).click()
+        time.sleep(1)
+        print(f"✅ Baba US'te: {father_in_us}")
+    except Exception as e:
+        print(f"⚠️ Baba US radio: {e}")
+
+    if father_in_us == "YES":
+        father_us_status = data.get("FATHER_US_STATUS", "O").strip().upper()
+        FATHER_STATUS_MAP = {
+            "U.S. CITIZEN": "C",
+            "U.S. LEGAL PERMANENT RESIDENT (LPR)": "P",
+            "NONIMMIGRANT": "N",
+            "OTHER/I DON'T KNOW": "O",
+            "C": "C", "P": "P", "N": "N", "O": "O",
+        }
+        status_val = FATHER_STATUS_MAP.get(father_us_status, "O")
+        try:
+            Select(wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlFATHER_US_STATUS")
+            ))).select_by_value(status_val)
+            print(f"✅ Baba US statüsü: {status_val}")
+        except Exception as e:
+            print(f"⚠️ Baba US statüsü: {e}")
+
+    # ── ANNE ─────────────────────────────────────────────────
+    mother_surname  = clean_name(data.get("MOTHER_SURNAME", ""))
+    mother_given    = clean_name(data.get("MOTHER_GIVEN_NAME", ""))
+    mother_dob_na   = str(data.get("MOTHER_DOB_NA", "NO")).strip().upper()
+    mother_in_us    = str(data.get("MOTHER_IN_US", "NO")).strip().upper()
+
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherSurname", mother_surname)
+    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherGivenName", mother_given)
+    print(f"✅ Anne: {mother_surname} {mother_given}")
+
+    # Anne DOB
+    if mother_dob_na == "YES":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_DOB_NA")
+            ))
             if not cb.is_selected():
                 driver.execute_script("arguments[0].click();", cb)
-        else:
-            if cb.is_selected():
-                driver.execute_script("arguments[0].click();", cb)
-            time.sleep(0.3)
-            js_fill(given_id, given_val)
+                time.sleep(0.5)
+            print("ℹ️ Anne DOB: Does Not Apply")
+        except Exception as e:
+            print(f"⚠️ Anne DOB NA: {e}")
+    else:
+        mother_dob = fix_parent_dob(data.get("MOTHER_DOB", ""), birth_year)
+        fill_date_dd_mmm_yyyy(
+            wait, driver,
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
+            "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
+            "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
+            mother_dob
+        )
+        print(f"✅ Anne DOB: {mother_dob}")
 
-        print(f"✅ {parent_type} isim bölündü → Given: '{given_val}' | Surname: '{surname_val}' (kaynak: '{combined_name}')")
+    # Anne US'te mi?
+    if mother_in_us not in ("YES", "NO"):
+        mother_in_us = "NO"
 
-        # ---- DOB — kişiden sonra doğmuşsa (veya parse edilemiyorsa geçersizse) → kişinin DOB'undan 20 yıl önce ----
-        dob_val = data.get(f"{parent_type}_DOB", "").strip()
-        dob_na  = data.get(f"{parent_type}_DOB_NA", "NO").upper()
-        cb = wait.until(EC.presence_of_element_located((By.ID, cb_dob_id)))
+    mother_in_us_radio = (
+        "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_0"
+        if mother_in_us == "YES"
+        else "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_1"
+    )
+    try:
+        wait.until(EC.element_to_be_clickable((By.ID, mother_in_us_radio))).click()
+        time.sleep(1)
+        print(f"✅ Anne US'te: {mother_in_us}")
+    except Exception as e:
+        print(f"⚠️ Anne US radio: {e}")
 
-        if dob_na == "YES" or not dob_val:
-            if not cb.is_selected():
-                driver.execute_script("arguments[0].click();", cb)
-        else:
-            parent_dob_date = parse_flex_date_str(dob_val)
+    if mother_in_us == "YES":
+        mother_us_status = data.get("MOTHER_US_STATUS", "O").strip().upper()
+        MOTHER_STATUS_MAP = {
+            "U.S. CITIZEN": "C",
+            "U.S. LEGAL PERMANENT RESIDENT (LPR)": "P",
+            "NONIMMIGRANT": "N",
+            "OTHER/I DON'T KNOW": "O",
+            "C": "C", "P": "P", "N": "N", "O": "O",
+        }
+        status_val = MOTHER_STATUS_MAP.get(mother_us_status, "O")
+        try:
+            Select(wait.until(EC.element_to_be_clickable(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_ddlMOTHER_US_STATUS")
+            ))).select_by_value(status_val)
+            print(f"✅ Anne US statüsü: {status_val}")
+        except Exception as e:
+            print(f"⚠️ Anne US statüsü: {e}")
 
-            # Kişiden sonra (veya aynı gün) doğmuşsa mantıksız → düzelt
-            if applicant_dob is not None and (parent_dob_date is None or parent_dob_date.date() >= applicant_dob.date()):
-                corrected = subtract_years(applicant_dob, 20)
-                dob_val = format_date_ddmmmyyyy(corrected)
-                print(f"⚠️ {parent_type} doğum tarihi kişiden sonra/geçersiz → kişinin DOB'undan 20 yıl önce: {dob_val}")
+    click_outside(driver)
+    print("✅ Parents bilgileri tamamlandı")
 
-            if cb.is_selected():
-                driver.execute_script("arguments[0].click();", cb)
-            time.sleep(0.3)
-            fill_dd_mmm_yyyy(wait, driver, dob_day_id, dob_month_id, dob_year_id, dob_val)
-            print(f"📅 {parent_type} tarihi girildi: {dob_val}")
-
-        # IN US
-        in_us_val = data.get(f"{parent_type}_IN_US", "NO").upper()
-        radio_id  = radio_yes_id if in_us_val == "YES" else radio_no_id
-        radio_el  = wait.until(EC.element_to_be_clickable((By.ID, radio_id)))
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", radio_el)
-        driver.execute_script("arguments[0].click();", radio_el)
-        print(f"✅ {parent_type} tamamlandı")
-
-    fill_parent("FATHER")
-    time.sleep(0.5)
-
-    wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME")
-    ))
-    time.sleep(0.3)
-
-    fill_parent("MOTHER")
-
-    wait.until(EC.element_to_be_clickable(
-        (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_rblUS_IMMED_RELATIVE_IND_1")
-    ))
-    time.sleep(0.5)
-
-    print("🟢 Parents info TAMAMLANDI")
 def fill_us_immediate_relatives(wait, driver, data):
     print("👪 Immediate Relatives başladı")
 
