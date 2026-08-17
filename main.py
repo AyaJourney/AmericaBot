@@ -532,8 +532,10 @@ def run_ds160_until_captcha(job: dict):
             time.sleep(2)
             wait_document_ready(driver, 30)
 
-            # Captcha hatası var mı?
+            # ── Captcha hatası var mı? ─────────────────────────
             captcha_error = False
+
+            # 1. ValidationSummary kontrolü
             try:
                 err_el = driver.find_element(
                     By.ID,
@@ -541,16 +543,39 @@ def run_ds160_until_captcha(job: dict):
                 )
                 if err_el.is_displayed() and err_el.text.strip():
                     captcha_error = True
-                    print(f"[BOT-{BOT_ID}] Captcha hatali: {err_el.text.strip()}")
+                    print(f"[BOT-{BOT_ID}] Captcha hatali (ValidationSummary): {err_el.text.strip()[:100]}")
             except Exception:
                 pass
+
+            # 2. Kırmızı span kontrolü
+            if not captcha_error:
+                try:
+                    err_spans = driver.find_elements(By.CSS_SELECTOR, "span[style*='color:Red']")
+                    for span in err_spans:
+                        if span.is_displayed() and span.text.strip():
+                            captcha_error = True
+                            print(f"[BOT-{BOT_ID}] Captcha hatali (span): {span.text.strip()[:100]}")
+                            break
+                except Exception:
+                    pass
+
+            # 3. Captcha image hâlâ görünüyorsa geçememişiz
+            if not captcha_error:
+                try:
+                    captcha_img = driver.find_element(By.CSS_SELECTOR, "img.LBD_CaptchaImage")
+                    if captcha_img.is_displayed():
+                        captcha_error = True
+                        print(f"[BOT-{BOT_ID}] Captcha image hâlâ görünür — hatalı girildi")
+                except Exception:
+                    pass
 
             if not captcha_error:
                 print(f"[BOT-{BOT_ID}] Captcha gecti (deneme {captcha_attempts})")
                 break
 
-            # Yeni captcha al — önce Claude dene
+            # ── Yeni captcha al — önce Claude dene ────────────
             print(f"[BOT-{BOT_ID}] Yeni captcha aliniyor...")
+            time.sleep(1)
             new_b64 = refresh_captcha_and_get_base64(driver)
 
             if new_b64:
@@ -572,8 +597,6 @@ def run_ds160_until_captcha(job: dict):
                             captcha_value = str(answer).strip()
                             print(f"[BOT-{BOT_ID}] Yeni captcha cevabi alindi: '{captcha_value}'")
                             break
-
-        update_job_status(job_id, "captcha_verified")
 
         # ── 5. RETRIEVE AKIŞI ─────────────────────────────────
         if IS_RETRIEVE:
@@ -826,6 +849,8 @@ def run_ds160_until_captcha(job: dict):
             driver.quit()
         except Exception:
             pass
+
+
 # =====================================================
 # HELPERS
 # =====================================================
