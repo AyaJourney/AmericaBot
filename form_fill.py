@@ -4346,16 +4346,14 @@ def fill_dd_mmm_yyyy(wait, driver, day_id, month_id, year_id, date_str):
 def fill_parents_info(wait, driver, data):
     print("👨‍👩‍👦 Parents bilgileri dolduruluyor...")
 
-    # Sayfa tam yüklensin
     wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-    time.sleep(2)
+    time.sleep(1.5)
 
-    # Father surname elementi gelene kadar bekle
     try:
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((
                 By.ID,
-                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherSurname"
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME"
             ))
         )
         print("✅ Family sayfası yüklendi")
@@ -4404,8 +4402,6 @@ def fill_parents_info(wait, driver, data):
             try:
                 el = wait.until(EC.presence_of_element_located((By.ID, element_id)))
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-
-                # Unlock + temizle
                 driver.execute_script("""
                     arguments[0].removeAttribute('disabled');
                     arguments[0].removeAttribute('readonly');
@@ -4413,20 +4409,15 @@ def fill_parents_info(wait, driver, data):
                     arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
                 """, el)
                 time.sleep(0.2)
-
                 el.click()
                 el.clear()
-                time.sleep(0.1)
                 el.send_keys(str(value))
                 time.sleep(0.2)
-
-                # Doğrula
                 written = (el.get_attribute("value") or "").strip()
                 if written:
                     print(f"✍️ {element_id.split('_')[-1]} = {value}")
                     return
                 else:
-                    # JS fallback
                     driver.execute_script("""
                         arguments[0].value = arguments[1];
                         arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
@@ -4434,7 +4425,6 @@ def fill_parents_info(wait, driver, data):
                     """, el, str(value))
                     print(f"✍️ {element_id.split('_')[-1]} = {value} (JS)")
                     return
-
             except StaleElementReferenceException:
                 print(f"⚠️ js_fill stale retry {attempt+1}: {element_id.split('_')[-1]}")
                 time.sleep(0.5)
@@ -4474,8 +4464,38 @@ def fill_parents_info(wait, driver, data):
     if father_in_us not in ("YES", "NO"):
         father_in_us = "NO"
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherSurname", father_surname)
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFatherGivenName", father_given)
+    # Baba soyad — "Do Not Know" checkbox kontrolü
+    if father_surname == "UNKNOWN":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_SURNAME_UNK_IND")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+            print("ℹ️ Baba soyad: Do Not Know")
+        except Exception as e:
+            print(f"⚠️ Baba soyad NA: {e}")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME", father_surname)
+    else:
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_SURNAME", father_surname)
+
+    # Baba isim — "Do Not Know" checkbox kontrolü
+    if father_given == "UNKNOWN":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxFATHER_GIVEN_NAME_UNK_IND")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+            print("ℹ️ Baba isim: Do Not Know")
+        except Exception as e:
+            print(f"⚠️ Baba isim NA: {e}")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME", father_given)
+    else:
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxFATHER_GIVEN_NAME", father_given)
+
     print(f"✅ Baba: {father_surname} {father_given}")
 
     # Baba DOB
@@ -4494,16 +4514,14 @@ def fill_parents_info(wait, driver, data):
         raw_father_dob = (data.get("FATHER_DOB") or "").strip()
         father_dob = fix_parent_dob(raw_father_dob, birth_year)
         try:
-            # Önce mevcut değeri temizle
             for field_id in [
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
-                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFathersDOBYear",
             ]:
                 try:
                     el = driver.find_element(By.ID, field_id)
-                    tag = el.tag_name.lower()
-                    if tag == "select":
+                    if el.tag_name.lower() == "select":
                         Select(el).select_by_index(0)
                     else:
                         driver.execute_script("arguments[0].value = '';", el)
@@ -4513,9 +4531,9 @@ def fill_parents_info(wait, driver, data):
 
             fill_date_dd_mmm_yyyy(
                 wait, driver,
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBDay",
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlFatherDOBMonth",
-                "ctl00_SiteContentPlaceHolder_FormView1_tbxFatherDOBYear",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlFathersDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxFathersDOBYear",
                 father_dob
             )
             print(f"✅ Baba DOB: {father_dob}")
@@ -4524,9 +4542,9 @@ def fill_parents_info(wait, driver, data):
 
     # Baba US'te mi?
     safe_click_radio(
-        "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_0"
+        "ctl00_SiteContentPlaceHolder_FormView1_rblFATHER_LIVE_IN_US_IND_0"
         if father_in_us == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblFatherLivInUS_1"
+        else "ctl00_SiteContentPlaceHolder_FormView1_rblFATHER_LIVE_IN_US_IND_1"
     )
     time.sleep(1)
     print(f"✅ Baba US'te: {father_in_us}")
@@ -4559,8 +4577,38 @@ def fill_parents_info(wait, driver, data):
     if mother_in_us not in ("YES", "NO"):
         mother_in_us = "NO"
 
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherSurname", mother_surname)
-    js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMotherGivenName", mother_given)
+    # Anne soyad
+    if mother_surname == "UNKNOWN":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_SURNAME_UNK_IND")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+            print("ℹ️ Anne soyad: Do Not Know")
+        except Exception as e:
+            print(f"⚠️ Anne soyad NA: {e}")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME", mother_surname)
+    else:
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_SURNAME", mother_surname)
+
+    # Anne isim
+    if mother_given == "UNKNOWN":
+        try:
+            cb = wait.until(EC.presence_of_element_located(
+                (By.ID, "ctl00_SiteContentPlaceHolder_FormView1_cbxMOTHER_GIVEN_NAME_UNK_IND")
+            ))
+            if not cb.is_selected():
+                driver.execute_script("arguments[0].click();", cb)
+                time.sleep(1)
+            print("ℹ️ Anne isim: Do Not Know")
+        except Exception as e:
+            print(f"⚠️ Anne isim NA: {e}")
+            js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_GIVEN_NAME", mother_given)
+    else:
+        js_fill("ctl00_SiteContentPlaceHolder_FormView1_tbxMOTHER_GIVEN_NAME", mother_given)
+
     print(f"✅ Anne: {mother_surname} {mother_given}")
 
     # Anne DOB
@@ -4579,16 +4627,14 @@ def fill_parents_info(wait, driver, data):
         raw_mother_dob = (data.get("MOTHER_DOB") or "").strip()
         mother_dob = fix_parent_dob(raw_mother_dob, birth_year)
         try:
-            # Önce mevcut değeri temizle
             for field_id in [
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
-                "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxMothersDOBYear",
             ]:
                 try:
                     el = driver.find_element(By.ID, field_id)
-                    tag = el.tag_name.lower()
-                    if tag == "select":
+                    if el.tag_name.lower() == "select":
                         Select(el).select_by_index(0)
                     else:
                         driver.execute_script("arguments[0].value = '';", el)
@@ -4598,9 +4644,9 @@ def fill_parents_info(wait, driver, data):
 
             fill_date_dd_mmm_yyyy(
                 wait, driver,
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBDay",
-                "ctl00_SiteContentPlaceHolder_FormView1_ddlMotherDOBMonth",
-                "ctl00_SiteContentPlaceHolder_FormView1_tbxMotherDOBYear",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBDay",
+                "ctl00_SiteContentPlaceHolder_FormView1_ddlMothersDOBMonth",
+                "ctl00_SiteContentPlaceHolder_FormView1_tbxMothersDOBYear",
                 mother_dob
             )
             print(f"✅ Anne DOB: {mother_dob}")
@@ -4609,9 +4655,9 @@ def fill_parents_info(wait, driver, data):
 
     # Anne US'te mi?
     safe_click_radio(
-        "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_0"
+        "ctl00_SiteContentPlaceHolder_FormView1_rblMOTHER_LIVE_IN_US_IND_0"
         if mother_in_us == "YES"
-        else "ctl00_SiteContentPlaceHolder_FormView1_rblMotherLivInUS_1"
+        else "ctl00_SiteContentPlaceHolder_FormView1_rblMOTHER_LIVE_IN_US_IND_1"
     )
     time.sleep(1)
     print(f"✅ Anne US'te: {mother_in_us}")
@@ -4637,7 +4683,6 @@ def fill_parents_info(wait, driver, data):
 
     click_outside(driver)
     print("✅ Parents bilgileri tamamlandı")
-
 def fill_us_immediate_relatives(wait, driver, data):
     print("👪 Immediate Relatives başladı")
 
