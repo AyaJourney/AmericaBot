@@ -1,3 +1,4 @@
+from asyncio import wait
 import json
 import time
 from selenium.webdriver.support.ui import WebDriverWait
@@ -231,6 +232,21 @@ def fill_ds160_full_application(driver, wait, data, on_personal1_saved=None, on_
     click_next_travel(wait, driver)
 
     # ─── Travel ───────────────────────────────────────────────
+    wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+    time.sleep(2)
+
+# Purpose dropdown görünene kadar bekle
+    try:
+        WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((
+            By.ID,
+            "ctl00_SiteContentPlaceHolder_FormView1_dlRepeaterTravelInfo_ctl00_ddlTravelPurpose"
+        ))
+    )
+        print("✅ Travel sayfası yüklendi")
+    except Exception as e:
+        print(f"⚠️ Travel dropdown beklenemedi: {e}")
+
     select_purpose_of_trip(wait, driver, data.get("PURPOSE_OF_TRIP"))
     if data.get("PURPOSE_OF_TRIP_SUB"):
         select_purpose_subcategory_if_exists(wait, driver, data["PURPOSE_OF_TRIP_SUB"])
