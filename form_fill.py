@@ -1303,23 +1303,24 @@ def click_save_personal2(wait, driver):
 def click_continue_application(wait, driver):
     print("▶️ Continue Application tıklanıyor...")
 
-    # Birden fazla ID dene
+    # Tüm olası butonları tara
     btn_ids = [
         "ctl00_btnContinueApp",
         "ctl00_SiteContentPlaceHolder_btnContinueApp",
         "ctl00_SiteContentPlaceHolder_ContinueButton",
+        "ctl00_SiteContentPlaceHolder_UpdateButton",
+        "ctl00_SiteContentPlaceHolder_UpdateButton2",
+        "ctl00_SiteContentPlaceHolder_UpdateButton3",
     ]
 
     for btn_id in btn_ids:
         try:
-            continue_btn = WebDriverWait(driver, 5).until(
+            btn = WebDriverWait(driver, 3).until(
                 EC.element_to_be_clickable((By.ID, btn_id))
             )
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", continue_btn
-            )
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
             time.sleep(0.2)
-            continue_btn.click()
+            driver.execute_script("arguments[0].click();", btn)
             print(f"✅ Continue Application tıklandı ({btn_id})")
             time.sleep(0.5)
             wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
@@ -1328,48 +1329,35 @@ def click_continue_application(wait, driver):
             pass
 
     # Link text ile dene
-    try:
-        btn = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.LINK_TEXT, "Continue Application"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-        time.sleep(0.2)
-        driver.execute_script("arguments[0].click();", btn)
-        print("✅ Continue Application (link text) tıklandı")
-        time.sleep(0.5)
-        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-        return
-    except Exception:
-        pass
+    for link_text in ["Continue Application", "Continue"]:
+        try:
+            btn = WebDriverWait(driver, 3).until(
+                EC.element_to_be_clickable((By.LINK_TEXT, link_text))
+            )
+            driver.execute_script("arguments[0].click();", btn)
+            print(f"✅ Continue Application ({link_text}) tıklandı")
+            time.sleep(0.5)
+            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            return
+        except Exception:
+            pass
 
-    # Partial link text ile dene
+    # Sayfadaki tüm butonları tara — "Continue" içereni bul
     try:
-        btn = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Continue"))
-        )
-        driver.execute_script("arguments[0].click();", btn)
-        print("✅ Continue Application (partial link) tıklandı")
-        time.sleep(0.5)
-        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-        return
-    except Exception:
-        pass
-
-    # JS postback ile dene
-    try:
-        driver.execute_script(
-            "if(typeof __doPostBack !== 'undefined') "
-            "__doPostBack('ctl00$btnContinueApp','');"
-        )
-        print("✅ Continue Application (postback) tıklandı")
-        time.sleep(2)
-        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-        return
+        buttons = driver.find_elements(By.TAG_NAME, "input")
+        for btn in buttons:
+            val = (btn.get_attribute("value") or "").lower()
+            typ = (btn.get_attribute("type") or "").lower()
+            if typ == "submit" and "continue" in val:
+                driver.execute_script("arguments[0].click();", btn)
+                print(f"✅ Continue Application (submit scan) tıklandı: {val}")
+                time.sleep(0.5)
+                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                return
     except Exception as e:
-        print(f"⚠️ Continue Application postback: {e}")
+        print(f"⚠️ Buton tarama: {e}")
 
-    print("❌ Continue Application hiçbir yöntemle tıklanamadı")
-
+    print("❌ Continue Application hiçbir yöntemle tıklanamadı — devam ediliyor")
 def click_next_travel(wait, driver):
     # ── Next'e basmadan ONCE: aktif validation hatasi varsa genel duzeltme ──
     try:
