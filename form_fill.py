@@ -1303,61 +1303,61 @@ def click_save_personal2(wait, driver):
 def click_continue_application(wait, driver):
     print("▶️ Continue Application tıklanıyor...")
 
-    # Tüm olası butonları tara
-    btn_ids = [
-        "ctl00_btnContinueApp",
-        "ctl00_SiteContentPlaceHolder_btnContinueApp",
-        "ctl00_SiteContentPlaceHolder_ContinueButton",
-        "ctl00_SiteContentPlaceHolder_UpdateButton",
-        "ctl00_SiteContentPlaceHolder_UpdateButton2",
-        "ctl00_SiteContentPlaceHolder_UpdateButton3",
-    ]
-
-    for btn_id in btn_ids:
-        try:
-            btn = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.ID, btn_id))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
-            time.sleep(0.2)
-            driver.execute_script("arguments[0].click();", btn)
-            print(f"✅ Continue Application tıklandı ({btn_id})")
-            time.sleep(0.5)
-            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-            return
-        except Exception:
-            pass
-
-    # Link text ile dene
-    for link_text in ["Continue Application", "Continue"]:
-        try:
-            btn = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.LINK_TEXT, link_text))
-            )
-            driver.execute_script("arguments[0].click();", btn)
-            print(f"✅ Continue Application ({link_text}) tıklandı")
-            time.sleep(0.5)
-            wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-            return
-        except Exception:
-            pass
-
-    # Sayfadaki tüm butonları tara — "Continue" içereni bul
+    # Önce normal click dene
     try:
-        buttons = driver.find_elements(By.TAG_NAME, "input")
-        for btn in buttons:
-            val = (btn.get_attribute("value") or "").lower()
-            typ = (btn.get_attribute("type") or "").lower()
-            if typ == "submit" and "continue" in val:
-                driver.execute_script("arguments[0].click();", btn)
-                print(f"✅ Continue Application (submit scan) tıklandı: {val}")
-                time.sleep(0.5)
-                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
-                return
+        btn = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.ID, "ctl00_btnContinueApp"))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+        time.sleep(0.3)
+        # JS ile direkt click — ValidNavigation bypass
+        driver.execute_script("arguments[0].click();", btn)
+        print("✅ Continue Application tıklandı")
+        time.sleep(1)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        return
     except Exception as e:
-        print(f"⚠️ Buton tarama: {e}")
+        print(f"⚠️ Continue Application click: {e}")
 
-    print("❌ Continue Application hiçbir yöntemle tıklanamadı — devam ediliyor")
+    # Form submit ile dene
+    try:
+        driver.execute_script("""
+            var btn = document.getElementById('ctl00_btnContinueApp');
+            if (btn) {
+                btn.removeAttribute('onclick');
+                btn.click();
+            }
+        """)
+        print("✅ Continue Application (onclick removed) tıklandı")
+        time.sleep(1)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        return
+    except Exception as e:
+        print(f"⚠️ Continue Application onclick removed: {e}")
+
+    # Form'u direkt submit et
+    try:
+        driver.execute_script("""
+            var form = document.forms[0];
+            if (form) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ctl00$btnContinueApp';
+                input.value = 'Continue Application';
+                form.appendChild(input);
+                form.submit();
+            }
+        """)
+        print("✅ Continue Application (form submit) tıklandı")
+        time.sleep(2)
+        wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+        return
+    except Exception as e:
+        print(f"⚠️ Continue Application form submit: {e}")
+
+    print("❌ Continue Application hiçbir yöntemle tıklanamadı")
+
+
 def click_next_travel(wait, driver):
     # ── Next'e basmadan ONCE: aktif validation hatasi varsa genel duzeltme ──
     try:
