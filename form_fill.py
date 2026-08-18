@@ -1122,29 +1122,44 @@ def click_add_another_permanent_resident(wait, driver):
 
 def fill_permanent_resident_section(wait, driver, data):
     answer = data.get("PERMANENT_RESIDENT_OTHER_COUNTRY", "NO").strip().upper()
+
+    # Ülkeleri topla ve deduplicate et
+    countries = []
+    i = 1
+    while True:
+        key = f"PERMANENT_RESIDENT_{i}_COUNTRY"
+        if key not in data or not data[key]:
+            break
+        country = data[key].strip().upper()
+        if country and country not in countries:  # duplicate kontrolü
+            countries.append(country)
+        elif country in countries:
+            print(f"⚠️ Duplicate ülke atlandı: {country}")
+        i += 1
+
+    # Ülke yoksa NO seç
+    if not countries:
+        answer = "NO"
+
     select_permanent_resident_other_country(wait, driver, answer)
 
     if answer == "NO":
         return
 
-    index = 0
-    i = 1
+    print(f"ℹ️ Unique permanent resident ülkeler: {countries}")
 
-    while True:
-        key = f"PERMANENT_RESIDENT_{i}_COUNTRY"
-        if key not in data:
-            break
+    for index, country in enumerate(countries):
+        fill_permanent_resident_country_by_index(wait, driver, country, index)
 
-        fill_permanent_resident_country_by_index(wait, driver, data[key], index)
-
-        next_key = f"PERMANENT_RESIDENT_{i+1}_COUNTRY"
-        if next_key in data:
-            click_add_another_permanent_resident(wait, driver)
-            index += 1
-
-        i += 1
-
-
+        # Son ülke değilse Add Another tıkla
+        if index < len(countries) - 1:
+            try:
+                click_add_another_permanent_resident(wait, driver)
+                time.sleep(1)
+                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+            except Exception as e:
+                print(f"⚠️ Add Another tıklanamadı: {e}")
+                break
 def fill_national_id(wait, driver, data):
     raw = (data.get("NATIONAL_ID") or "").strip().upper()
 
