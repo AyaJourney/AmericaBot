@@ -10,10 +10,11 @@ import argparse
 import time
 import requests
 import traceback
-from selenium import webdriver
 import undetected_chromedriver as uc
+from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
@@ -25,7 +26,10 @@ from selenium.common.exceptions import (
 from webdriver_manager.chrome import ChromeDriverManager
 from cleaner import clean_all
 from humanize import enable_human_behavior
-enable_human_behavior() 
+
+# İnsansı send_keys/sleep davranışı — driver oluşturulmadan ÖNCE aktif edilmeli
+enable_human_behavior()
+
 # =====================================================
 # ARG PARSE
 # =====================================================
@@ -164,6 +168,35 @@ def wait_document_ready(driver, timeout=60):
     WebDriverWait(driver, timeout).until(
         lambda d: d.execute_script("return document.readyState") == "complete"
     )
+
+
+def solve_turnstile_checkbox(driver, timeout=15):
+    """Cloudflare Turnstile checkbox'ı çıkarsa geçer.
+    Çıkmazsa (artık genelde çıkmıyor, UA/fingerprint düzeltmesi sayesinde)
+    sessizce False döner, botu bozmaz."""
+    try:
+        iframe = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "iframe[src*='challenges.cloudflare.com']")
+            )
+        )
+        driver.switch_to.frame(iframe)
+
+        checkbox = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='checkbox']"))
+        )
+
+        time.sleep(0.4 + 0.3 * (BOT_ID % 3))
+        ActionChains(driver).move_to_element(checkbox).pause(0.2).click().perform()
+
+        driver.switch_to.default_content()
+        print(f"[BOT-{BOT_ID}] Turnstile checkbox tiklandi")
+        return True
+
+    except Exception:
+        driver.switch_to.default_content()
+        print(f"[BOT-{BOT_ID}] Turnstile checkbox cikmadi (normal, gecti)")
+        return False
 
 
 def get_captcha_image_base64(driver) -> str:
@@ -313,19 +346,12 @@ def wait_for_close_command(driver, job_id: str):
 # =====================================================
 # CHROME
 # =====================================================
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
-]
 def solve_captcha_with_claude(captcha_b64: str):
     """Claude Vision ile captcha çöz. Başarısızsa None döner."""
     try:
         import anthropic
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-        
+
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=50,
@@ -349,7 +375,7 @@ def solve_captcha_with_claude(captcha_b64: str):
                 }
             ],
         )
-        
+
         result = message.content[0].text.strip().replace(" ", "")
         print(f"[BOT-{BOT_ID}] Claude captcha çözdü: '{result}'")
         return result if result else None
@@ -360,16 +386,14 @@ def solve_captcha_with_claude(captcha_b64: str):
         else:
             print(f"[BOT-{BOT_ID}] Claude captcha hatası: {e}")
         return None
+
+
 def make_driver():
     options = uc.ChromeOptions()
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--use-gl=swiftshader")
-    options.add_argument("--enable-unsafe-swiftshader")
-    options.add_argument("--enable-webgl")
-    options.add_argument("--enable-webgl2")
-    options.add_argument("--ignore-gpu-blocklist")
 
+    # Profil kilidi temizliği (önceki oturumdan kalan lock varsa)
     chrome_profile = os.path.join(os.path.expanduser("~"), f"chrome-bot-{BOT_ID}")
     for lock in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
         try:
@@ -380,15 +404,22 @@ def make_driver():
     options.add_argument(f"--user-data-dir={chrome_profile}")
     print(f"[BOT-{BOT_ID}] Chrome profil: {chrome_profile}")
 
-    ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
-    # options.add_argument(f"--user-agent={ua}")
+    # NOT: Artık sahte User-Agent gönderilmiyor. Chrome'un kendi gerçek
+    # Linux UA'sını kullanmasına izin veriyoruz — sahte "Windows" UA ile
+    # gerçek "Linux" navigator.platform arasındaki tutarsızlık Cloudflare
+    # Turnstile tarafından yakalanıyordu.
+
+    # ── PROXY KALDIRILDI ──────────────────────────────────────
+    # Proxy extension'ı session'ı çökertiyordu, çıkarıldı.
+    # Gerekirse ileride extension yöntemiyle tekrar eklenebilir.
 
     driver = uc.Chrome(
         options=options,
-        version_main=150,          # sunucudaki Chrome major sürümüyle eşleşsin
+        version_main=150,          # sunucudaki Chrome major sürümüyle eşleşiyor
         use_subprocess=True,
     )
     driver.set_page_load_timeout(SELENIUM_PAGELOAD_TIMEOUT)
+
     return driver
 # =====================================================
 # DS-160 FLOW
@@ -425,6 +456,11 @@ def run_ds160_until_captcha(job: dict):
     try:
         # ── 1. SİTE ───────────────────────────────────────────
         driver.get("https://ceac.state.gov/GenNIV/Default.aspx")
+        wait_document_ready(driver, 90)
+
+        # Turnstile checkbox çıkarsa geç — çıkmazsa zararsızca atlar
+        solve_turnstile_checkbox(driver, timeout=15)
+        time.sleep(2)
         wait_document_ready(driver, 90)
 
         # Ekstra tab'ları kapat
