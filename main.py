@@ -363,6 +363,11 @@ def make_driver():
     options = uc.ChromeOptions()
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--use-gl=swiftshader")
+    options.add_argument("--enable-unsafe-swiftshader")
+    options.add_argument("--enable-webgl")
+    options.add_argument("--enable-webgl2")
+    options.add_argument("--ignore-gpu-blocklist")
 
     chrome_profile = os.path.join(os.path.expanduser("~"), f"chrome-bot-{BOT_ID}")
     for lock in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
