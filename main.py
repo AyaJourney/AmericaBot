@@ -24,7 +24,8 @@ from selenium.common.exceptions import (
 )
 from webdriver_manager.chrome import ChromeDriverManager
 from cleaner import clean_all
-
+from humanize import enable_human_behavior
+enable_human_behavior() 
 # =====================================================
 # ARG PARSE
 # =====================================================

@@ -10,6 +10,7 @@ from selenium.common.exceptions import (
     NoSuchElementException,
 )
 from auto_recovery import fix_active_validators
+
 PAYER_MAP = {
     "SELF": "S",
     "OTHER": "O",
