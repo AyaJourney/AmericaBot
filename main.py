@@ -380,7 +380,7 @@ def make_driver():
     print(f"[BOT-{BOT_ID}] Chrome profil: {chrome_profile}")
 
     ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
-    options.add_argument(f"--user-agent={ua}")
+    # options.add_argument(f"--user-agent={ua}")
 
     driver = uc.Chrome(
         options=options,
