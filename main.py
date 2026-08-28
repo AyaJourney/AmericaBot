@@ -11,6 +11,7 @@ import time
 import requests
 import traceback
 from selenium import webdriver
+import undetected_chromedriver as uc
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
@@ -359,14 +360,10 @@ def solve_captcha_with_claude(captcha_b64: str):
             print(f"[BOT-{BOT_ID}] Claude captcha hatası: {e}")
         return None
 def make_driver():
-    options = webdriver.ChromeOptions()
+    options = uc.ChromeOptions()
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
 
-    # Profil kilidi temizliği (önceki oturumdan kalan lock varsa)
     chrome_profile = os.path.join(os.path.expanduser("~"), f"chrome-bot-{BOT_ID}")
     for lock in ("SingletonLock", "SingletonSocket", "SingletonCookie"):
         try:
@@ -380,20 +377,12 @@ def make_driver():
     ua = USER_AGENTS[(BOT_ID - 1) % len(USER_AGENTS)]
     options.add_argument(f"--user-agent={ua}")
 
-    # ── PROXY KALDIRILDI ──────────────────────────────────────
-    # Proxy extension'ı session'ı çökertiyordu, çıkarıldı.
-    # Gerekirse ileride extension yöntemiyle tekrar eklenebilir.
-
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
+    driver = uc.Chrome(
         options=options,
+        version_main=150,          # sunucudaki Chrome major sürümüyle eşleşsin
+        use_subprocess=True,
     )
     driver.set_page_load_timeout(SELENIUM_PAGELOAD_TIMEOUT)
-
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    })
-
     return driver
 # =====================================================
 # DS-160 FLOW
