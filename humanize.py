@@ -33,7 +33,7 @@ def _human_send_keys(self, *value):
     if len(value) == 1 and isinstance(value[0], str) and len(value[0]) > 0:
         text = value[0]
         # Tek karakterlik özel tuşlar (\ue000 ile başlayan Selenium Keys) hariç
-        if not text.startswith("\ue0"):
+        if not text.startswith("\ue000"):
             for ch in text:
                 _original_send_keys(self, ch)
                 _original_sleep(random.uniform(0.035, 0.12))
